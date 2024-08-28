@@ -21,6 +21,7 @@ def kernel(eom_dsrg):
 
     # This part should be in a separate function
     eigvec = []
+    eigval = []
     for i_vec in range(len(u)):
         vec = apply_S_12(S_12, nop, u[i_vec], transpose=False)
         eigvec.append(vec.flatten())
@@ -50,10 +51,11 @@ def kernel(eom_dsrg):
             first_value = eom_dsrg.sym_vec[large_indices[0]]
             if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
                 symmetry.append(sym_dict[first_value])
+                eigval.append(i_v)
             else:
                 symmetry.append("Spin contamination.")
 
-    return conv, e, eigvec, symmetry
+    return conv, eigval, eigvec, symmetry
 
 
 def setup_davidson(eom_dsrg):
