@@ -60,11 +60,11 @@ class EOM_DSRG:
 
         # Generate symmetry (dictionary and vector) for excitation operators.
         self.sym = sym_dir(self.full_template_c, occ_sym, act_sym, vir_sym)
-        self.sym_vec = dict_to_vec(self.sym, 1)
+        self.sym_vec = dict_to_vec(self.sym, 1).flatten()
 
     def kernel(self):
-        conv, e, u = eom_dsrg_compute.kernel(self)
-        return conv, e, u
+        conv, e, u, symmetry = eom_dsrg_compute.kernel(self)
+        return conv, e, u, symmetry
 
 
 if __name__ == "__main__":
@@ -77,5 +77,8 @@ if __name__ == "__main__":
         Hbar = np.load('niupy/BeH2/save_Hbar.npz')
 
         eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, nroots=3,
-                            verbose=5, method_type='ee', diagonal_type='block')
-        conv, e, u = eom_dsrg.kernel()
+                            verbose=5, max_cycle=100, method_type='ee', diagonal_type='block')
+        conv, e, u, symmetry = eom_dsrg.kernel()
+        print("Convergence: ", conv)
+        print("Excitation Energies: ", e-e[0])
+        print("Symmetry: ", symmetry)

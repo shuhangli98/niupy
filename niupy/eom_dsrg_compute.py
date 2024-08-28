@@ -20,27 +20,33 @@ def kernel(eom_dsrg):
                           max_space=eom_dsrg.max_space, max_cycle=eom_dsrg.max_cycle, tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson)
 
     # This part should be in a separate function
-    eigvec = apply_S_12(S_12, nop, u, transpose=False)
+    eigvec = []
+    print(len(u))
+    for i_vec in range(len(u)):
+        vec = apply_S_12(S_12, nop, u[i_vec], transpose=False)
+        eigvec.append(vec.flatten())
+    eigvec = np.array(eigvec).T
+    print(eigvec.shape)
+
     eigvec_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec)
     eigvec_dict = antisymmetrize(eigvec_dict)
     eigvec = dict_to_vec(eigvec_dict, len(e))
 
-    target_eig = []
-    target_vec = []
-    excitation_energy = []
+    symmetry = []
+    spin = []
 
     sym_dict = {0: 'A1', 1: 'A2', 2: 'B1', 3: 'B2'}  # C2v test, should be changed.
 
     for i_idx, i_v in enumerate(e):
-        idx = np.argmax(np.abs(eigvec[:, i_idx]))
-        if eom_dsrg.sym_vec[idx, 0] == eom_dsrg.target_sym:
-            target_eig.append(i_v)
-            target_vec.append(eigvec[:, i_idx])
 
-    reference_energy = target_eig[0]
-    excitation_energy = target_eig - reference_energy
+        large_indices = np.where(abs(eigvec[0]) > 1e-6)[0]
+        first_value = eom_dsrg.sym_vec[large_indices[0]]
+        if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
+            symmetry.append(sym_dict[first_value])
+        else:
+            symmetry.append("Spin contamination.")
 
-    return conv, target_eig, target_vec, excitation_energy
+    return conv, e, eigvec, symmetry
 
 
 def setup_davidson(eom_dsrg):
