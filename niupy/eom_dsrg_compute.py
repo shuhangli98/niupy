@@ -21,30 +21,37 @@ def kernel(eom_dsrg):
 
     # This part should be in a separate function
     eigvec = []
-    print(len(u))
     for i_vec in range(len(u)):
         vec = apply_S_12(S_12, nop, u[i_vec], transpose=False)
         eigvec.append(vec.flatten())
     eigvec = np.array(eigvec).T
-    print(eigvec.shape)
 
     eigvec_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec)
     eigvec_dict = antisymmetrize(eigvec_dict)
     eigvec = dict_to_vec(eigvec_dict, len(e))
+    eigvec = eigvec.T
 
     symmetry = []
-    spin = []
 
     sym_dict = {0: 'A1', 1: 'A2', 2: 'B1', 3: 'B2'}  # C2v test, should be changed.
 
     for i_idx, i_v in enumerate(e):
 
-        large_indices = np.where(abs(eigvec[0]) > 1e-6)[0]
-        first_value = eom_dsrg.sym_vec[large_indices[0]]
-        if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
-            symmetry.append(sym_dict[first_value])
-        else:
-            symmetry.append("Spin contamination.")
+        current_vec = eigvec[i_idx]
+
+        current_vec_dict = vec_to_dict(eom_dsrg.full_template_c, current_vec.reshape(-1, 1))
+        cv_norm = np.linalg.norm(current_vec_dict['cv'] - current_vec_dict['CV'])
+        ca_norm = np.linalg.norm(current_vec_dict['ca'] - current_vec_dict['CA'])
+        av_norm = np.linalg.norm(current_vec_dict['av'] - current_vec_dict['AV'])
+
+        if cv_norm < 1e-4 and ca_norm < 1e-4 and av_norm < 1e-4:
+
+            large_indices = np.where(abs(current_vec) > 1e-4)[0]
+            first_value = eom_dsrg.sym_vec[large_indices[0]]
+            if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
+                symmetry.append(sym_dict[first_value])
+            else:
+                symmetry.append("Spin contamination.")
 
     return conv, e, eigvec, symmetry
 
