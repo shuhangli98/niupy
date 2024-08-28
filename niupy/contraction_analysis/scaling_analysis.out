@@ -1,0 +1,116 @@
+av
+Max a: 6     sigma['av'] += +0.50000000 * np.einsum('oabr,pte,so,brat->pse',Hbar['aaaa'],c['av'],gamma1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 2     sigma['av'] += +1.00000000 * np.einsum('ef,pae,oa->pof',Hbar['vv'],c['av'],gamma1['aa'],optimize='optimal')
+cv
+Max cv: 4     sigma['cv'] += -1.00000000 * np.einsum('kelf,ple->pkf',Hbar['cvcv'],c['cv'],optimize='optimal')
+aa
+Max a: 8     sigma['aa'] += -0.50000000 * np.einsum('oabr,puv,va,to,brsu->pts',Hbar['aaaa'],c['aa'],eta1['aa'],gamma1['aa'],lambda2['aaaa'],optimize='optimal')
+ca
+Max a: 6     sigma['ca'] += -0.50000000 * np.einsum('oabr,pkt,ta,bros->pks',Hbar['aaaa'],c['ca'],eta1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 2     sigma['ca'] += -1.00000000 * np.einsum('kl,pla,ao->pko',Hbar['cc'],c['ca'],eta1['aa'],optimize='optimal')
+AV
+Max a: 6     sigma['AV'] += +0.25000000 * np.einsum('oabr,pAE,brOoaA->pOE',Hbar['aaaa'],c['AV'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 2     sigma['AV'] += +1.00000000 * np.einsum('oEaF,pAE,aOoA->pOF',Hbar['aVaV'],c['AV'],lambda2['aAaA'],optimize='optimal')
+CV
+Max cv: 4     sigma['CV'] += -1.00000000 * np.einsum('KELF,pLE->pKF',Hbar['CVCV'],c['CV'],optimize='optimal')
+AA
+Max a: 8     sigma['AA'] += +0.25000000 * np.einsum('oabr,pBR,RO,brAoaB->pAO',Hbar['aaaa'],c['AA'],eta1['AA'],lambda3['aaAaaA'],optimize='optimal')
+CA
+Max a: 6     sigma['CA'] += -0.25000000 * np.einsum('oabr,pKA,brAoaO->pKO',Hbar['aaaa'],c['CA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 2     sigma['CA'] += +1.00000000 * np.einsum('oKaL,pLA,aAoO->pKO',Hbar['aCaC'],c['CA'],lambda2['aAaA'],optimize='optimal')
+aavv
+Max a: 8     sigma['aavv'] += +0.06250000 * np.einsum('oabr,puvef,ta,so,bruv->pstef',Hbar['aaaa'],c['aavv'],gamma1['aa'],gamma1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 4     sigma['aavv'] += +0.12500000 * np.einsum('efgh,pbref,ar,ob->poagh',Hbar['vvvv'],c['aavv'],gamma1['aa'],gamma1['aa'],optimize='optimal')
+cavv
+Max a: 6     sigma['cavv'] += +0.25000000 * np.einsum('oabr,pktef,so,brat->pksef',Hbar['aaaa'],c['cavv'],gamma1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 5     sigma['cavv'] += -1.00000000 * np.einsum('kelf,plaeg,oa->pkofg',Hbar['cvcv'],c['cavv'],gamma1['aa'],optimize='optimal')
+ccvv
+Max cv: 6     sigma['ccvv'] += +0.12500000 * np.einsum('klmn,pmnef->pklef',Hbar['cccc'],c['ccvv'],optimize='optimal')
+aava
+Max a: 10     sigma['aava'] += +0.25000000 * np.einsum('oabr,pvwex,xa,uo,brtsvw->ptues',Hbar['aaaa'],c['aava'],eta1['aa'],gamma1['aa'],lambda3['aaaaaa'],optimize='optimal')
+Max cv: 2     sigma['aava'] += +0.50000000 * np.einsum('ef,prset,to,bs,ar->pabfo',Hbar['vv'],c['aava'],eta1['aa'],gamma1['aa'],gamma1['aa'],optimize='optimal')
+cava
+Max a: 8     sigma['cava'] += -0.50000000 * np.einsum('oabr,pkuev,va,to,brsu->pktes',Hbar['aaaa'],c['cava'],eta1['aa'],gamma1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 4     sigma['cava'] += -1.00000000 * np.einsum('kelf,plber,ro,ab->pkafo',Hbar['cvcv'],c['cava'],eta1['aa'],gamma1['aa'],optimize='optimal')
+ccva
+Max a: 6     sigma['ccva'] += -0.25000000 * np.einsum('oabr,pklet,ta,bros->pkles',Hbar['aaaa'],c['ccva'],eta1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 5     sigma['ccva'] += +0.25000000 * np.einsum('klmn,pmnea,ao->pkleo',Hbar['cccc'],c['ccva'],eta1['aa'],optimize='optimal')
+aaaa
+Max a: 12     sigma['aaaa'] += +1.00000000 * np.einsum('oabr,pwxyz,ya,rw,vztx,buos->puvst',Hbar['aaaa'],c['aaaa'],eta1['aa'],gamma1['aa'],lambda2['aaaa'],lambda2['aaaa'],optimize='optimal')
+caaa
+Max a: 10     sigma['caaa'] += -0.25000000 * np.einsum('oabr,pkvwx,wa,uxst,brov->pkust',Hbar['aaaa'],c['caaa'],eta1['aa'],lambda2['aaaa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 2     sigma['caaa'] += -0.50000000 * np.einsum('kl,plrst,ta,so,br->pkboa',Hbar['cc'],c['caaa'],eta1['aa'],eta1['aa'],gamma1['aa'],optimize='optimal')
+ccaa
+Max a: 8     sigma['ccaa'] += +0.06250000 * np.einsum('oabr,pkluv,va,uo,brst->pklst',Hbar['aaaa'],c['ccaa'],eta1['aa'],eta1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 4     sigma['ccaa'] += +0.12500000 * np.einsum('klmn,pmnbr,ra,bo->pkloa',Hbar['cccc'],c['ccaa'],eta1['aa'],eta1['aa'],optimize='optimal')
+AAVV
+Max a: 8     sigma['AAVV'] += +0.12500000 * np.einsum('oabr,pBREF,AR,brOoaB->pOAEF',Hbar['aaaa'],c['AAVV'],gamma1['AA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 4     sigma['AAVV'] += +0.12500000 * np.einsum('EFGH,pBREF,AR,OB->pOAGH',Hbar['VVVV'],c['AAVV'],gamma1['AA'],gamma1['AA'],optimize='optimal')
+CAVV
+Max a: 6     sigma['CAVV'] += +0.12500000 * np.einsum('oabr,pKAEF,brOoaA->pKOEF',Hbar['aaaa'],c['CAVV'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 5     sigma['CAVV'] += -1.00000000 * np.einsum('KELF,pLAEG,OA->pKOFG',Hbar['CVCV'],c['CAVV'],gamma1['AA'],optimize='optimal')
+CCVV
+Max cv: 6     sigma['CCVV'] += +0.12500000 * np.einsum('KLMN,pMNEF->pKLEF',Hbar['CCCC'],c['CCVV'],optimize='optimal')
+AAVA
+Max a: 10     sigma['AAVA'] += +0.25000000 * np.einsum('oabr,pRSET,TO,BS,brAoaR->pABEO',Hbar['aaaa'],c['AAVA'],eta1['AA'],gamma1['AA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 2     sigma['AAVA'] += +1.00000000 * np.einsum('oEaF,pRSET,TO,BS,aAoR->pABFO',Hbar['aVaV'],c['AAVA'],eta1['AA'],gamma1['AA'],lambda2['aAaA'],optimize='optimal')
+CAVA
+Max a: 8     sigma['CAVA'] += +0.25000000 * np.einsum('oabr,pKBER,RO,brAoaB->pKAEO',Hbar['aaaa'],c['CAVA'],eta1['AA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 4     sigma['CAVA'] += -1.00000000 * np.einsum('KELF,pLBER,RO,AB->pKAFO',Hbar['CVCV'],c['CAVA'],eta1['AA'],gamma1['AA'],optimize='optimal')
+CCVA
+Max a: 6     sigma['CCVA'] += -0.12500000 * np.einsum('oabr,pKLEA,brAoaO->pKLEO',Hbar['aaaa'],c['CCVA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 5     sigma['CCVA'] += +0.25000000 * np.einsum('KLMN,pMNEA,AO->pKLEO',Hbar['CCCC'],c['CCVA'],eta1['AA'],optimize='optimal')
+AAAA
+Max a: 12     sigma['AAAA'] += +0.12500000 * np.einsum('oabr,pSTUV,VA,UO,RT,brBoaS->pBROA',Hbar['aaaa'],c['AAAA'],eta1['AA'],eta1['AA'],gamma1['AA'],lambda3['aaAaaA'],optimize='optimal')
+CAAA
+Max a: 10     sigma['CAAA'] += +0.12500000 * np.einsum('oabr,pKRST,TA,SO,brBoaR->pKBOA',Hbar['aaaa'],c['CAAA'],eta1['AA'],eta1['AA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 2     sigma['CAAA'] += -0.50000000 * np.einsum('oKaL,pLRST,TA,SO,aBoR->pKBOA',Hbar['aCaC'],c['CAAA'],eta1['AA'],eta1['AA'],lambda2['aAaA'],optimize='optimal')
+CCAA
+Max a: 8     sigma['CCAA'] += -0.12500000 * np.einsum('oabr,pKLBR,RA,brBoaO->pKLOA',Hbar['aaaa'],c['CCAA'],eta1['AA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 4     sigma['CCAA'] += +0.12500000 * np.einsum('KLMN,pMNBR,RA,BO->pKLOA',Hbar['CCCC'],c['CCAA'],eta1['AA'],eta1['AA'],optimize='optimal')
+aAvV
+Max a: 8     sigma['aAvV'] += +0.50000000 * np.einsum('oabr,ptAeE,so,brOatA->psOeE',Hbar['aaaa'],c['aAvV'],gamma1['aa'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 4     sigma['aAvV'] += +1.00000000 * np.einsum('eEfF,paAeE,OA,oa->poOfF',Hbar['vVvV'],c['aAvV'],gamma1['AA'],gamma1['aa'],optimize='optimal')
+aCvV
+Max a: 6     sigma['aCvV'] += +0.50000000 * np.einsum('oabr,ptKeE,so,brat->psKeE',Hbar['aaaa'],c['aCvV'],gamma1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 5     sigma['aCvV'] += -1.00000000 * np.einsum('eKfL,paLeE,oa->poKfE',Hbar['vCvC'],c['aCvV'],gamma1['aa'],optimize='optimal')
+cAvV
+Max a: 6     sigma['cAvV'] += +0.25000000 * np.einsum('oabr,pkAeE,brOoaA->pkOeE',Hbar['aaaa'],c['cAvV'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 5     sigma['cAvV'] += -1.00000000 * np.einsum('kelf,plAeE,OA->pkOfE',Hbar['cvcv'],c['cAvV'],gamma1['AA'],optimize='optimal')
+cCvV
+Max cv: 6     sigma['cCvV'] += -1.00000000 * np.einsum('kelf,plKeE->pkKfE',Hbar['cvcv'],c['cCvV'],optimize='optimal')
+aAvA
+Max a: 10     sigma['aAvA'] += +0.50000000 * np.einsum('oabr,ptBeR,RO,so,brAatB->psAeO',Hbar['aaaa'],c['aAvA'],eta1['AA'],gamma1['aa'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 2     sigma['aAvA'] += +1.00000000 * np.einsum('ef,paBeR,RO,AB,oa->poAfO',Hbar['vv'],c['aAvA'],eta1['AA'],gamma1['AA'],gamma1['aa'],optimize='optimal')
+aCvA
+Max a: 8     sigma['aCvA'] += +0.50000000 * np.einsum('oabr,ptKeA,AO,so,brat->psKeO',Hbar['aaaa'],c['aCvA'],eta1['AA'],gamma1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 4     sigma['aCvA'] += -1.00000000 * np.einsum('eKfL,paLeA,AO,oa->poKfO',Hbar['vCvC'],c['aCvA'],eta1['AA'],gamma1['aa'],optimize='optimal')
+cAvA
+Max a: 8     sigma['cAvA'] += +0.25000000 * np.einsum('oabr,pkBeR,RO,brAoaB->pkAeO',Hbar['aaaa'],c['cAvA'],eta1['AA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 4     sigma['cAvA'] += -1.00000000 * np.einsum('kelf,plBeR,RO,AB->pkAfO',Hbar['cvcv'],c['cAvA'],eta1['AA'],gamma1['AA'],optimize='optimal')
+cCvA
+Max a: 6     sigma['cCvA'] += -0.25000000 * np.einsum('oabr,pkKeA,brAoaO->pkKeO',Hbar['aaaa'],c['cCvA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 5     sigma['cCvA'] += -1.00000000 * np.einsum('kelf,plKeA,AO->pkKfO',Hbar['cvcv'],c['cCvA'],eta1['AA'],optimize='optimal')
+aAaV
+Max a: 10     sigma['aAaV'] += -0.50000000 * np.einsum('oabr,puAvE,va,to,brOsuA->ptOsE',Hbar['aaaa'],c['aAaV'],eta1['aa'],gamma1['aa'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 2     sigma['aAaV'] += +1.00000000 * np.einsum('oEaF,psAtE,to,as,rObA->prObF',Hbar['aVaV'],c['aAaV'],eta1['aa'],gamma1['aa'],lambda2['aAaA'],optimize='optimal')
+aCaV
+Max a: 8     sigma['aCaV'] += -0.50000000 * np.einsum('oabr,puKvE,va,to,brsu->ptKsE',Hbar['aaaa'],c['aCaV'],eta1['aa'],gamma1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 4     sigma['aCaV'] += -1.00000000 * np.einsum('KELF,pbLrE,ro,ab->paKoF',Hbar['CVCV'],c['aCaV'],eta1['aa'],gamma1['aa'],optimize='optimal')
+cAaV
+Max a: 8     sigma['cAaV'] += -0.50000000 * np.einsum('oabr,pkAtE,ta,OA,bros->pkOsE',Hbar['aaaa'],c['cAaV'],eta1['aa'],gamma1['AA'],lambda2['aaaa'],optimize='optimal')
+Max cv: 4     sigma['cAaV'] += -1.00000000 * np.einsum('kElF,plAaE,ao,OA->pkOoF',Hbar['cVcV'],c['cAaV'],eta1['aa'],gamma1['AA'],optimize='optimal')
+cCaV
+Max a: 6     sigma['cCaV'] += -0.50000000 * np.einsum('oabr,pkKtE,ta,bros->pkKsE',Hbar['aaaa'],c['cCaV'],eta1['aa'],lambda2['aaaa'],optimize='optimal')
+Max cv: 5     sigma['cCaV'] += +1.00000000 * np.einsum('kKlL,plLaE,ao->pkKoE',Hbar['cCcC'],c['cCaV'],eta1['aa'],optimize='optimal')
+aAaA
+Max a: 12     sigma['aAaA'] += -1.00000000 * np.einsum('oabr,puBvR,va,to,rAuO,bRsB->ptAsO',Hbar['aaaa'],c['aAaA'],eta1['aa'],gamma1['aa'],lambda2['aAaA'],lambda2['aAaA'],optimize='optimal')
+aCaA
+Max a: 10     sigma['aCaA'] += +0.50000000 * np.einsum('oabr,puKvA,va,to,brAsuO->ptKsO',Hbar['aaaa'],c['aCaA'],eta1['aa'],gamma1['aa'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 2     sigma['aCaA'] += +1.00000000 * np.einsum('oKaL,psLtA,to,as,rAbO->prKbO',Hbar['aCaC'],c['aCaA'],eta1['aa'],gamma1['aa'],lambda2['aAaA'],optimize='optimal')
+cAaA
+Max a: 10     sigma['cAaA'] += +0.50000000 * np.einsum('oabr,pkBtR,ta,AB,brRosO->pkAsO',Hbar['aaaa'],c['cAaA'],eta1['aa'],gamma1['AA'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 2     sigma['cAaA'] += -1.00000000 * np.einsum('kl,plBaR,ao,AROB->pkAoO',Hbar['cc'],c['cAaA'],eta1['aa'],lambda2['AAAA'],optimize='optimal')
+cCaA
+Max a: 8     sigma['cCaA'] += +0.50000000 * np.einsum('oabr,pkKtA,ta,brAosO->pkKsO',Hbar['aaaa'],c['cCaA'],eta1['aa'],lambda3['aaAaaA'],optimize='optimal')
+Max cv: 4     sigma['cCaA'] += +1.00000000 * np.einsum('kKlL,plLaA,AO,ao->pkKoO',Hbar['cCcC'],c['cCaA'],eta1['AA'],eta1['aa'],optimize='optimal')
