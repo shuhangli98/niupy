@@ -63,8 +63,8 @@ class EOM_DSRG:
         self.sym_vec = dict_to_vec(self.sym, 1).flatten()
 
     def kernel(self):
-        conv, e, u, symmetry = eom_dsrg_compute.kernel(self)
-        return conv, e, u, symmetry
+        conv, e, u, spin, symmetry = eom_dsrg_compute.kernel(self)
+        return conv, e, u, spin, symmetry
 
 
 if __name__ == "__main__":
@@ -78,7 +78,6 @@ if __name__ == "__main__":
 
         eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, nroots=3,
                             verbose=5, max_cycle=100, method_type='ee', diagonal_type='block')
-        conv, e, u, symmetry = eom_dsrg.kernel()
-        print("Convergence: ", conv)
-        print("Excitation Energies: ", e-e[0])
-        print("Symmetry: ", symmetry)
+        conv, e, u, spin, symmetry = eom_dsrg.kernel()
+        for idx, i_e in enumerate(e):
+            print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, symmetry: {symmetry[idx]}")

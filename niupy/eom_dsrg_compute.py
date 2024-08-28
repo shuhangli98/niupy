@@ -21,7 +21,6 @@ def kernel(eom_dsrg):
 
     # This part should be in a separate function
     eigvec = []
-    eigval = []
     for i_vec in range(len(u)):
         vec = apply_S_12(S_12, nop, u[i_vec], transpose=False)
         eigvec.append(vec.flatten())
@@ -33,6 +32,7 @@ def kernel(eom_dsrg):
     eigvec = eigvec.T
 
     symmetry = []
+    spin = []
 
     sym_dict = {0: 'A1', 1: 'A2', 2: 'B1', 3: 'B2'}  # C2v test, should be changed.
 
@@ -45,17 +45,26 @@ def kernel(eom_dsrg):
         ca_norm = np.linalg.norm(current_vec_dict['ca'] - current_vec_dict['CA'])
         av_norm = np.linalg.norm(current_vec_dict['av'] - current_vec_dict['AV'])
 
-        if cv_norm < 1e-4 and ca_norm < 1e-4 and av_norm < 1e-4:
+        cv_norm_tri = np.linalg.norm(current_vec_dict['cv'] + current_vec_dict['CV'])
+        ca_norm_tri = np.linalg.norm(current_vec_dict['ca'] + current_vec_dict['CA'])
+        av_norm_tri = np.linalg.norm(current_vec_dict['av'] + current_vec_dict['AV'])
 
-            large_indices = np.where(abs(current_vec) > 1e-4)[0]
-            first_value = eom_dsrg.sym_vec[large_indices[0]]
-            if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
-                symmetry.append(sym_dict[first_value])
-                eigval.append(i_v)
-            else:
-                symmetry.append("Spin contamination.")
+        if cv_norm_tri < 1e-4 and ca_norm_tri < 1e-4 and av_norm_tri < 1e-4:
+            spin.append("Triplet")
+        elif cv_norm < 1e-4 and ca_norm < 1e-4 and av_norm < 1e-4:
+            spin.append("Singlet")
+        else:
+            spin.append("Incorrect spin")
 
-    return conv, eigval, eigvec, symmetry
+        large_indices = np.where(abs(current_vec) > 1e-4)[0]
+        first_value = eom_dsrg.sym_vec[large_indices[0]]
+
+        if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
+            symmetry.append(sym_dict[first_value])
+        else:
+            symmetry.append("Incorrect symmetry")
+
+    return conv, e, eigvec, spin, symmetry
 
 
 def setup_davidson(eom_dsrg):
