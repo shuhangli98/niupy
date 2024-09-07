@@ -44,7 +44,7 @@ def compile_first_row(equation, ket_name='c'):
     return w.dict_to_einsum(d)
 
 
-def generate_sigma_build(mbeq, matrix):
+def generate_sigma_build(mbeq, matrix, first_row=True):
     code = [f"def build_sigma_vector_{matrix}(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):",
             "    sigma = {}",
             "    for key in c.keys():",
@@ -60,7 +60,7 @@ def generate_sigma_build(mbeq, matrix):
         if not no_print:
             code.append(f"    {compile_sigma_vector(eq, bra_name='bra', ket_name='c')}")
 
-    if matrix == 'Hbar':
+    if matrix == 'Hbar' and first_row:
         code.append("    for key in first_row.keys():")
         code.append("        if len(key) == 2:")
         code.append("           tmp = first_row[key] * c['first'][:, :, np.newaxis]")
@@ -78,20 +78,18 @@ def generate_sigma_build(mbeq, matrix):
     return funct
 
 
-def generate_template_c(block_list):
+def generate_template_c(block_list, ket_name='c'):
     index_dict = {"c": "nocc", "a": "nact", "v": "nvir",
-                  "C": "nocc", "A": "nact", "V": "nvir"}
+                  "C": "nocc", "A": "nact", "V": "nvir",
+                  "i": "ncore", "I": "ncore"}
 
-    code = [f"def get_template_c(nlow, nocc, nact, nvir):",
+    code = [f"def get_template_c(nlow, ncore, nocc, nact, nvir):",
             "    c = {"]
 
     for i in block_list:
-        if len(i) == 2:
-            code.append(
-                f"         '{i}': np.zeros((nlow, {index_dict[i[0]]}, {index_dict[i[1]]})),")
-        if len(i) == 4:
-            code.append(
-                f"         '{i}': np.zeros((nlow, {index_dict[i[0]]}, {index_dict[i[1]]}, {index_dict[i[2]]}, {index_dict[i[3]]})),")
+        shape_strings = ['nlow'] + [f"{index_dict[item]}" for item in i]
+        shape_formatted = ', '.join(shape_strings)
+        code.append(f"         '{i}': np.zeros(({shape_formatted})),")
 
     code.append("        }")
     code.append("    return c")
@@ -197,15 +195,17 @@ def generate_block_contraction(block_str, mbeq, block_type='single', indent='onc
     return func
 
 
-def generate_S_12(mbeq, single_space, composite_space, tol=1e-4):
+def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
     '''
     single_space: a list of string.
     composite_space: a list of list of string.
     '''
-    code = [f"def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, tol = {tol}):"]
+    code = [
+        f"def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, tol = {tol}, tol_act = {tol_act}):"]
     code.append("    sigma = {}")
     code.append("    c = {}")
-    code.append("    S_12 = []\n")
+    code.append("    S_12 = []")
+    code.append("    sym_space = {}\n")
 
     # The single space
     for key in single_space:
@@ -214,6 +214,10 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4):
         code.append(f"    shape_size = np.prod(shape_block)")
         code.append(f"    c['{key}'] = np.zeros((shape_size, *shape_block))")
         code.append(f"    sigma['{key}'] = np.zeros((shape_size, *shape_block))")
+
+        code.append(f"    sym_space['{key}'] = sym_dict['{key}']")
+        code.append(f"    sym_vec = dict_to_vec(sym_space, 1).flatten()")
+
         code.append(f"    c_vec = dict_to_vec(c, shape_size)")
         code.append(f"    np.fill_diagonal(c_vec, 1)")
         code.append(f"    c = vec_to_dict(c, c_vec)")
@@ -223,12 +227,18 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4):
         code.append(f"{func}\n")
 
         code.append(f"    vec = dict_to_vec(sigma, shape_size)")
+
+        code.append(f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]")
+        code.append(f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)")
+        code.append(f"    vec[~mask] = 0")
+
         code.append(f"    sevals, sevecs = np.linalg.eigh(vec)")
         code.append(f"    trunc_indices = np.where(sevals > tol)[0]")
         code.append(f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])")
         code.append(f"    S_12.append(X)\n")
 
         code.append("    sigma.clear()")
+        code.append("    sym_space.clear()")
         code.append("    c.clear()\n")
 
     # The composite space
@@ -238,10 +248,14 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4):
         code.append(f"    for key in {space}:")
         code.append(f"        shape_block = template_c[key].shape[1:]")
         code.append(f"        shape_size += np.prod(shape_block)")
+        code.append(f"        sym_space[key] = sym_dict[key]")
         code.append(f"    for key in {space}:")
         code.append(f"        shape_block = template_c[key].shape[1:]")
         code.append(f"        c[key] = np.zeros((shape_size, *shape_block))")
         code.append(f"        sigma[key] = np.zeros((shape_size, *shape_block))")
+
+        code.append(f"    sym_vec = dict_to_vec(sym_space, 1).flatten()")
+
         code.append(f"    c_vec = dict_to_vec(c, shape_size)")
         code.append(f"    np.fill_diagonal(c_vec, 1)")
         code.append(f"    c = vec_to_dict(c, c_vec)")
@@ -251,12 +265,21 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4):
         code.append(f"{func}\n")
 
         code.append(f"    vec = dict_to_vec(sigma, shape_size)")
+
+        code.append(f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]")
+        code.append(f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)")
+        code.append(f"    vec[~mask] = 0")
+
         code.append(f"    sevals, sevecs = np.linalg.eigh(vec)")
-        code.append(f"    trunc_indices = np.where(sevals > tol)[0]")
+        if space == ['aa', 'AA', 'aaaa', 'AAAA', 'aAaA']:
+            code.append(f"    trunc_indices = np.where(sevals > tol_act)[0]")
+        else:
+            code.append(f"    trunc_indices = np.where(sevals > tol)[0]")
         code.append(f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])")
         code.append(f"    S_12.append(X)\n")
 
         code.append("    sigma.clear()")
+        code.append("    sym_space.clear()")
         code.append("    c.clear()\n")
 
     code.append("    return S_12")
@@ -357,15 +380,20 @@ def antisymmetrize_tensor_2_2(Roovv, nlow, nocc, nvir):
     return Roovv_anti
 
 
-def antisymmetrize_tensor_2_1(Rccav, nlow, nocc, nact, nvir):
+def antisymmetrize_tensor_2_1(Rccav, nlow, nocc, nact, nvir, method='ee'):
     # antisymmetrize the tensor
-    Rccav_anti = np.zeros((nlow, nocc, nocc, nact, nvir))
-    Rccav_anti += np.einsum("pijab->pijab", Rccav)
-    Rccav_anti -= np.einsum("pijab->pjiab", Rccav)
+    if method == 'ee':
+        Rccav_anti = np.zeros((nlow, nocc, nocc, nact, nvir))
+        Rccav_anti += np.einsum("pijab->pijab", Rccav)
+        Rccav_anti -= np.einsum("pijab->pjiab", Rccav)
+    # elif method == 'ip':
+    #     Rccav_anti = np.zeros((nlow, nocc, nocc, nact))
+    #     Rccav_anti += np.einsum("pija->pija", Rccav)
+    #     Rccav_anti -= np.einsum("pija->pjia", Rccav)
     return Rccav_anti
 
 
-def antisymmetrize_tensor_1_2(Rcavv, nlow, nocc, nact, nvir):
+def antisymmetrize_tensor_1_2(Rcavv, nlow, nocc, nact, nvir, method='ee'):
     # antisymmetrize the tensor
     Rcavv_anti = np.zeros((nlow, nocc, nact, nvir, nvir))
     Rcavv_anti += np.einsum("pijab->pijab", Rcavv)
@@ -373,24 +401,34 @@ def antisymmetrize_tensor_1_2(Rcavv, nlow, nocc, nact, nvir):
     return Rcavv_anti
 
 
-def antisymmetrize(input_dict):
+def antisymmetrize(input_dict, method='ee'):
     if (type(input_dict) is dict):
-        for key in input_dict.keys():
-            if len(key) == 4:
-                if key[0] == key[1] and key[2] != key[3]:
-                    tensor = input_dict[key]
-                    input_dict[key] = antisymmetrize_tensor_2_1(
-                        tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3], tensor.shape[4])
-                elif key[0] != key[1] and key[2] == key[3]:
-                    tensor = input_dict[key]
-                    input_dict[key] = antisymmetrize_tensor_1_2(
-                        tensor, tensor.shape[0], tensor.shape[1], tensor.shape[2], tensor.shape[3])
-                elif key[0] == key[1] and key[2] == key[3]:
-                    tensor = input_dict[key]
-                    input_dict[key] = antisymmetrize_tensor_2_2(
-                        tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3])
-                else:
-                    continue
+        if method == 'ee':
+            for key in input_dict.keys():
+                if len(key) == 4:
+                    if key[0] == key[1] and key[2] != key[3]:
+                        tensor = input_dict[key]
+                        input_dict[key] = antisymmetrize_tensor_2_1(
+                            tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3], tensor.shape[4])
+                    elif key[0] != key[1] and key[2] == key[3]:
+                        tensor = input_dict[key]
+                        input_dict[key] = antisymmetrize_tensor_1_2(
+                            tensor, tensor.shape[0], tensor.shape[1], tensor.shape[2], tensor.shape[3])
+                    elif key[0] == key[1] and key[2] == key[3]:
+                        tensor = input_dict[key]
+                        input_dict[key] = antisymmetrize_tensor_2_2(
+                            tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3])
+                    else:
+                        continue
+        # elif method == 'ip':
+        #     for key in input_dict.keys():
+        #         if len(key) == 3:
+        #             if key[0] == key[1]:
+        #                 tensor = input_dict[key]
+        #                 input_dict[key] = antisymmetrize_tensor_2_1(
+        #                     tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3], None, method = 'ip')
+        #             else:
+        #                 continue
     return input_dict
 
 
@@ -458,24 +496,3 @@ def sym_dir(c, occ_sym, act_sym, vir_sym):
         else:
             out_dir[key] = np.array([0])  # First
     return out_dir
-
-
-# def project_spin(v, vec, ref_dict, tol=1e-4):
-#     target_eig = []
-#     target_vec = []
-#     for i in range(len(v)):
-#         i_vec = vec[i]
-#         i_v = v[i]
-#         i_vec_dict = vec_to_dict(ref_dict, i_vec.reshape(-1, 1))
-#         cv_norm = np.linalg.norm(i_vec_dict['cv'] - i_vec_dict['CV'])
-#         ca_norm = np.linalg.norm(i_vec_dict['ca'] - i_vec_dict['CA'])
-#         av_norm = np.linalg.norm(i_vec_dict['av'] - i_vec_dict['AV'])
-
-#         if cv_norm < tol and ca_norm < tol and av_norm < tol:
-#             target_eig.append(i_v)
-#             target_vec.append(i_vec)
-
-#     reference_energy = target_eig[0]
-#     excitation_energy = target_eig - reference_energy
-
-#     return excitation_energy, target_vec

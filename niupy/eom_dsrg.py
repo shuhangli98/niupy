@@ -7,7 +7,7 @@ import niupy.eom_dsrg_compute as eom_dsrg_compute
 
 
 class EOM_DSRG:
-    def __init__(self, Hbar, gamma1, eta1, lambda2, lambda3, diag_shift=0.0, tol_e=1e-8, max_space=100, max_cycle=100, tol_davidson=1e-5, tol_s=1e-4, target_sym=0, target_spin=0, nroots=6, verbose=0, wfn=None, mo_spaces=None, method_type='ee', diagonal_type='exact'):
+    def __init__(self, Hbar, gamma1, eta1, lambda2, lambda3, diag_shift=0.0, tol_e=1e-8, max_space=100, max_cycle=100, tol_davidson=1e-5, tol_s=1e-4, tol_s_act=1e-4, target_sym=0, target_spin=0, nroots=6, verbose=0, wfn=None, mo_spaces=None, method_type='ee', diagonal_type='exact'):
         # Get MO information
         if wfn is not None and mo_spaces is not None:
             res = forte.utils.prepare_forte_objects(wfn, mo_spaces)
@@ -24,6 +24,7 @@ class EOM_DSRG:
             act_sym = np.array([0, 3])
             vir_sym = np.array([0, 2, 3])
 
+        print("\n")
         print("  occ_sym: ", occ_sym)
         print("  act_sym: ", act_sym)
         print("  vir_sym: ", vir_sym)
@@ -42,6 +43,7 @@ class EOM_DSRG:
         self.tol_e = tol_e                # Tolerance for the energy in the Davidson procedure
         self.tol_davidson = tol_davidson  # Tolerance for the residual in the Davidson procedure
         self.tol_s = tol_s                # Tolerance for the orthogonalization of excitation spaces
+        self.tol_s_act = tol_s_act        # Tolerance for the orthogonalization of the active space
         self.diag_shift = diag_shift      # Shift for the diagonal of the effective Hamiltonian
 
         # Get the target symmetry and spin
@@ -63,8 +65,8 @@ class EOM_DSRG:
         self.sym_vec = dict_to_vec(self.sym, 1).flatten()
 
     def kernel(self):
-        conv, e, u, spin, symmetry = eom_dsrg_compute.kernel(self)
-        return conv, e, u, spin, symmetry
+        conv, e, u, spin = eom_dsrg_compute.kernel(self)
+        return conv, e, u, spin
 
 
 if __name__ == "__main__":
@@ -77,7 +79,7 @@ if __name__ == "__main__":
         Hbar = np.load('niupy/BeH2/save_Hbar.npz')
 
         eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, nroots=3,
-                            verbose=5, max_cycle=100, method_type='ee', diagonal_type='block')
-        conv, e, u, spin, symmetry = eom_dsrg.kernel()
+                            verbose=5, max_cycle=100, target_sym=0, method_type='ee', diagonal_type='block')
+        conv, e, u, spin = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
-            print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, symmetry: {symmetry[idx]}")
+            print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")

@@ -31,10 +31,7 @@ def kernel(eom_dsrg):
     eigvec = dict_to_vec(eigvec_dict, len(e))
     eigvec = eigvec.T
 
-    symmetry = []
     spin = []
-
-    sym_dict = {0: 'A1', 1: 'A2', 2: 'B1', 3: 'B2'}  # C2v test, should be changed.
 
     for i_idx, i_v in enumerate(e):
 
@@ -56,15 +53,7 @@ def kernel(eom_dsrg):
         else:
             spin.append("Incorrect spin")
 
-        large_indices = np.where(abs(current_vec) > 1e-4)[0]
-        first_value = eom_dsrg.sym_vec[large_indices[0]]
-
-        if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
-            symmetry.append(sym_dict[first_value])
-        else:
-            symmetry.append("Incorrect symmetry")
-
-    return conv, e, eigvec, spin, symmetry
+    return conv, e, eigvec, spin
 
 
 def setup_davidson(eom_dsrg):
@@ -72,8 +61,8 @@ def setup_davidson(eom_dsrg):
         eom_dsrg.first_row = ee_eom_dsrg.build_first_row(eom_dsrg.full_template_c, eom_dsrg.Hbar, eom_dsrg.gamma1, eom_dsrg.eta1,
                                                          eom_dsrg.lambda2, eom_dsrg.lambda3)
         eom_dsrg.build_H = ee_eom_dsrg.build_sigma_vector_Hbar
-        S_12 = ee_eom_dsrg.get_S_12(eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1,
-                                    eom_dsrg.lambda2, eom_dsrg.lambda3, tol=eom_dsrg.tol_s)
+        S_12 = ee_eom_dsrg.get_S_12(eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1, eom_dsrg.lambda2,
+                                    eom_dsrg.lambda3, eom_dsrg.sym, eom_dsrg.target_sym, tol=eom_dsrg.tol_s, tol_act=eom_dsrg.tol_s_act)
 
         if eom_dsrg.diagonal_type == "exact":
             precond = ee_eom_dsrg.compute_preconditioner_exact(
