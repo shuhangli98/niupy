@@ -5,7 +5,6 @@ import forte.utils
 import numpy as np
 import niupy.eom_dsrg_compute as eom_dsrg_compute
 
-
 class EOM_DSRG:
     def __init__(self, Hbar, gamma1, eta1, lambda2, lambda3, diag_shift=0.0, tol_e=1e-8, max_space=100, max_cycle=100, tol_davidson=1e-5, tol_s=1e-4, tol_s_act=1e-4, target_sym=0, target_spin=0, nroots=6, verbose=0, wfn=None, mo_spaces=None, method_type='ee', diagonal_type='exact'):
         # Get MO information
@@ -72,11 +71,16 @@ class EOM_DSRG:
 if __name__ == "__main__":
     test = 1
     if test == 1:
-        gamma1 = np.load('niupy/BeH2/save_gamma1.npz')
-        eta1 = np.load('niupy/BeH2/save_eta1.npz')
-        lambda2 = np.load('niupy/BeH2/save_lambda2.npz')
-        lambda3 = np.load('niupy/BeH2/save_lambda3.npz')
-        Hbar = np.load('niupy/BeH2/save_Hbar.npz')
+        import os
+        import sys
+        script_dir = os.path.dirname(__file__)
+        rel_path = "BeH2"
+
+        gamma1 = np.load(f'{rel_path}/save_gamma1.npz')
+        eta1 = np.load(f'{rel_path}/save_eta1.npz')
+        lambda2 = np.load(f'{rel_path}/save_lambda2.npz')
+        lambda3 = np.load(f'{rel_path}/save_lambda3.npz')
+        Hbar = np.load(f'{rel_path}/save_Hbar.npz')
 
         eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, nroots=3,
                             verbose=5, max_cycle=100, target_sym=0, method_type='ee', diagonal_type='block')
