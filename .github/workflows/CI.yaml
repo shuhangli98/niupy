@@ -52,13 +52,10 @@ jobs:
           python -m pip install . --no-deps
           micromamba list
           
-      - name: Install setuptools and other dependencies
+      - name: Install Wicked
         shell: bash -l {0}
         run: |
           pip install --upgrade pip setuptools wheel
-          
-      - name: Install Wicked
-        run: |
           cd $HOME
           git clone --recurse-submodules https://github.com/fevangelista/wicked.git
           cd wicked
