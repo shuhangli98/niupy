@@ -55,6 +55,8 @@ jobs:
           git clone --recurse-submodules https://github.com/fevangelista/wicked.git
           cd wicked
           python setup.py develop
+          pwd
+          cd $HOME
           pytest -v --cov=niupy --cov-report=xml --color=yes niupy/tests/
 
       - name: CodeCov
