@@ -60,6 +60,7 @@ jobs:
         # conda setup requires this special shell
         shell: bash -l {0}
         run: |
+          source venv/bin/activate
           pytest -v --cov=niupy --cov-report=xml --color=yes niupy/tests/
 
       - name: CodeCov
