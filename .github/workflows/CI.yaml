@@ -51,6 +51,7 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           pip install --upgrade pip setuptools wheel
+          pip install numpy
           git clone --recurse-submodules https://github.com/fevangelista/wicked.git
           cd wicked
           python setup.py develop
