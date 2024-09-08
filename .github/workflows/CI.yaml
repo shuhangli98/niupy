@@ -52,6 +52,11 @@ jobs:
           python -m pip install . --no-deps
           micromamba list
           
+      - name: Install setuptools and other dependencies
+        shell: bash -l {0}
+        run: |
+          pip install --upgrade pip setuptools wheel
+          
       - name: Install Wicked
         run: |
           cd $HOME
