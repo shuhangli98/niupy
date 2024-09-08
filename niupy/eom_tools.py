@@ -1,6 +1,7 @@
 import wicked as w
 import numpy as np
 import copy
+import itertools
 
 
 def compile_sigma_vector(equation, bra_name='bra', ket_name='c'):
@@ -484,9 +485,10 @@ def is_antisymmetric(tensor_dict):
     return True
 
 
-def sym_dir(c, occ_sym, act_sym, vir_sym):
+def sym_dir(c, core_sym, occ_sym, act_sym, vir_sym):
     out_dir = {}
-    dir = {'c': occ_sym, 'C': occ_sym, 'a': act_sym, 'A': act_sym, 'v': vir_sym, 'V': vir_sym}
+    dir = {'c': occ_sym, 'C': occ_sym, 'a': act_sym, 'A': act_sym,
+           'v': vir_sym, 'V': vir_sym, 'i': core_sym, 'I': core_sym}
     for key in c.keys():
         if len(key) == 2:
             out_dir[key] = dir[key[0]][:, None] ^ dir[key[1]][None, :]
@@ -496,3 +498,47 @@ def sym_dir(c, occ_sym, act_sym, vir_sym):
         else:
             out_dir[key] = np.array([0])  # First
     return out_dir
+
+
+def slice_H_core(Hbar_old, ncore):
+    Hbar = {}
+    nocc = Hbar_old['cc'].shape[0]
+    for key, tensor in Hbar_old.items():
+        indices_c = [index for index, char in enumerate(key) if char == 'c']
+        indices_C = [index for index, char in enumerate(key) if char == 'C']
+        count_c = len(indices_c)
+        count_C = len(indices_C)
+
+        # Generate all combinations of 'c'/'i' and 'C'/'I' replacements
+        combinations_c = list(itertools.product(['c', 'i'], repeat=count_c)) if count_c > 0 else [[]]
+        combinations_C = list(itertools.product(['C', 'I'], repeat=count_C)) if count_C > 0 else [[]]
+
+        # Iterate through all combinations of 'c' and 'C' replacements
+        for comb_c in combinations_c:
+            for comb_C in combinations_C:
+                # Create a copy of the key and slices for tensor slicing
+                new_key = list(key)
+                slices = [slice(None)] * tensor.ndim
+
+                # Replace 'c' with 'i' and adjust slicing
+                for idx, char in zip(indices_c, comb_c):
+                    new_key[idx] = char
+                    if char == 'i':
+                        slices[idx] = slice(0, ncore)  # 'i' slice
+                    else:
+                        slices[idx] = slice(ncore, nocc)  # 'c' slice
+
+                # Replace 'C' with 'I' and adjust slicing
+                for idx, char in zip(indices_C, comb_C):
+                    new_key[idx] = char
+                    if char == 'I':
+                        slices[idx] = slice(0, ncore)  # 'I' slice
+                    else:
+                        slices[idx] = slice(ncore, nocc)  # 'C' slice
+
+                # Convert the new key list back to string
+                new_key = ''.join(new_key)
+
+                # Add the sliced tensor to the new dictionary
+                Hbar[new_key] = tensor[tuple(slices)]
+    return Hbar
