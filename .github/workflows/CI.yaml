@@ -57,7 +57,7 @@ jobs:
           cd $HOME
           git clone --recurse-submodules https://github.com/fevangelista/wicked.git
           cd wicked
-          python setup.py develop
+          python setup.py install --user
 
       - name: Run tests
         # conda setup requires this special shell
