@@ -46,37 +46,29 @@ def compile_first_row(equation, ket_name='c'):
 
 
 def generate_sigma_build(mbeq, matrix, first_row=True):
-    code = [f"def build_sigma_vector_{matrix}(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):",
-            "    sigma = {}",
-            "    for key in c.keys():",
-            "        sigma[key] = np.zeros(c[key].shape)"]
+    code = [
+        f"def build_sigma_vector_{matrix}(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):",
+        "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}"
+    ]
 
     for eq in mbeq['|']:
-        no_print = False
-        rhs = eq.rhs()
-        for t in rhs.tensors():
-            if t.label() in ['lambda4', 'lambda5', 'lambda6']:
-                no_print = True
-                break
-        if not no_print:
-            code.append(f"    {compile_sigma_vector(eq, bra_name='bra', ket_name='c')}")
+        if not any(t.label() in ['lambda4', 'lambda5', 'lambda6'] for t in eq.rhs().tensors()):
+            code.append(f"    {compile_sigma_vector(eq)}")
 
     if matrix == 'Hbar' and first_row:
-        code.append("    for key in first_row.keys():")
-        code.append("        if len(key) == 2:")
-        code.append("           tmp = first_row[key] * c['first'][:, :, np.newaxis]")
-        code.append("        elif len(key) == 4:")
-        code.append("           tmp = first_row[key] * c['first'][:, :, np.newaxis, np.newaxis, np.newaxis]")
-        code.append("        sigma[key] += tmp")
-        code.append("    c_vec = dict_to_vec(c, c[list(c.keys())[0]].shape[0])")
-        code.append("    first_row_vec = dict_to_vec(first_row, 1)")
-        code.append("    sigma['first'] += np.einsum('ik, ij->jk', first_row_vec, c_vec[1:, :], optimize=True)")
+        code.extend([
+            "    for key in first_row.keys():",
+            "        tmp = first_row[key] * c['first'][..., np.newaxis]",
+            "        sigma[key] += tmp",
+            "    c_vec = dict_to_vec(c, c[list(c.keys())[0]].shape[0])",
+            "    first_row_vec = dict_to_vec(first_row, 1)",
+            "    sigma['first'] += np.einsum('ik, ij->jk', first_row_vec, c_vec[1:, :], optimize=True)"
+        ])
     elif matrix == 's':
         code.append("    sigma['first'] = c['first'].copy()")
 
     code.append("    return sigma")
-    funct = "\n".join(code)
-    return funct
+    return "\n".join(code)
 
 
 def generate_template_c(block_list, ket_name='c'):
@@ -98,41 +90,11 @@ def generate_template_c(block_list, ket_name='c'):
     return code
 
 
-def generate_first_row_safe(mbeq):
-    # This is a safe way to generate (\sum_i <\Phi|Hbar|\Phi_i> c_i).
-    code = [f"def build_first_row_safe(c, Hbar, gamma1, eta1, lambda2, lambda3):",
-            "    nlow = c[list(c.keys())[0]].shape[0]",
-            "    sigma = np.zeros(nlow)"]
-    for eq in mbeq['|']:
-        no_print = False
-        rhs = eq.rhs()
-        for t in rhs.tensors():
-            if t.label() in ['lambda4', 'lambda5', 'lambda6']:
-                no_print = True
-                break
-        if not no_print:
-            code.append(f"    {compile_first_row_safe(eq, ket_name='c')}")
-
-    code.append("    return sigma")
-    funct = "\n".join(code)
-    return funct
-
-
 def generate_first_row(mbeq):
     code = [f"def build_first_row(c, Hbar, gamma1, eta1, lambda2, lambda3):",
-            "    sigma = {}",
-            "    for key in c.keys():",
-            "       if key == 'first':",
-            "           continue",
-            "       sigma[key] = np.zeros((1, *c[key].shape[1:]))"]
+            "    sigma = {key: np.zeros((1, *tensor.shape[1:])) for key, tensor in c.items() if key != 'first'}"]
     for eq in mbeq['|']:
-        no_print = False
-        rhs = eq.rhs()
-        for t in rhs.tensors():
-            if t.label() in ['lambda4', 'lambda5', 'lambda6']:
-                no_print = True
-                break
-        if not no_print:
+        if not any(t.label() in ['lambda4', 'lambda5', 'lambda6'] for t in eq.rhs().tensors()):
             code.append(f"    {compile_first_row(eq, ket_name='c')}")
 
     code.append("    return sigma")
@@ -146,29 +108,25 @@ def dict_to_vec(dictionary, n_lowest):
     return vec.T
 
 
-def vec_to_dict(dict, vec):
+def vec_to_dict(dict_template, vec):
     new_dict = {}
     ncol = vec.shape[1]
     start = 0
-    for key, value in dict.items():
-        shape = list(value.shape)[1:]
+    for key, value in dict_template.items():
+        shape = value.shape[1:]
         num_elements = np.prod(shape)
         end = start + num_elements
-        array_slice = vec[start:end, :]
-        new_value = np.zeros((ncol, *shape))
-        for i in range(ncol):
-            new_value[i] = array_slice[:, i].reshape(shape)
-        new_dict[key] = new_value
+        array_slice = vec[start:end, :].T.reshape((ncol, *shape))
+        new_dict[key] = array_slice
         start = end
     return new_dict
 
 
 def generate_block_contraction(block_str, mbeq, block_type='single', indent='once', bra_name='bra', ket_name='c'):
+    indent_spaces = {"once": "    ", "twice": "        "}
+    space = indent_spaces.get(indent, "    ")
     code = []
-    if indent == 'once':
-        space = "    "
-    elif indent == 'twice':
-        space = "        "
+
     for eq in mbeq['|']:
         no_print = False
         correct_contraction = False
@@ -182,13 +140,14 @@ def generate_block_contraction(block_str, mbeq, block_type='single', indent='onc
             elif t.label() == ket_name:
                 ket_label = ''.join([str(_)[0] for _ in t.upper()]) + ''.join([str(_)[0] for _ in t.lower()])
 
-        if block_type == 'single':
-            correct_contraction = bra_label == ket_label == block_str
-        elif block_type == 'composite':
-            correct_contraction = (bra_label in block_str) and (ket_label in block_str)
+        if not no_print:
+            if block_type == 'single':
+                correct_contraction = bra_label == ket_label == block_str
+            elif block_type == 'composite':
+                correct_contraction = bra_label in block_str and ket_label in block_str
 
-        if (not no_print) and correct_contraction:
-            code.append(f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name)}")
+            if correct_contraction:
+                code.append(f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name)}")
 
     code.append(f"{space}sigma = antisymmetrize(sigma)")
 
@@ -198,177 +157,196 @@ def generate_block_contraction(block_str, mbeq, block_type='single', indent='onc
 
 def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
     '''
-    single_space: a list of string.
-    composite_space: a list of list of string.
+    single_space: a list of strings.
+    composite_space: a list of lists of strings.
     '''
     code = [
-        f"def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, tol = {tol}, tol_act = {tol_act}):"]
-    code.append("    sigma = {}")
-    code.append("    c = {}")
-    code.append("    S_12 = []")
-    code.append("    sym_space = {}\n")
+        f"def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, tol={tol}, tol_act={tol_act}):",
+        "    sigma = {}",
+        "    c = {}",
+        "    S_12 = []",
+        "    sym_space = {}"
+    ]
 
-    # The single space
-    for key in single_space:
-        code.append(f"    # {key} block")
-        code.append(f"    shape_block = template_c['{key}'].shape[1:]")
-        code.append(f"    shape_size = np.prod(shape_block)")
-        code.append(f"    c['{key}'] = np.zeros((shape_size, *shape_block))")
-        code.append(f"    sigma['{key}'] = np.zeros((shape_size, *shape_block))")
+    def add_single_space_code(key):
+        return [
+            f"    # {key} block",
+            f"    shape_block = template_c['{key}'].shape[1:]",
+            f"    shape_size = np.prod(shape_block)",
+            f"    c['{key}'] = np.zeros((shape_size, *shape_block))",
+            f"    sigma['{key}'] = np.zeros((shape_size, *shape_block))",
+            f"    sym_space['{key}'] = sym_dict['{key}']",
+            f"    sym_vec = dict_to_vec(sym_space, 1).flatten()",
+            f"    c_vec = dict_to_vec(c, shape_size)",
+            f"    np.fill_diagonal(c_vec, 1)",
+            f"    c = vec_to_dict(c, c_vec)",
+            f"    c = antisymmetrize(c)",
+            generate_block_contraction(key, mbeq, block_type='single', indent='once'),
+            f"    vec = dict_to_vec(sigma, shape_size)",
+            f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]",
+            f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)",
+            f"    vec[~mask] = 0",
+            f"    sevals, sevecs = np.linalg.eigh(vec)",
+            f"    trunc_indices = np.where(sevals > tol)[0]",
+            f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
+            "    S_12.append(X)",
+            "    sigma.clear()",
+            "    sym_space.clear()",
+            "    c.clear()"
+        ]
 
-        code.append(f"    sym_space['{key}'] = sym_dict['{key}']")
-        code.append(f"    sym_vec = dict_to_vec(sym_space, 1).flatten()")
-
-        code.append(f"    c_vec = dict_to_vec(c, shape_size)")
-        code.append(f"    np.fill_diagonal(c_vec, 1)")
-        code.append(f"    c = vec_to_dict(c, c_vec)")
-        code.append(f"    c = antisymmetrize(c)\n")
-
-        func = generate_block_contraction(key, mbeq, block_type='single', indent='once')
-        code.append(f"{func}\n")
-
-        code.append(f"    vec = dict_to_vec(sigma, shape_size)")
-
-        code.append(f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]")
-        code.append(f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)")
-        code.append(f"    vec[~mask] = 0")
-
-        code.append(f"    sevals, sevecs = np.linalg.eigh(vec)")
-        code.append(f"    trunc_indices = np.where(sevals > tol)[0]")
-        code.append(f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])")
-        code.append(f"    S_12.append(X)\n")
-
-        code.append("    sigma.clear()")
-        code.append("    sym_space.clear()")
-        code.append("    c.clear()\n")
-
-    # The composite space
-    for space in composite_space:
-        code.append(f"    # {space} composite block")
-        code.append(f"    shape_size = 0")
-        code.append(f"    for key in {space}:")
-        code.append(f"        shape_block = template_c[key].shape[1:]")
-        code.append(f"        shape_size += np.prod(shape_block)")
-        code.append(f"        sym_space[key] = sym_dict[key]")
-        code.append(f"    for key in {space}:")
-        code.append(f"        shape_block = template_c[key].shape[1:]")
-        code.append(f"        c[key] = np.zeros((shape_size, *shape_block))")
-        code.append(f"        sigma[key] = np.zeros((shape_size, *shape_block))")
-
-        code.append(f"    sym_vec = dict_to_vec(sym_space, 1).flatten()")
-
-        code.append(f"    c_vec = dict_to_vec(c, shape_size)")
-        code.append(f"    np.fill_diagonal(c_vec, 1)")
-        code.append(f"    c = vec_to_dict(c, c_vec)")
-        code.append(f"    c = antisymmetrize(c)\n")
-
-        func = generate_block_contraction(space, mbeq, block_type='composite', indent='once')
-        code.append(f"{func}\n")
-
-        code.append(f"    vec = dict_to_vec(sigma, shape_size)")
-
-        code.append(f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]")
-        code.append(f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)")
-        code.append(f"    vec[~mask] = 0")
-
-        code.append(f"    sevals, sevecs = np.linalg.eigh(vec)")
+    def add_composite_space_code(space):
+        code_block = [
+            f"    # {space} composite block",
+            f"    shape_size = 0"
+        ]
+        for key in space:
+            code_block.extend([
+                f"    shape_block = template_c['{key}'].shape[1:]",
+                f"    shape_size += np.prod(shape_block)",
+                f"    sym_space['{key}'] = sym_dict['{key}']"
+            ])
+        code_block.extend([
+            f"    for key in {space}:",
+            f"        shape_block = template_c[key].shape[1:]",
+            f"        c[key] = np.zeros((shape_size, *shape_block))",
+            f"        sigma[key] = np.zeros((shape_size, *shape_block))",
+            f"    sym_vec = dict_to_vec(sym_space, 1).flatten()",
+            f"    c_vec = dict_to_vec(c, shape_size)",
+            f"    np.fill_diagonal(c_vec, 1)",
+            f"    c = vec_to_dict(c, c_vec)",
+            f"    c = antisymmetrize(c)"
+        ])
+        code_block.append(generate_block_contraction(space, mbeq, block_type='composite', indent='once'))
+        code_block.extend([
+            f"    vec = dict_to_vec(sigma, shape_size)",
+            f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]",
+            f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)",
+            f"    vec[~mask] = 0",
+            f"    sevals, sevecs = np.linalg.eigh(vec)"
+        ])
         if space == ['aa', 'AA', 'aaaa', 'AAAA', 'aAaA']:
-            code.append(f"    trunc_indices = np.where(sevals > tol_act)[0]")
+            code_block.append(f"    trunc_indices = np.where(sevals > tol_act)[0]")
         else:
-            code.append(f"    trunc_indices = np.where(sevals > tol)[0]")
-        code.append(f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])")
-        code.append(f"    S_12.append(X)\n")
+            code_block.append(f"    trunc_indices = np.where(sevals > tol)[0]")
+        code_block.extend([
+            f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
+            "    S_12.append(X)",
+            "    sigma.clear()",
+            "    sym_space.clear()",
+            "    c.clear()"
+        ])
+        return code_block
 
-        code.append("    sigma.clear()")
-        code.append("    sym_space.clear()")
-        code.append("    c.clear()\n")
+    # Add single space code blocks
+    for key in single_space:
+        code.extend(add_single_space_code(key))
+        code.append("")  # Blank line for separation
+
+    # Add composite space code blocks
+    for space in composite_space:
+        code.extend(add_composite_space_code(space))
+        code.append("")  # Blank line for separation
 
     code.append("    return S_12")
-    funct = "\n".join(code)
-    return funct
+    return "\n".join(code)
 
 
 def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='exact'):
-    code = [f"def compute_preconditioner_{diagonal_type}(template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3):"]
-    code.append("    sigma = {}")
-    code.append("    c = {}")
-    code.append("    diagonal = [np.array([0.0])]")
-    for i_key, key in enumerate(single_space):
-        code.append(f"    # {key} block")
-        code.append(f"    shape_block = template_c['{key}'].shape[1:]")
-        code.append(f"    tensor = S_12[{i_key}]")
-        code.append(f"    northo = tensor.shape[1]")
-        code.append(f"    if northo != 0:")
-        code.append(f"        c['{key}'] = np.zeros((northo, *shape_block))")
-        code.append(f"        sigma['{key}'] = np.zeros((northo, *shape_block))")
-        code.append(f"        c = vec_to_dict(c, tensor)")
-        code.append(f"        c = antisymmetrize(c)\n")
+    def add_single_space_code(key, i_key):
+        return [
+            f"    # {key} block",
+            f"    shape_block = template_c['{key}'].shape[1:]",
+            f"    tensor = S_12[{i_key}]",
+            f"    northo = tensor.shape[1]",
+            f"    if northo != 0:",
+            f"        c['{key}'] = np.zeros((northo, *shape_block))",
+            f"        sigma['{key}'] = np.zeros((northo, *shape_block))",
+            f"        c = vec_to_dict(c, tensor)",
+            f"        c = antisymmetrize(c)",
+            generate_block_contraction(key, mbeq, block_type='single', indent='twice'),
+            f"        vec = dict_to_vec(sigma, northo)",
+            f"        vmv = tensor.T @ vec",
+            f"        diagonal.append(vmv.diagonal())",
+            "    sigma.clear()",
+            "    c.clear()"
+        ]
 
-        func_h = generate_block_contraction(key, mbeq, block_type='single', indent='twice')
-        code.append(f"{func_h}\n")
+    def add_composite_space_code(space, start):
+        code_block = [
+            f"    # {space} composite block",
+            f"    tensor = S_12[{start}]",
+            f"    northo = tensor.shape[1]",
+            f"    if northo != 0:",
+            f"        vmv = np.zeros((northo, northo))"
+        ]
 
-        code.append(f"        vec = dict_to_vec(sigma, northo)")
-        code.append(f"        vmv = tensor.T @ vec")
-        code.append(f"        diagonal.append(vmv.diagonal())\n")
-
-        code.append("    sigma.clear()")
-        code.append("    c.clear()\n")
-
-    code.append(f"    start = len({single_space})\n")
-
-    for space in composite_space:
-        code.append(f"    # {space} composite block")
-        code.append(f"    tensor = S_12[start]")
-        code.append(f"    northo = tensor.shape[1]")
-        code.append(f"    if northo != 0:")
-        code.append(f"        vmv = np.zeros((northo, northo))")
         if diagonal_type == 'exact':
-            code.append(f"        for key in {space}:")
-            code.append(f"            shape_block = template_c[key].shape[1:]")
-            code.append(f"            c[key] = np.zeros((northo, *shape_block))")
-            code.append(f"            sigma[key] = np.zeros((northo, *shape_block))")
-            code.append(f"        c = vec_to_dict(c, tensor)")
-            code.append(f"        c = antisymmetrize(c)\n")
-
-            func_h = generate_block_contraction(space, mbeq, block_type='composite', indent='twice')
-            code.append(f"{func_h}\n")
-
-            code.append(f"        vec = dict_to_vec(sigma, northo)")
-            code.append(f"        vmv = tensor.T @ vec")
+            code_block.extend([
+                f"        for key in {space}:",
+                f"            shape_block = template_c[key].shape[1:]",
+                f"            c[key] = np.zeros((northo, *shape_block))",
+                f"            sigma[key] = np.zeros((northo, *shape_block))",
+                f"        c = vec_to_dict(c, tensor)",
+                f"        c = antisymmetrize(c)",
+                generate_block_contraction(space, mbeq, block_type='composite', indent='twice'),
+                f"        vec = dict_to_vec(sigma, northo)",
+                f"        vmv = tensor.T @ vec"
+            ])
         elif diagonal_type == 'block':
-            code.append(f"        slice_tensor = 0")
+            code_block.extend([
+                f"        slice_tensor = 0"
+            ])
             for key_space in space:
-                code.append(f"        # {key_space} sub-block")
-                code.append(f"        shape_block = template_c['{key_space}'].shape[1:]")
-                code.append(f"        shape_size = np.prod(shape_block)")
-                code.append(f"        c['{key_space}'] = np.zeros((shape_size, *shape_block))")
-                code.append(f"        sigma['{key_space}'] = np.zeros((shape_size, *shape_block))")
-                code.append(f"        c_vec = dict_to_vec(c, shape_size)")
-                code.append(f"        np.fill_diagonal(c_vec, 1)")
-                code.append(f"        c = vec_to_dict(c, c_vec)")
-                code.append(f"        c = antisymmetrize(c)\n")
+                code_block.extend([
+                    f"        # {key_space} sub-block",
+                    f"        shape_block = template_c['{key_space}'].shape[1:]",
+                    f"        shape_size = np.prod(shape_block)",
+                    f"        c['{key_space}'] = np.zeros((shape_size, *shape_block))",
+                    f"        sigma['{key_space}'] = np.zeros((shape_size, *shape_block))",
+                    f"        c_vec = dict_to_vec(c, shape_size)",
+                    f"        np.fill_diagonal(c_vec, 1)",
+                    f"        c = vec_to_dict(c, c_vec)",
+                    f"        c = antisymmetrize(c)",
+                    generate_block_contraction(key_space, mbeq, block_type='single', indent='twice'),
+                    f"        H_temp = dict_to_vec(sigma, shape_size)",
+                    f"        S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]",
+                    f"        vmv += S_temp.T @ H_temp @ S_temp",
+                    f"        slice_tensor += shape_size",
+                    "        sigma.clear()",
+                    "        c.clear()"
+                ])
+        code_block.append(f"        diagonal.append(vmv.diagonal())")
+        code_block.extend([
+            "    sigma.clear()",
+            "    c.clear()"
+        ])
+        return code_block
 
-                func_h = generate_block_contraction(key_space, mbeq, block_type='single', indent='twice')
-                code.append(f"{func_h}\n")
+    code = [
+        f"def compute_preconditioner_{diagonal_type}(template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3):",
+        "    sigma = {}",
+        "    c = {}",
+        "    diagonal = [np.array([0.0])]",
+    ]
 
-                code.append(f"        H_temp = dict_to_vec(sigma, shape_size)")
-                code.append(f"        S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]")
-                code.append(f"        vmv += S_temp.T @ H_temp @ S_temp")
-                code.append(f"        slice_tensor += shape_size")
-                code.append(f"        sigma.clear()")
-                code.append(f"        c.clear()\n")
+    # Add single space code blocks
+    for i_key, key in enumerate(single_space):
+        code.extend(add_single_space_code(key, i_key))
+        code.append("")  # Blank line for separation
 
-        code.append(f"        diagonal.append(vmv.diagonal())\n")
+    start = len(single_space)
 
-        code.append("    start += 1")
-        code.append("    sigma.clear()")
-        code.append("    c.clear()\n")
+    # Add composite space code blocks
+    for space in composite_space:
+        code.extend(add_composite_space_code(space, start))
+        start += 1  # Update start index
+        code.append("")  # Blank line for separation
 
     code.append("    full_diag = np.concatenate(diagonal)")
     code.append("    return full_diag")
 
-    funct = "\n".join(code)
-    return funct
+    return "\n".join(code)
 
 
 def antisymmetrize_tensor_2_2(Roovv, nlow, nocc, nvir):

@@ -40,12 +40,11 @@ def get_template_c(nlow, ncore, nocc, nact, nvir):
         }
     return c
 
-def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, tol = 0.0001, tol_act = 0.01):
+def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, tol=0.0001, tol_act=0.01):
     sigma = {}
     c = {}
     S_12 = []
     sym_space = {}
-
     # iv block
     shape_block = template_c['iv'].shape[1:]
     shape_size = np.prod(shape_block)
@@ -57,10 +56,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['iv'] += +1.00000000 * np.einsum('pce->pce',c['iv'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -69,7 +66,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -85,10 +81,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['IV'] += +1.00000000 * np.einsum('pCE->pCE',c['IV'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -97,7 +91,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -113,11 +106,9 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['iAaV'] += +1.00000000 * np.einsum('pcAaE,ao,OA->pcOoE',c['iAaV'],eta1['aa'],gamma1['AA'],optimize=True)
     sigma['iAaV'] += -1.00000000 * np.einsum('pcAaE,aOoA->pcOoE',c['iAaV'],lambda2['aAaA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -126,7 +117,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -142,11 +132,9 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['aIvA'] += +1.00000000 * np.einsum('paCeA,AO,oa->poCeO',c['aIvA'],eta1['AA'],gamma1['aa'],optimize=True)
     sigma['aIvA'] += -1.00000000 * np.einsum('paCeA,oAaO->poCeO',c['aIvA'],lambda2['aAaA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -155,7 +143,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -171,10 +158,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['icvv'] += +0.50000000 * np.einsum('pckef->pckef',c['icvv'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -183,7 +168,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -199,10 +183,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['iCvV'] += +1.00000000 * np.einsum('pcKeE->pcKeE',c['iCvV'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -211,7 +193,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -227,10 +208,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['cIvV'] += +1.00000000 * np.einsum('pkCeE->pkCeE',c['cIvV'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -239,7 +218,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -255,10 +233,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['ICVV'] += +0.50000000 * np.einsum('pCKEF->pCKEF',c['ICVV'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -267,7 +243,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -283,10 +258,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['icva'] += +1.00000000 * np.einsum('pckea,ao->pckeo',c['icva'],eta1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -295,7 +268,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -311,10 +283,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['iCvA'] += +1.00000000 * np.einsum('pcKeA,AO->pcKeO',c['iCvA'],eta1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -323,7 +293,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -339,10 +308,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['iCaV'] += +1.00000000 * np.einsum('pcKaE,ao->pcKoE',c['iCaV'],eta1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -351,7 +318,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -367,10 +333,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['cIvA'] += +1.00000000 * np.einsum('pkCeA,AO->pkCeO',c['cIvA'],eta1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -379,7 +343,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -395,10 +358,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['cIaV'] += +1.00000000 * np.einsum('pkCaE,ao->pkCoE',c['cIaV'],eta1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -407,7 +368,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -423,10 +383,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['ICVA'] += +1.00000000 * np.einsum('pCKEA,AO->pCKEO',c['ICVA'],eta1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -435,7 +393,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -451,10 +408,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['iavv'] += +0.50000000 * np.einsum('pcaef,oa->pcoef',c['iavv'],gamma1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -463,7 +418,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -479,10 +433,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['iAvV'] += +1.00000000 * np.einsum('pcAeE,OA->pcOeE',c['iAvV'],gamma1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -491,7 +443,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -507,10 +458,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['aIvV'] += +1.00000000 * np.einsum('paCeE,oa->poCeE',c['aIvV'],gamma1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -519,7 +468,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -535,10 +483,8 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['IAVV'] += +0.50000000 * np.einsum('pCAEF,OA->pCOEF',c['IAVV'],gamma1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -547,7 +493,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -563,11 +508,9 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['icaa'] += +0.50000000 * np.einsum('pckbr,ra,bo->pckoa',c['icaa'],eta1['aa'],eta1['aa'],optimize=True)
     sigma['icaa'] += +0.25000000 * np.einsum('pckbr,broa->pckoa',c['icaa'],lambda2['aaaa'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -576,7 +519,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -592,11 +534,9 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['iCaA'] += +1.00000000 * np.einsum('pcKaA,AO,ao->pcKoO',c['iCaA'],eta1['AA'],eta1['aa'],optimize=True)
     sigma['iCaA'] += +1.00000000 * np.einsum('pcKaA,aAoO->pcKoO',c['iCaA'],lambda2['aAaA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -605,7 +545,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -621,11 +560,9 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['cIaA'] += +1.00000000 * np.einsum('pkCaA,AO,ao->pkCoO',c['cIaA'],eta1['AA'],eta1['aa'],optimize=True)
     sigma['cIaA'] += +1.00000000 * np.einsum('pkCaA,aAoO->pkCoO',c['cIaA'],lambda2['aAaA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -634,7 +571,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -650,11 +586,9 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['ICAA'] += +0.50000000 * np.einsum('pCKBR,RA,BO->pCKOA',c['ICAA'],eta1['AA'],eta1['AA'],optimize=True)
     sigma['ICAA'] += +0.25000000 * np.einsum('pCKBR,BROA->pCKOA',c['ICAA'],lambda2['AAAA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -663,17 +597,18 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
 
     # ['iava', 'iAvA'] composite block
     shape_size = 0
-    for key in ['iava', 'iAvA']:
-        shape_block = template_c[key].shape[1:]
-        shape_size += np.prod(shape_block)
-        sym_space[key] = sym_dict[key]
+    shape_block = template_c['iava'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['iava'] = sym_dict['iava']
+    shape_block = template_c['iAvA'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['iAvA'] = sym_dict['iAvA']
     for key in ['iava', 'iAvA']:
         shape_block = template_c[key].shape[1:]
         c[key] = np.zeros((shape_size, *shape_block))
@@ -683,7 +618,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['iava'] += +1.00000000 * np.einsum('pcber,ro,ab->pcaeo',c['iava'],eta1['aa'],gamma1['aa'],optimize=True)
     sigma['iava'] += +1.00000000 * np.einsum('pcber,arob->pcaeo',c['iava'],lambda2['aaaa'],optimize=True)
     sigma['iava'] += +1.00000000 * np.einsum('pcOeA,aAoO->pcaeo',c['iAvA'],lambda2['aAaA'],optimize=True)
@@ -691,7 +625,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iAvA'] += +1.00000000 * np.einsum('pcBeR,RO,AB->pcAeO',c['iAvA'],eta1['AA'],gamma1['AA'],optimize=True)
     sigma['iAvA'] += +1.00000000 * np.einsum('pcBeR,AROB->pcAeO',c['iAvA'],lambda2['AAAA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -700,17 +633,18 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
 
     # ['aIaV', 'IAVA'] composite block
     shape_size = 0
-    for key in ['aIaV', 'IAVA']:
-        shape_block = template_c[key].shape[1:]
-        shape_size += np.prod(shape_block)
-        sym_space[key] = sym_dict[key]
+    shape_block = template_c['aIaV'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['aIaV'] = sym_dict['aIaV']
+    shape_block = template_c['IAVA'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['IAVA'] = sym_dict['IAVA']
     for key in ['aIaV', 'IAVA']:
         shape_block = template_c[key].shape[1:]
         c[key] = np.zeros((shape_size, *shape_block))
@@ -720,7 +654,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['aIaV'] += +1.00000000 * np.einsum('pbCrE,ro,ab->paCoE',c['aIaV'],eta1['aa'],gamma1['aa'],optimize=True)
     sigma['aIaV'] += +1.00000000 * np.einsum('pbCrE,arob->paCoE',c['aIaV'],lambda2['aaaa'],optimize=True)
     sigma['aIaV'] += +1.00000000 * np.einsum('pCOEA,aAoO->paCoE',c['IAVA'],lambda2['aAaA'],optimize=True)
@@ -728,7 +661,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['IAVA'] += +1.00000000 * np.einsum('pCBER,RO,AB->pCAEO',c['IAVA'],eta1['AA'],gamma1['AA'],optimize=True)
     sigma['IAVA'] += +1.00000000 * np.einsum('pCBER,AROB->pCAEO',c['IAVA'],lambda2['AAAA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -737,17 +669,21 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
 
     # ['ia', 'iaaa', 'iAaA'] composite block
     shape_size = 0
-    for key in ['ia', 'iaaa', 'iAaA']:
-        shape_block = template_c[key].shape[1:]
-        shape_size += np.prod(shape_block)
-        sym_space[key] = sym_dict[key]
+    shape_block = template_c['ia'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['ia'] = sym_dict['ia']
+    shape_block = template_c['iaaa'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['iaaa'] = sym_dict['iaaa']
+    shape_block = template_c['iAaA'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['iAaA'] = sym_dict['iAaA']
     for key in ['ia', 'iaaa', 'iAaA']:
         shape_block = template_c[key].shape[1:]
         c[key] = np.zeros((shape_size, *shape_block))
@@ -757,7 +693,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['ia'] += +1.00000000 * np.einsum('pca,ao->pco',c['ia'],eta1['aa'],optimize=True)
     sigma['ia'] += -0.50000000 * np.einsum('pcabr,broa->pco',c['iaaa'],lambda2['aaaa'],optimize=True)
     sigma['ia'] += -1.00000000 * np.einsum('pcOaA,aAoO->pco',c['iAaA'],lambda2['aAaA'],optimize=True)
@@ -777,7 +712,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iAaA'] += +1.00000000 * np.einsum('pcBaR,AB,aRoO->pcAoO',c['iAaA'],gamma1['AA'],lambda2['aAaA'],optimize=True)
     sigma['iAaA'] += -1.00000000 * np.einsum('pcBaR,aARoOB->pcAoO',c['iAaA'],lambda3['aAAaAA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -786,17 +720,21 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
 
     # ['IA', 'aIaA', 'IAAA'] composite block
     shape_size = 0
-    for key in ['IA', 'aIaA', 'IAAA']:
-        shape_block = template_c[key].shape[1:]
-        shape_size += np.prod(shape_block)
-        sym_space[key] = sym_dict[key]
+    shape_block = template_c['IA'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['IA'] = sym_dict['IA']
+    shape_block = template_c['aIaA'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['aIaA'] = sym_dict['aIaA']
+    shape_block = template_c['IAAA'].shape[1:]
+    shape_size += np.prod(shape_block)
+    sym_space['IAAA'] = sym_dict['IAAA']
     for key in ['IA', 'aIaA', 'IAAA']:
         shape_block = template_c[key].shape[1:]
         c[key] = np.zeros((shape_size, *shape_block))
@@ -806,7 +744,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
     c = antisymmetrize(c)
-
     sigma['aIaA'] += -1.00000000 * np.einsum('pbCrA,ro,aAbO->paCoO',c['aIaA'],eta1['aa'],lambda2['aAaA'],optimize=True)
     sigma['aIaA'] += +1.00000000 * np.einsum('pbCrA,AO,ro,ab->paCoO',c['aIaA'],eta1['AA'],eta1['aa'],gamma1['aa'],optimize=True)
     sigma['aIaA'] += +1.00000000 * np.einsum('pbCrA,AO,arob->paCoO',c['aIaA'],eta1['AA'],lambda2['aaaa'],optimize=True)
@@ -826,7 +763,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['IAAA'] += +0.25000000 * np.einsum('pCRST,BR,STOA->pCBOA',c['IAAA'],gamma1['AA'],lambda2['AAAA'],optimize=True)
     sigma['IAAA'] += +0.25000000 * np.einsum('pCRST,BSTOAR->pCBOA',c['IAAA'],lambda3['AAAAAA'],optimize=True)
     sigma = antisymmetrize(sigma)
-
     vec = dict_to_vec(sigma, shape_size)
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
@@ -835,7 +771,6 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-
     sigma.clear()
     sym_space.clear()
     c.clear()
@@ -855,16 +790,13 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iv'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iv'] += -1.00000000 * np.einsum('cd,pde->pce',Hbar['ii'],c['iv'],optimize=True)
         sigma['iv'] += -1.00000000 * np.einsum('cedf,pde->pcf',Hbar['iviv'],c['iv'],optimize=True)
         sigma['iv'] += +1.00000000 * np.einsum('ef,pce->pcf',Hbar['vv'],c['iv'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -877,16 +809,13 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['IV'] += -1.00000000 * np.einsum('CD,pDE->pCE',Hbar['II'],c['IV'],optimize=True)
         sigma['IV'] += -1.00000000 * np.einsum('CEDF,pDE->pCF',Hbar['IVIV'],c['IV'],optimize=True)
         sigma['IV'] += +1.00000000 * np.einsum('EF,pCE->pCF',Hbar['VV'],c['IV'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -899,7 +828,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iAaV'] += -1.00000000 * np.einsum('cd,pdAaE,ao,OA->pcOoE',Hbar['ii'],c['iAaV'],eta1['aa'],gamma1['AA'],optimize=True)
         sigma['iAaV'] += +1.00000000 * np.einsum('cd,pdAaE,aOoA->pcOoE',Hbar['ii'],c['iAaV'],lambda2['aAaA'],optimize=True)
         sigma['iAaV'] += +1.00000000 * np.einsum('coda,pdArE,ro,aObA->pcObE',Hbar['iaia'],c['iAaV'],eta1['aa'],lambda2['aAaA'],optimize=True)
@@ -988,11 +916,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaV'] += +0.50000000 * np.einsum('OABR,pcTaE,BROT,aSoA->pcSoE',Hbar['AAAA'],c['iAaV'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['iAaV'] += -1.00000000 * np.einsum('OABR,pcTaE,RSAT,aBoO->pcSoE',Hbar['AAAA'],c['iAaV'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1005,7 +931,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['aIvA'] += +1.00000000 * np.einsum('ef,paCeA,AO,oa->poCfO',Hbar['vv'],c['aIvA'],eta1['AA'],gamma1['aa'],optimize=True)
         sigma['aIvA'] += -1.00000000 * np.einsum('ef,paCeA,oAaO->poCfO',Hbar['vv'],c['aIvA'],lambda2['aAaA'],optimize=True)
         sigma['aIvA'] += -1.00000000 * np.einsum('eofa,prCeA,AO,ar,bo->pbCfO',Hbar['vava'],c['aIvA'],eta1['AA'],gamma1['aa'],gamma1['aa'],optimize=True)
@@ -1094,11 +1019,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvA'] += +0.50000000 * np.einsum('OABR,paCeT,BROS,oTaA->poCeS',Hbar['AAAA'],c['aIvA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['aIvA'] += -1.00000000 * np.einsum('OABR,paCeT,RTAS,oBaO->poCeS',Hbar['AAAA'],c['aIvA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1111,7 +1034,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icvv'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['icvv'] += -0.50000000 * np.einsum('cd,pdkef->pckef',Hbar['ii'],c['icvv'],optimize=True)
         sigma['icvv'] += +0.50000000 * np.einsum('ckdl,pdlef->pckef',Hbar['icic'],c['icvv'],optimize=True)
         sigma['icvv'] += -1.00000000 * np.einsum('cedf,pdkeg->pckfg',Hbar['iviv'],c['icvv'],optimize=True)
@@ -1120,11 +1042,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icvv'] += +1.00000000 * np.einsum('ef,pckeg->pckfg',Hbar['vv'],c['icvv'],optimize=True)
         sigma['icvv'] += +0.25000000 * np.einsum('efgh,pckef->pckgh',Hbar['vvvv'],c['icvv'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1137,7 +1057,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iCvV'] += -1.00000000 * np.einsum('cd,pdKeE->pcKeE',Hbar['ii'],c['iCvV'],optimize=True)
         sigma['iCvV'] += -1.00000000 * np.einsum('cedf,pdKeE->pcKfE',Hbar['iviv'],c['iCvV'],optimize=True)
         sigma['iCvV'] += +1.00000000 * np.einsum('cKdL,pdLeE->pcKeE',Hbar['iCiC'],c['iCvV'],optimize=True)
@@ -1149,11 +1068,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvV'] += -1.00000000 * np.einsum('KELF,pcLeE->pcKeF',Hbar['CVCV'],c['iCvV'],optimize=True)
         sigma['iCvV'] += +1.00000000 * np.einsum('EF,pcKeE->pcKeF',Hbar['VV'],c['iCvV'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1166,7 +1083,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['cIvV'] += -1.00000000 * np.einsum('kl,plCeE->pkCeE',Hbar['cc'],c['cIvV'],optimize=True)
         sigma['cIvV'] += -1.00000000 * np.einsum('kelf,plCeE->pkCfE',Hbar['cvcv'],c['cIvV'],optimize=True)
         sigma['cIvV'] += +1.00000000 * np.einsum('kClD,plDeE->pkCeE',Hbar['cIcI'],c['cIvV'],optimize=True)
@@ -1178,11 +1094,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvV'] += -1.00000000 * np.einsum('CEDF,pkDeE->pkCeF',Hbar['IVIV'],c['cIvV'],optimize=True)
         sigma['cIvV'] += +1.00000000 * np.einsum('EF,pkCeE->pkCeF',Hbar['VV'],c['cIvV'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1195,7 +1109,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['ICVV'] += -0.50000000 * np.einsum('CD,pDKEF->pCKEF',Hbar['II'],c['ICVV'],optimize=True)
         sigma['ICVV'] += +0.50000000 * np.einsum('CKDL,pDLEF->pCKEF',Hbar['ICIC'],c['ICVV'],optimize=True)
         sigma['ICVV'] += -1.00000000 * np.einsum('CEDF,pDKEG->pCKFG',Hbar['IVIV'],c['ICVV'],optimize=True)
@@ -1204,11 +1117,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVV'] += +1.00000000 * np.einsum('EF,pCKEG->pCKFG',Hbar['VV'],c['ICVV'],optimize=True)
         sigma['ICVV'] += +0.25000000 * np.einsum('EFGH,pCKEF->pCKGH',Hbar['VVVV'],c['ICVV'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1221,7 +1132,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icva'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['icva'] += -1.00000000 * np.einsum('cd,pdkea,ao->pckeo',Hbar['ii'],c['icva'],eta1['aa'],optimize=True)
         sigma['icva'] += +1.00000000 * np.einsum('ckdl,pdlea,ao->pckeo',Hbar['icic'],c['icva'],eta1['aa'],optimize=True)
         sigma['icva'] += -1.00000000 * np.einsum('cedf,pdkea,ao->pckfo',Hbar['iviv'],c['icva'],eta1['aa'],optimize=True)
@@ -1248,11 +1158,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icva'] += -1.00000000 * np.einsum('OA,pckea,aAoO->pckeo',Hbar['AA'],c['icva'],lambda2['aAaA'],optimize=True)
         sigma['icva'] += -0.25000000 * np.einsum('OABR,pckea,aBRoOA->pckeo',Hbar['AAAA'],c['icva'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1265,7 +1173,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iCvA'] += -1.00000000 * np.einsum('cd,pdKeA,AO->pcKeO',Hbar['ii'],c['iCvA'],eta1['AA'],optimize=True)
         sigma['iCvA'] += -1.00000000 * np.einsum('cedf,pdKeA,AO->pcKfO',Hbar['iviv'],c['iCvA'],eta1['AA'],optimize=True)
         sigma['iCvA'] += +1.00000000 * np.einsum('coda,pdKeA,aAoO->pcKeO',Hbar['iaia'],c['iCvA'],lambda2['aAaA'],optimize=True)
@@ -1292,11 +1199,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvA'] += +0.50000000 * np.einsum('OABR,pcKeT,BS,RTOA->pcKeS',Hbar['AAAA'],c['iCvA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['iCvA'] += -0.25000000 * np.einsum('OABR,pcKeT,BRTOAS->pcKeS',Hbar['AAAA'],c['iCvA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1309,7 +1214,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iCaV'] += -1.00000000 * np.einsum('cd,pdKaE,ao->pcKoE',Hbar['ii'],c['iCaV'],eta1['aa'],optimize=True)
         sigma['iCaV'] += -1.00000000 * np.einsum('coda,pdKrE,ab,ro->pcKbE',Hbar['iaia'],c['iCaV'],eta1['aa'],eta1['aa'],optimize=True)
         sigma['iCaV'] += +1.00000000 * np.einsum('coda,pdKrE,arob->pcKbE',Hbar['iaia'],c['iCaV'],lambda2['aaaa'],optimize=True)
@@ -1336,11 +1240,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaV'] += -1.00000000 * np.einsum('OA,pcKaE,aAoO->pcKoE',Hbar['AA'],c['iCaV'],lambda2['aAaA'],optimize=True)
         sigma['iCaV'] += -0.25000000 * np.einsum('OABR,pcKaE,aBRoOA->pcKoE',Hbar['AAAA'],c['iCaV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1353,7 +1255,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['cIvA'] += -1.00000000 * np.einsum('kl,plCeA,AO->pkCeO',Hbar['cc'],c['cIvA'],eta1['AA'],optimize=True)
         sigma['cIvA'] += -1.00000000 * np.einsum('kelf,plCeA,AO->pkCfO',Hbar['cvcv'],c['cIvA'],eta1['AA'],optimize=True)
         sigma['cIvA'] += +1.00000000 * np.einsum('kola,plCeA,aAoO->pkCeO',Hbar['caca'],c['cIvA'],lambda2['aAaA'],optimize=True)
@@ -1380,11 +1281,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvA'] += +0.50000000 * np.einsum('OABR,pkCeT,BS,RTOA->pkCeS',Hbar['AAAA'],c['cIvA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['cIvA'] += -0.25000000 * np.einsum('OABR,pkCeT,BRTOAS->pkCeS',Hbar['AAAA'],c['cIvA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1397,7 +1296,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['cIaV'] += -1.00000000 * np.einsum('kl,plCaE,ao->pkCoE',Hbar['cc'],c['cIaV'],eta1['aa'],optimize=True)
         sigma['cIaV'] += -1.00000000 * np.einsum('kola,plCrE,ab,ro->pkCbE',Hbar['caca'],c['cIaV'],eta1['aa'],eta1['aa'],optimize=True)
         sigma['cIaV'] += +1.00000000 * np.einsum('kola,plCrE,arob->pkCbE',Hbar['caca'],c['cIaV'],lambda2['aaaa'],optimize=True)
@@ -1424,11 +1322,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaV'] += -1.00000000 * np.einsum('OA,pkCaE,aAoO->pkCoE',Hbar['AA'],c['cIaV'],lambda2['aAaA'],optimize=True)
         sigma['cIaV'] += -0.25000000 * np.einsum('OABR,pkCaE,aBRoOA->pkCoE',Hbar['AAAA'],c['cIaV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1441,7 +1337,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['ICVA'] += -1.00000000 * np.einsum('oa,pCKEA,aAoO->pCKEO',Hbar['aa'],c['ICVA'],lambda2['aAaA'],optimize=True)
         sigma['ICVA'] += -0.25000000 * np.einsum('oabr,pCKEA,brAoaO->pCKEO',Hbar['aaaa'],c['ICVA'],lambda3['aaAaaA'],optimize=True)
         sigma['ICVA'] += +1.00000000 * np.einsum('oCaD,pDKEA,aAoO->pCKEO',Hbar['aIaI'],c['ICVA'],lambda2['aAaA'],optimize=True)
@@ -1468,11 +1363,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVA'] += +0.50000000 * np.einsum('OABR,pCKET,BS,RTOA->pCKES',Hbar['AAAA'],c['ICVA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['ICVA'] += -0.25000000 * np.einsum('OABR,pCKET,BRTOAS->pCKES',Hbar['AAAA'],c['ICVA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1485,7 +1378,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iavv'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iavv'] += -0.50000000 * np.einsum('cd,pdaef,oa->pcoef',Hbar['ii'],c['iavv'],gamma1['aa'],optimize=True)
         sigma['iavv'] += -1.00000000 * np.einsum('cedf,pdaeg,oa->pcofg',Hbar['iviv'],c['iavv'],gamma1['aa'],optimize=True)
         sigma['iavv'] += +0.50000000 * np.einsum('coda,pdref,ar,bo->pcbef',Hbar['iaia'],c['iavv'],gamma1['aa'],gamma1['aa'],optimize=True)
@@ -1507,11 +1399,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iavv'] += +0.50000000 * np.einsum('OA,pcaef,oAaO->pcoef',Hbar['AA'],c['iavv'],lambda2['aAaA'],optimize=True)
         sigma['iavv'] += +0.12500000 * np.einsum('OABR,pcaef,oBRaOA->pcoef',Hbar['AAAA'],c['iavv'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1524,7 +1414,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iAvV'] += -1.00000000 * np.einsum('cd,pdAeE,OA->pcOeE',Hbar['ii'],c['iAvV'],gamma1['AA'],optimize=True)
         sigma['iAvV'] += -1.00000000 * np.einsum('cedf,pdAeE,OA->pcOfE',Hbar['iviv'],c['iAvV'],gamma1['AA'],optimize=True)
         sigma['iAvV'] += -1.00000000 * np.einsum('coda,pdAeE,aOoA->pcOeE',Hbar['iaia'],c['iAvV'],lambda2['aAaA'],optimize=True)
@@ -1551,11 +1440,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvV'] += -0.50000000 * np.einsum('OABR,pcTeE,RT,BSOA->pcSeE',Hbar['AAAA'],c['iAvV'],gamma1['AA'],lambda2['AAAA'],optimize=True)
         sigma['iAvV'] += +0.25000000 * np.einsum('OABR,pcTeE,BRSOAT->pcSeE',Hbar['AAAA'],c['iAvV'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1568,7 +1455,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['aIvV'] += +1.00000000 * np.einsum('ef,paCeE,oa->poCfE',Hbar['vv'],c['aIvV'],gamma1['aa'],optimize=True)
         sigma['aIvV'] += -1.00000000 * np.einsum('eofa,prCeE,ar,bo->pbCfE',Hbar['vava'],c['aIvV'],gamma1['aa'],gamma1['aa'],optimize=True)
         sigma['aIvV'] += +1.00000000 * np.einsum('eofa,prCeE,abor->pbCfE',Hbar['vava'],c['aIvV'],lambda2['aaaa'],optimize=True)
@@ -1595,11 +1481,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvV'] += +1.00000000 * np.einsum('OA,paCeE,oAaO->poCeE',Hbar['AA'],c['aIvV'],lambda2['aAaA'],optimize=True)
         sigma['aIvV'] += +0.25000000 * np.einsum('OABR,paCeE,oBRaOA->poCeE',Hbar['AAAA'],c['aIvV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1612,7 +1496,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['IAVV'] += +0.50000000 * np.einsum('oa,pCAEF,aOoA->pCOEF',Hbar['aa'],c['IAVV'],lambda2['aAaA'],optimize=True)
         sigma['IAVV'] += +0.12500000 * np.einsum('oabr,pCAEF,brOoaA->pCOEF',Hbar['aaaa'],c['IAVV'],lambda3['aaAaaA'],optimize=True)
         sigma['IAVV'] += -0.50000000 * np.einsum('oCaD,pDAEF,aOoA->pCOEF',Hbar['aIaI'],c['IAVV'],lambda2['aAaA'],optimize=True)
@@ -1634,11 +1517,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVV'] += -0.25000000 * np.einsum('OABR,pCTEF,RT,BSOA->pCSEF',Hbar['AAAA'],c['IAVV'],gamma1['AA'],lambda2['AAAA'],optimize=True)
         sigma['IAVV'] += +0.12500000 * np.einsum('OABR,pCTEF,BRSOAT->pCSEF',Hbar['AAAA'],c['IAVV'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1651,7 +1532,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icaa'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['icaa'] += -0.50000000 * np.einsum('cd,pdkbr,ra,bo->pckoa',Hbar['ii'],c['icaa'],eta1['aa'],eta1['aa'],optimize=True)
         sigma['icaa'] += -0.25000000 * np.einsum('cd,pdkbr,broa->pckoa',Hbar['ii'],c['icaa'],lambda2['aaaa'],optimize=True)
         sigma['icaa'] += +0.50000000 * np.einsum('ckdl,pdlbr,ra,bo->pckoa',Hbar['icic'],c['icaa'],eta1['aa'],eta1['aa'],optimize=True)
@@ -1704,11 +1584,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icaa'] += -0.25000000 * np.einsum('OABR,pckbr,ra,bBRoOA->pckoa',Hbar['AAAA'],c['icaa'],eta1['aa'],lambda3['aAAaAA'],optimize=True)
         sigma['icaa'] += +0.50000000 * np.einsum('OABR,pckbr,rRaA,bBoO->pckoa',Hbar['AAAA'],c['icaa'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1721,7 +1599,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iCaA'] += -1.00000000 * np.einsum('cd,pdKaA,AO,ao->pcKoO',Hbar['ii'],c['iCaA'],eta1['AA'],eta1['aa'],optimize=True)
         sigma['iCaA'] += -1.00000000 * np.einsum('cd,pdKaA,aAoO->pcKoO',Hbar['ii'],c['iCaA'],lambda2['aAaA'],optimize=True)
         sigma['iCaA'] += -1.00000000 * np.einsum('coda,pdKrA,ro,aAbO->pcKbO',Hbar['iaia'],c['iCaA'],eta1['aa'],lambda2['aAaA'],optimize=True)
@@ -1810,11 +1687,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaA'] += -0.50000000 * np.einsum('OABR,pcKaT,BROS,aToA->pcKoS',Hbar['AAAA'],c['iCaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['iCaA'] += +1.00000000 * np.einsum('OABR,pcKaT,RTAS,aBoO->pcKoS',Hbar['AAAA'],c['iCaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1827,7 +1702,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['cIaA'] += -1.00000000 * np.einsum('kl,plCaA,AO,ao->pkCoO',Hbar['cc'],c['cIaA'],eta1['AA'],eta1['aa'],optimize=True)
         sigma['cIaA'] += -1.00000000 * np.einsum('kl,plCaA,aAoO->pkCoO',Hbar['cc'],c['cIaA'],lambda2['aAaA'],optimize=True)
         sigma['cIaA'] += -1.00000000 * np.einsum('kola,plCrA,ro,aAbO->pkCbO',Hbar['caca'],c['cIaA'],eta1['aa'],lambda2['aAaA'],optimize=True)
@@ -1916,11 +1790,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaA'] += -0.50000000 * np.einsum('OABR,pkCaT,BROS,aToA->pkCoS',Hbar['AAAA'],c['cIaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['cIaA'] += +1.00000000 * np.einsum('OABR,pkCaT,RTAS,aBoO->pkCoS',Hbar['AAAA'],c['cIaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -1933,7 +1805,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICAA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['ICAA'] += -1.00000000 * np.einsum('oa,pCKBR,RA,aBoO->pCKOA',Hbar['aa'],c['ICAA'],eta1['AA'],lambda2['aAaA'],optimize=True)
         sigma['ICAA'] += +0.25000000 * np.einsum('oa,pCKBR,aBRoOA->pCKOA',Hbar['aa'],c['ICAA'],lambda3['aAAaAA'],optimize=True)
         sigma['ICAA'] += -0.25000000 * np.einsum('oabr,pCKBR,RA,brBoaO->pCKOA',Hbar['aaaa'],c['ICAA'],eta1['AA'],lambda3['aaAaaA'],optimize=True)
@@ -1986,18 +1857,14 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICAA'] += +0.06250000 * np.einsum('OABR,pCKUV,BRST,UVOA->pCKST',Hbar['AAAA'],c['ICAA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['ICAA'] += -0.25000000 * np.einsum('OABR,pCKUV,RVST,BUOA->pCKST',Hbar['AAAA'],c['ICAA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
-    start = len(['iv', 'IV', 'iAaV', 'aIvA', 'icvv', 'iCvV', 'cIvV', 'ICVV', 'icva', 'iCvA', 'iCaV', 'cIvA', 'cIaV', 'ICVA', 'iavv', 'iAvV', 'aIvV', 'IAVV', 'icaa', 'iCaA', 'cIaA', 'ICAA'])
-
     # ['iava', 'iAvA'] composite block
-    tensor = S_12[start]
+    tensor = S_12[22]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
@@ -2007,7 +1874,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
             sigma[key] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iava'] += -1.00000000 * np.einsum('cd,pdber,ro,ab->pcaeo',Hbar['ii'],c['iava'],eta1['aa'],gamma1['aa'],optimize=True)
         sigma['iava'] += -1.00000000 * np.einsum('cd,pdber,arob->pcaeo',Hbar['ii'],c['iava'],lambda2['aaaa'],optimize=True)
         sigma['iava'] += -1.00000000 * np.einsum('cd,pdOeA,aAoO->pcaeo',Hbar['ii'],c['iAvA'],lambda2['aAaA'],optimize=True)
@@ -2297,17 +2163,14 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvA'] += +0.50000000 * np.einsum('OABR,pcUeV,RTSU,BVOA->pcTeS',Hbar['AAAA'],c['iAvA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['iAvA'] += -0.50000000 * np.einsum('OABR,pcUeV,RVSU,BTOA->pcTeS',Hbar['AAAA'],c['iAvA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
-    start += 1
     sigma.clear()
     c.clear()
 
     # ['aIaV', 'IAVA'] composite block
-    tensor = S_12[start]
+    tensor = S_12[23]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
@@ -2317,7 +2180,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
             sigma[key] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['aIaV'] += -1.00000000 * np.einsum('oa,psCtE,to,arbs->prCbE',Hbar['aa'],c['aIaV'],eta1['aa'],lambda2['aaaa'],optimize=True)
         sigma['aIaV'] += +1.00000000 * np.einsum('oa,psCtE,ab,to,rs->prCbE',Hbar['aa'],c['aIaV'],eta1['aa'],eta1['aa'],gamma1['aa'],optimize=True)
         sigma['aIaV'] += +1.00000000 * np.einsum('oa,psCtE,ab,rtos->prCbE',Hbar['aa'],c['aIaV'],eta1['aa'],lambda2['aaaa'],optimize=True)
@@ -2607,17 +2469,14 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVA'] += +0.50000000 * np.einsum('OABR,pCUEV,RTSU,BVOA->pCTES',Hbar['AAAA'],c['IAVA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['IAVA'] += -0.50000000 * np.einsum('OABR,pCUEV,RVSU,BTOA->pCTES',Hbar['AAAA'],c['IAVA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
-    start += 1
     sigma.clear()
     c.clear()
 
     # ['ia', 'iaaa', 'iAaA'] composite block
-    tensor = S_12[start]
+    tensor = S_12[24]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
@@ -2627,7 +2486,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
             sigma[key] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['ia'] += -1.00000000 * np.einsum('cd,pda,ao->pco',Hbar['ii'],c['ia'],eta1['aa'],optimize=True)
         sigma['ia'] += +0.50000000 * np.einsum('cd,pdabr,broa->pco',Hbar['ii'],c['iaaa'],lambda2['aaaa'],optimize=True)
         sigma['ia'] += +1.00000000 * np.einsum('cd,pdOaA,aAoO->pco',Hbar['ii'],c['iAaA'],lambda2['aAaA'],optimize=True)
@@ -4003,17 +3861,14 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaA'] += +0.50000000 * np.einsum('OABR,pcUaV,RVSU,aBToOA->pcToS',Hbar['AAAA'],c['iAaA'],lambda2['AAAA'],lambda3['aAAaAA'],optimize=True)
         sigma['iAaA'] += -0.25000000 * np.einsum('OABR,pcUaV,TVSU,aBRoOA->pcToS',Hbar['AAAA'],c['iAaA'],lambda2['AAAA'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
-    start += 1
     sigma.clear()
     c.clear()
 
     # ['IA', 'aIaA', 'IAAA'] composite block
-    tensor = S_12[start]
+    tensor = S_12[25]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
@@ -4023,7 +3878,6 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
             sigma[key] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['aIaA'] += -1.00000000 * np.einsum('oa,psCtA,to,as,rAbO->prCbO',Hbar['aa'],c['aIaA'],eta1['aa'],gamma1['aa'],lambda2['aAaA'],optimize=True)
         sigma['aIaA'] += +1.00000000 * np.einsum('oa,psCtA,to,rs,aAbO->prCbO',Hbar['aa'],c['aIaA'],eta1['aa'],gamma1['aa'],lambda2['aAaA'],optimize=True)
         sigma['aIaA'] += +1.00000000 * np.einsum('oa,psCtA,to,arAbsO->prCbO',Hbar['aa'],c['aIaA'],eta1['aa'],lambda3['aaAaaA'],optimize=True)
@@ -5399,12 +5253,9 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAAA'] += -0.25000000 * np.einsum('OABR,pCVWX,UXTV,BRWOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
         sigma['IAAA'] += +0.12500000 * np.einsum('OABR,pCVWX,WXTV,BRUOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
-    start += 1
     sigma.clear()
     c.clear()
 
@@ -5424,16 +5275,13 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iv'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iv'] += -1.00000000 * np.einsum('cd,pde->pce',Hbar['ii'],c['iv'],optimize=True)
         sigma['iv'] += -1.00000000 * np.einsum('cedf,pde->pcf',Hbar['iviv'],c['iv'],optimize=True)
         sigma['iv'] += +1.00000000 * np.einsum('ef,pce->pcf',Hbar['vv'],c['iv'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5446,16 +5294,13 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['IV'] += -1.00000000 * np.einsum('CD,pDE->pCE',Hbar['II'],c['IV'],optimize=True)
         sigma['IV'] += -1.00000000 * np.einsum('CEDF,pDE->pCF',Hbar['IVIV'],c['IV'],optimize=True)
         sigma['IV'] += +1.00000000 * np.einsum('EF,pCE->pCF',Hbar['VV'],c['IV'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5468,7 +5313,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iAaV'] += -1.00000000 * np.einsum('cd,pdAaE,ao,OA->pcOoE',Hbar['ii'],c['iAaV'],eta1['aa'],gamma1['AA'],optimize=True)
         sigma['iAaV'] += +1.00000000 * np.einsum('cd,pdAaE,aOoA->pcOoE',Hbar['ii'],c['iAaV'],lambda2['aAaA'],optimize=True)
         sigma['iAaV'] += +1.00000000 * np.einsum('coda,pdArE,ro,aObA->pcObE',Hbar['iaia'],c['iAaV'],eta1['aa'],lambda2['aAaA'],optimize=True)
@@ -5557,11 +5401,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaV'] += +0.50000000 * np.einsum('OABR,pcTaE,BROT,aSoA->pcSoE',Hbar['AAAA'],c['iAaV'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['iAaV'] += -1.00000000 * np.einsum('OABR,pcTaE,RSAT,aBoO->pcSoE',Hbar['AAAA'],c['iAaV'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5574,7 +5416,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['aIvA'] += +1.00000000 * np.einsum('ef,paCeA,AO,oa->poCfO',Hbar['vv'],c['aIvA'],eta1['AA'],gamma1['aa'],optimize=True)
         sigma['aIvA'] += -1.00000000 * np.einsum('ef,paCeA,oAaO->poCfO',Hbar['vv'],c['aIvA'],lambda2['aAaA'],optimize=True)
         sigma['aIvA'] += -1.00000000 * np.einsum('eofa,prCeA,AO,ar,bo->pbCfO',Hbar['vava'],c['aIvA'],eta1['AA'],gamma1['aa'],gamma1['aa'],optimize=True)
@@ -5663,11 +5504,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvA'] += +0.50000000 * np.einsum('OABR,paCeT,BROS,oTaA->poCeS',Hbar['AAAA'],c['aIvA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['aIvA'] += -1.00000000 * np.einsum('OABR,paCeT,RTAS,oBaO->poCeS',Hbar['AAAA'],c['aIvA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5680,7 +5519,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icvv'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['icvv'] += -0.50000000 * np.einsum('cd,pdkef->pckef',Hbar['ii'],c['icvv'],optimize=True)
         sigma['icvv'] += +0.50000000 * np.einsum('ckdl,pdlef->pckef',Hbar['icic'],c['icvv'],optimize=True)
         sigma['icvv'] += -1.00000000 * np.einsum('cedf,pdkeg->pckfg',Hbar['iviv'],c['icvv'],optimize=True)
@@ -5689,11 +5527,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icvv'] += +1.00000000 * np.einsum('ef,pckeg->pckfg',Hbar['vv'],c['icvv'],optimize=True)
         sigma['icvv'] += +0.25000000 * np.einsum('efgh,pckef->pckgh',Hbar['vvvv'],c['icvv'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5706,7 +5542,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iCvV'] += -1.00000000 * np.einsum('cd,pdKeE->pcKeE',Hbar['ii'],c['iCvV'],optimize=True)
         sigma['iCvV'] += -1.00000000 * np.einsum('cedf,pdKeE->pcKfE',Hbar['iviv'],c['iCvV'],optimize=True)
         sigma['iCvV'] += +1.00000000 * np.einsum('cKdL,pdLeE->pcKeE',Hbar['iCiC'],c['iCvV'],optimize=True)
@@ -5718,11 +5553,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvV'] += -1.00000000 * np.einsum('KELF,pcLeE->pcKeF',Hbar['CVCV'],c['iCvV'],optimize=True)
         sigma['iCvV'] += +1.00000000 * np.einsum('EF,pcKeE->pcKeF',Hbar['VV'],c['iCvV'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5735,7 +5568,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['cIvV'] += -1.00000000 * np.einsum('kl,plCeE->pkCeE',Hbar['cc'],c['cIvV'],optimize=True)
         sigma['cIvV'] += -1.00000000 * np.einsum('kelf,plCeE->pkCfE',Hbar['cvcv'],c['cIvV'],optimize=True)
         sigma['cIvV'] += +1.00000000 * np.einsum('kClD,plDeE->pkCeE',Hbar['cIcI'],c['cIvV'],optimize=True)
@@ -5747,11 +5579,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvV'] += -1.00000000 * np.einsum('CEDF,pkDeE->pkCeF',Hbar['IVIV'],c['cIvV'],optimize=True)
         sigma['cIvV'] += +1.00000000 * np.einsum('EF,pkCeE->pkCeF',Hbar['VV'],c['cIvV'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5764,7 +5594,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['ICVV'] += -0.50000000 * np.einsum('CD,pDKEF->pCKEF',Hbar['II'],c['ICVV'],optimize=True)
         sigma['ICVV'] += +0.50000000 * np.einsum('CKDL,pDLEF->pCKEF',Hbar['ICIC'],c['ICVV'],optimize=True)
         sigma['ICVV'] += -1.00000000 * np.einsum('CEDF,pDKEG->pCKFG',Hbar['IVIV'],c['ICVV'],optimize=True)
@@ -5773,11 +5602,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVV'] += +1.00000000 * np.einsum('EF,pCKEG->pCKFG',Hbar['VV'],c['ICVV'],optimize=True)
         sigma['ICVV'] += +0.25000000 * np.einsum('EFGH,pCKEF->pCKGH',Hbar['VVVV'],c['ICVV'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5790,7 +5617,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icva'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['icva'] += -1.00000000 * np.einsum('cd,pdkea,ao->pckeo',Hbar['ii'],c['icva'],eta1['aa'],optimize=True)
         sigma['icva'] += +1.00000000 * np.einsum('ckdl,pdlea,ao->pckeo',Hbar['icic'],c['icva'],eta1['aa'],optimize=True)
         sigma['icva'] += -1.00000000 * np.einsum('cedf,pdkea,ao->pckfo',Hbar['iviv'],c['icva'],eta1['aa'],optimize=True)
@@ -5817,11 +5643,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icva'] += -1.00000000 * np.einsum('OA,pckea,aAoO->pckeo',Hbar['AA'],c['icva'],lambda2['aAaA'],optimize=True)
         sigma['icva'] += -0.25000000 * np.einsum('OABR,pckea,aBRoOA->pckeo',Hbar['AAAA'],c['icva'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5834,7 +5658,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iCvA'] += -1.00000000 * np.einsum('cd,pdKeA,AO->pcKeO',Hbar['ii'],c['iCvA'],eta1['AA'],optimize=True)
         sigma['iCvA'] += -1.00000000 * np.einsum('cedf,pdKeA,AO->pcKfO',Hbar['iviv'],c['iCvA'],eta1['AA'],optimize=True)
         sigma['iCvA'] += +1.00000000 * np.einsum('coda,pdKeA,aAoO->pcKeO',Hbar['iaia'],c['iCvA'],lambda2['aAaA'],optimize=True)
@@ -5861,11 +5684,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvA'] += +0.50000000 * np.einsum('OABR,pcKeT,BS,RTOA->pcKeS',Hbar['AAAA'],c['iCvA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['iCvA'] += -0.25000000 * np.einsum('OABR,pcKeT,BRTOAS->pcKeS',Hbar['AAAA'],c['iCvA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5878,7 +5699,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iCaV'] += -1.00000000 * np.einsum('cd,pdKaE,ao->pcKoE',Hbar['ii'],c['iCaV'],eta1['aa'],optimize=True)
         sigma['iCaV'] += -1.00000000 * np.einsum('coda,pdKrE,ab,ro->pcKbE',Hbar['iaia'],c['iCaV'],eta1['aa'],eta1['aa'],optimize=True)
         sigma['iCaV'] += +1.00000000 * np.einsum('coda,pdKrE,arob->pcKbE',Hbar['iaia'],c['iCaV'],lambda2['aaaa'],optimize=True)
@@ -5905,11 +5725,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaV'] += -1.00000000 * np.einsum('OA,pcKaE,aAoO->pcKoE',Hbar['AA'],c['iCaV'],lambda2['aAaA'],optimize=True)
         sigma['iCaV'] += -0.25000000 * np.einsum('OABR,pcKaE,aBRoOA->pcKoE',Hbar['AAAA'],c['iCaV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5922,7 +5740,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['cIvA'] += -1.00000000 * np.einsum('kl,plCeA,AO->pkCeO',Hbar['cc'],c['cIvA'],eta1['AA'],optimize=True)
         sigma['cIvA'] += -1.00000000 * np.einsum('kelf,plCeA,AO->pkCfO',Hbar['cvcv'],c['cIvA'],eta1['AA'],optimize=True)
         sigma['cIvA'] += +1.00000000 * np.einsum('kola,plCeA,aAoO->pkCeO',Hbar['caca'],c['cIvA'],lambda2['aAaA'],optimize=True)
@@ -5949,11 +5766,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvA'] += +0.50000000 * np.einsum('OABR,pkCeT,BS,RTOA->pkCeS',Hbar['AAAA'],c['cIvA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['cIvA'] += -0.25000000 * np.einsum('OABR,pkCeT,BRTOAS->pkCeS',Hbar['AAAA'],c['cIvA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -5966,7 +5781,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['cIaV'] += -1.00000000 * np.einsum('kl,plCaE,ao->pkCoE',Hbar['cc'],c['cIaV'],eta1['aa'],optimize=True)
         sigma['cIaV'] += -1.00000000 * np.einsum('kola,plCrE,ab,ro->pkCbE',Hbar['caca'],c['cIaV'],eta1['aa'],eta1['aa'],optimize=True)
         sigma['cIaV'] += +1.00000000 * np.einsum('kola,plCrE,arob->pkCbE',Hbar['caca'],c['cIaV'],lambda2['aaaa'],optimize=True)
@@ -5993,11 +5807,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaV'] += -1.00000000 * np.einsum('OA,pkCaE,aAoO->pkCoE',Hbar['AA'],c['cIaV'],lambda2['aAaA'],optimize=True)
         sigma['cIaV'] += -0.25000000 * np.einsum('OABR,pkCaE,aBRoOA->pkCoE',Hbar['AAAA'],c['cIaV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -6010,7 +5822,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['ICVA'] += -1.00000000 * np.einsum('oa,pCKEA,aAoO->pCKEO',Hbar['aa'],c['ICVA'],lambda2['aAaA'],optimize=True)
         sigma['ICVA'] += -0.25000000 * np.einsum('oabr,pCKEA,brAoaO->pCKEO',Hbar['aaaa'],c['ICVA'],lambda3['aaAaaA'],optimize=True)
         sigma['ICVA'] += +1.00000000 * np.einsum('oCaD,pDKEA,aAoO->pCKEO',Hbar['aIaI'],c['ICVA'],lambda2['aAaA'],optimize=True)
@@ -6037,11 +5848,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVA'] += +0.50000000 * np.einsum('OABR,pCKET,BS,RTOA->pCKES',Hbar['AAAA'],c['ICVA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['ICVA'] += -0.25000000 * np.einsum('OABR,pCKET,BRTOAS->pCKES',Hbar['AAAA'],c['ICVA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -6054,7 +5863,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iavv'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iavv'] += -0.50000000 * np.einsum('cd,pdaef,oa->pcoef',Hbar['ii'],c['iavv'],gamma1['aa'],optimize=True)
         sigma['iavv'] += -1.00000000 * np.einsum('cedf,pdaeg,oa->pcofg',Hbar['iviv'],c['iavv'],gamma1['aa'],optimize=True)
         sigma['iavv'] += +0.50000000 * np.einsum('coda,pdref,ar,bo->pcbef',Hbar['iaia'],c['iavv'],gamma1['aa'],gamma1['aa'],optimize=True)
@@ -6076,11 +5884,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iavv'] += +0.50000000 * np.einsum('OA,pcaef,oAaO->pcoef',Hbar['AA'],c['iavv'],lambda2['aAaA'],optimize=True)
         sigma['iavv'] += +0.12500000 * np.einsum('OABR,pcaef,oBRaOA->pcoef',Hbar['AAAA'],c['iavv'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -6093,7 +5899,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iAvV'] += -1.00000000 * np.einsum('cd,pdAeE,OA->pcOeE',Hbar['ii'],c['iAvV'],gamma1['AA'],optimize=True)
         sigma['iAvV'] += -1.00000000 * np.einsum('cedf,pdAeE,OA->pcOfE',Hbar['iviv'],c['iAvV'],gamma1['AA'],optimize=True)
         sigma['iAvV'] += -1.00000000 * np.einsum('coda,pdAeE,aOoA->pcOeE',Hbar['iaia'],c['iAvV'],lambda2['aAaA'],optimize=True)
@@ -6120,11 +5925,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvV'] += -0.50000000 * np.einsum('OABR,pcTeE,RT,BSOA->pcSeE',Hbar['AAAA'],c['iAvV'],gamma1['AA'],lambda2['AAAA'],optimize=True)
         sigma['iAvV'] += +0.25000000 * np.einsum('OABR,pcTeE,BRSOAT->pcSeE',Hbar['AAAA'],c['iAvV'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -6137,7 +5940,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['aIvV'] += +1.00000000 * np.einsum('ef,paCeE,oa->poCfE',Hbar['vv'],c['aIvV'],gamma1['aa'],optimize=True)
         sigma['aIvV'] += -1.00000000 * np.einsum('eofa,prCeE,ar,bo->pbCfE',Hbar['vava'],c['aIvV'],gamma1['aa'],gamma1['aa'],optimize=True)
         sigma['aIvV'] += +1.00000000 * np.einsum('eofa,prCeE,abor->pbCfE',Hbar['vava'],c['aIvV'],lambda2['aaaa'],optimize=True)
@@ -6164,11 +5966,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvV'] += +1.00000000 * np.einsum('OA,paCeE,oAaO->poCeE',Hbar['AA'],c['aIvV'],lambda2['aAaA'],optimize=True)
         sigma['aIvV'] += +0.25000000 * np.einsum('OABR,paCeE,oBRaOA->poCeE',Hbar['AAAA'],c['aIvV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -6181,7 +5981,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVV'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['IAVV'] += +0.50000000 * np.einsum('oa,pCAEF,aOoA->pCOEF',Hbar['aa'],c['IAVV'],lambda2['aAaA'],optimize=True)
         sigma['IAVV'] += +0.12500000 * np.einsum('oabr,pCAEF,brOoaA->pCOEF',Hbar['aaaa'],c['IAVV'],lambda3['aaAaaA'],optimize=True)
         sigma['IAVV'] += -0.50000000 * np.einsum('oCaD,pDAEF,aOoA->pCOEF',Hbar['aIaI'],c['IAVV'],lambda2['aAaA'],optimize=True)
@@ -6203,11 +6002,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVV'] += -0.25000000 * np.einsum('OABR,pCTEF,RT,BSOA->pCSEF',Hbar['AAAA'],c['IAVV'],gamma1['AA'],lambda2['AAAA'],optimize=True)
         sigma['IAVV'] += +0.12500000 * np.einsum('OABR,pCTEF,BRSOAT->pCSEF',Hbar['AAAA'],c['IAVV'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -6220,7 +6017,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icaa'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['icaa'] += -0.50000000 * np.einsum('cd,pdkbr,ra,bo->pckoa',Hbar['ii'],c['icaa'],eta1['aa'],eta1['aa'],optimize=True)
         sigma['icaa'] += -0.25000000 * np.einsum('cd,pdkbr,broa->pckoa',Hbar['ii'],c['icaa'],lambda2['aaaa'],optimize=True)
         sigma['icaa'] += +0.50000000 * np.einsum('ckdl,pdlbr,ra,bo->pckoa',Hbar['icic'],c['icaa'],eta1['aa'],eta1['aa'],optimize=True)
@@ -6273,11 +6069,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icaa'] += -0.25000000 * np.einsum('OABR,pckbr,ra,bBRoOA->pckoa',Hbar['AAAA'],c['icaa'],eta1['aa'],lambda3['aAAaAA'],optimize=True)
         sigma['icaa'] += +0.50000000 * np.einsum('OABR,pckbr,rRaA,bBoO->pckoa',Hbar['AAAA'],c['icaa'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -6290,7 +6084,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['iCaA'] += -1.00000000 * np.einsum('cd,pdKaA,AO,ao->pcKoO',Hbar['ii'],c['iCaA'],eta1['AA'],eta1['aa'],optimize=True)
         sigma['iCaA'] += -1.00000000 * np.einsum('cd,pdKaA,aAoO->pcKoO',Hbar['ii'],c['iCaA'],lambda2['aAaA'],optimize=True)
         sigma['iCaA'] += -1.00000000 * np.einsum('coda,pdKrA,ro,aAbO->pcKbO',Hbar['iaia'],c['iCaA'],eta1['aa'],lambda2['aAaA'],optimize=True)
@@ -6379,11 +6172,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaA'] += -0.50000000 * np.einsum('OABR,pcKaT,BROS,aToA->pcKoS',Hbar['AAAA'],c['iCaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['iCaA'] += +1.00000000 * np.einsum('OABR,pcKaT,RTAS,aBoO->pcKoS',Hbar['AAAA'],c['iCaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -6396,7 +6187,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['cIaA'] += -1.00000000 * np.einsum('kl,plCaA,AO,ao->pkCoO',Hbar['cc'],c['cIaA'],eta1['AA'],eta1['aa'],optimize=True)
         sigma['cIaA'] += -1.00000000 * np.einsum('kl,plCaA,aAoO->pkCoO',Hbar['cc'],c['cIaA'],lambda2['aAaA'],optimize=True)
         sigma['cIaA'] += -1.00000000 * np.einsum('kola,plCrA,ro,aAbO->pkCbO',Hbar['caca'],c['cIaA'],eta1['aa'],lambda2['aAaA'],optimize=True)
@@ -6485,11 +6275,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaA'] += -0.50000000 * np.einsum('OABR,pkCaT,BROS,aToA->pkCoS',Hbar['AAAA'],c['cIaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['cIaA'] += +1.00000000 * np.einsum('OABR,pkCaT,RTAS,aBoO->pkCoS',Hbar['AAAA'],c['cIaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
@@ -6502,7 +6290,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICAA'] = np.zeros((northo, *shape_block))
         c = vec_to_dict(c, tensor)
         c = antisymmetrize(c)
-
         sigma['ICAA'] += -1.00000000 * np.einsum('oa,pCKBR,RA,aBoO->pCKOA',Hbar['aa'],c['ICAA'],eta1['AA'],lambda2['aAaA'],optimize=True)
         sigma['ICAA'] += +0.25000000 * np.einsum('oa,pCKBR,aBRoOA->pCKOA',Hbar['aa'],c['ICAA'],lambda3['aAAaAA'],optimize=True)
         sigma['ICAA'] += -0.25000000 * np.einsum('oabr,pCKBR,RA,brBoaO->pCKOA',Hbar['aaaa'],c['ICAA'],eta1['AA'],lambda3['aaAaaA'],optimize=True)
@@ -6555,18 +6342,14 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICAA'] += +0.06250000 * np.einsum('OABR,pCKUV,BRST,UVOA->pCKST',Hbar['AAAA'],c['ICAA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['ICAA'] += -0.25000000 * np.einsum('OABR,pCKUV,RVST,BUOA->pCKST',Hbar['AAAA'],c['ICAA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
-
     sigma.clear()
     c.clear()
 
-    start = len(['iv', 'IV', 'iAaV', 'aIvA', 'icvv', 'iCvV', 'cIvV', 'ICVV', 'icva', 'iCvA', 'iCaV', 'cIvA', 'cIaV', 'ICVA', 'iavv', 'iAvV', 'aIvV', 'IAVV', 'icaa', 'iCaA', 'cIaA', 'ICAA'])
-
     # ['iava', 'iAvA'] composite block
-    tensor = S_12[start]
+    tensor = S_12[22]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
@@ -6580,7 +6363,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['iava'] += -1.00000000 * np.einsum('cd,pdber,ro,ab->pcaeo',Hbar['ii'],c['iava'],eta1['aa'],gamma1['aa'],optimize=True)
         sigma['iava'] += -1.00000000 * np.einsum('cd,pdber,arob->pcaeo',Hbar['ii'],c['iava'],lambda2['aaaa'],optimize=True)
         sigma['iava'] += -1.00000000 * np.einsum('cedf,pdber,ro,ab->pcafo',Hbar['iviv'],c['iava'],eta1['aa'],gamma1['aa'],optimize=True)
@@ -6674,14 +6456,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iava'] += -1.00000000 * np.einsum('OABR,pcber,aBbO,rRoA->pcaeo',Hbar['AAAA'],c['iava'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma['iava'] += +1.00000000 * np.einsum('OABR,pcber,rRbA,aBoO->pcaeo',Hbar['AAAA'],c['iava'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         # iAvA sub-block
         shape_block = template_c['iAvA'].shape[1:]
         shape_size = np.prod(shape_block)
@@ -6691,7 +6471,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['iAvA'] += -1.00000000 * np.einsum('cd,pdBeR,RO,AB->pcAeO',Hbar['ii'],c['iAvA'],eta1['AA'],gamma1['AA'],optimize=True)
         sigma['iAvA'] += -1.00000000 * np.einsum('cd,pdBeR,AROB->pcAeO',Hbar['ii'],c['iAvA'],lambda2['AAAA'],optimize=True)
         sigma['iAvA'] += -1.00000000 * np.einsum('cedf,pdBeR,RO,AB->pcAfO',Hbar['iviv'],c['iAvA'],eta1['AA'],gamma1['AA'],optimize=True)
@@ -6785,22 +6564,18 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvA'] += +0.50000000 * np.einsum('OABR,pcUeV,RTSU,BVOA->pcTeS',Hbar['AAAA'],c['iAvA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['iAvA'] += -0.50000000 * np.einsum('OABR,pcUeV,RVSU,BTOA->pcTeS',Hbar['AAAA'],c['iAvA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         diagonal.append(vmv.diagonal())
-
-    start += 1
     sigma.clear()
     c.clear()
 
     # ['aIaV', 'IAVA'] composite block
-    tensor = S_12[start]
+    tensor = S_12[23]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
@@ -6814,7 +6589,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['aIaV'] += -1.00000000 * np.einsum('oa,psCtE,to,arbs->prCbE',Hbar['aa'],c['aIaV'],eta1['aa'],lambda2['aaaa'],optimize=True)
         sigma['aIaV'] += +1.00000000 * np.einsum('oa,psCtE,ab,to,rs->prCbE',Hbar['aa'],c['aIaV'],eta1['aa'],eta1['aa'],gamma1['aa'],optimize=True)
         sigma['aIaV'] += +1.00000000 * np.einsum('oa,psCtE,ab,rtos->prCbE',Hbar['aa'],c['aIaV'],eta1['aa'],lambda2['aaaa'],optimize=True)
@@ -6908,14 +6682,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIaV'] += -1.00000000 * np.einsum('OABR,pbCrE,aBbO,rRoA->paCoE',Hbar['AAAA'],c['aIaV'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma['aIaV'] += +1.00000000 * np.einsum('OABR,pbCrE,rRbA,aBoO->paCoE',Hbar['AAAA'],c['aIaV'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         # IAVA sub-block
         shape_block = template_c['IAVA'].shape[1:]
         shape_size = np.prod(shape_block)
@@ -6925,7 +6697,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['IAVA'] += +1.00000000 * np.einsum('oa,pCBER,RO,aAoB->pCAEO',Hbar['aa'],c['IAVA'],eta1['AA'],lambda2['aAaA'],optimize=True)
         sigma['IAVA'] += -1.00000000 * np.einsum('oa,pCBER,AB,aRoO->pCAEO',Hbar['aa'],c['IAVA'],gamma1['AA'],lambda2['aAaA'],optimize=True)
         sigma['IAVA'] += +1.00000000 * np.einsum('oa,pCBER,aARoOB->pCAEO',Hbar['aa'],c['IAVA'],lambda3['aAAaAA'],optimize=True)
@@ -7019,22 +6790,18 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVA'] += +0.50000000 * np.einsum('OABR,pCUEV,RTSU,BVOA->pCTES',Hbar['AAAA'],c['IAVA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['IAVA'] += -0.50000000 * np.einsum('OABR,pCUEV,RVSU,BTOA->pCTES',Hbar['AAAA'],c['IAVA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         diagonal.append(vmv.diagonal())
-
-    start += 1
     sigma.clear()
     c.clear()
 
     # ['ia', 'iaaa', 'iAaA'] composite block
-    tensor = S_12[start]
+    tensor = S_12[24]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
@@ -7048,7 +6815,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['ia'] += -1.00000000 * np.einsum('cd,pda,ao->pco',Hbar['ii'],c['ia'],eta1['aa'],optimize=True)
         sigma['ia'] += -1.00000000 * np.einsum('coda,pdr,ab,ro->pcb',Hbar['iaia'],c['ia'],eta1['aa'],eta1['aa'],optimize=True)
         sigma['ia'] += +1.00000000 * np.einsum('coda,pdr,arob->pcb',Hbar['iaia'],c['ia'],lambda2['aaaa'],optimize=True)
@@ -7064,14 +6830,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ia'] += -1.00000000 * np.einsum('OA,pca,aAoO->pco',Hbar['AA'],c['ia'],lambda2['aAaA'],optimize=True)
         sigma['ia'] += -0.25000000 * np.einsum('OABR,pca,aBRoOA->pco',Hbar['AAAA'],c['ia'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         # iaaa sub-block
         shape_block = template_c['iaaa'].shape[1:]
         shape_size = np.prod(shape_block)
@@ -7081,7 +6845,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['iaaa'] += -0.50000000 * np.einsum('cd,pdrst,ta,so,br->pcboa',Hbar['ii'],c['iaaa'],eta1['aa'],eta1['aa'],gamma1['aa'],optimize=True)
         sigma['iaaa'] += -1.00000000 * np.einsum('cd,pdrst,ta,bsor->pcboa',Hbar['ii'],c['iaaa'],eta1['aa'],lambda2['aaaa'],optimize=True)
         sigma['iaaa'] += -0.25000000 * np.einsum('cd,pdrst,br,stoa->pcboa',Hbar['ii'],c['iaaa'],gamma1['aa'],lambda2['aaaa'],optimize=True)
@@ -7350,14 +7113,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iaaa'] += +0.25000000 * np.einsum('OABR,pcrst,bBrO,stRoaA->pcboa',Hbar['AAAA'],c['iaaa'],lambda2['aAaA'],lambda3['aaAaaA'],optimize=True)
         sigma['iaaa'] += +0.50000000 * np.einsum('OABR,pcrst,tRrA,bsBoaO->pcboa',Hbar['AAAA'],c['iaaa'],lambda2['aAaA'],lambda3['aaAaaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         # iAaA sub-block
         shape_block = template_c['iAaA'].shape[1:]
         shape_size = np.prod(shape_block)
@@ -7367,7 +7128,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['iAaA'] += -1.00000000 * np.einsum('cd,pdBaR,ao,AROB->pcAoO',Hbar['ii'],c['iAaA'],eta1['aa'],lambda2['AAAA'],optimize=True)
         sigma['iAaA'] += -1.00000000 * np.einsum('cd,pdBaR,RO,ao,AB->pcAoO',Hbar['ii'],c['iAaA'],eta1['AA'],eta1['aa'],gamma1['AA'],optimize=True)
         sigma['iAaA'] += +1.00000000 * np.einsum('cd,pdBaR,RO,aAoB->pcAoO',Hbar['ii'],c['iAaA'],eta1['AA'],lambda2['aAaA'],optimize=True)
@@ -7818,22 +7578,18 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaA'] += +0.50000000 * np.einsum('OABR,pcUaV,RVSU,aBToOA->pcToS',Hbar['AAAA'],c['iAaA'],lambda2['AAAA'],lambda3['aAAaAA'],optimize=True)
         sigma['iAaA'] += -0.25000000 * np.einsum('OABR,pcUaV,TVSU,aBRoOA->pcToS',Hbar['AAAA'],c['iAaA'],lambda2['AAAA'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         diagonal.append(vmv.diagonal())
-
-    start += 1
     sigma.clear()
     c.clear()
 
     # ['IA', 'aIaA', 'IAAA'] composite block
-    tensor = S_12[start]
+    tensor = S_12[25]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
@@ -7847,7 +7603,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['IA'] += -1.00000000 * np.einsum('oa,pCA,aAoO->pCO',Hbar['aa'],c['IA'],lambda2['aAaA'],optimize=True)
         sigma['IA'] += -0.25000000 * np.einsum('oabr,pCA,brAoaO->pCO',Hbar['aaaa'],c['IA'],lambda3['aaAaaA'],optimize=True)
         sigma['IA'] += +1.00000000 * np.einsum('oCaD,pDA,aAoO->pCO',Hbar['aIaI'],c['IA'],lambda2['aAaA'],optimize=True)
@@ -7863,14 +7618,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IA'] += +0.50000000 * np.einsum('OABR,pCT,BS,RTOA->pCS',Hbar['AAAA'],c['IA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['IA'] += -0.25000000 * np.einsum('OABR,pCT,BRTOAS->pCS',Hbar['AAAA'],c['IA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         # aIaA sub-block
         shape_block = template_c['aIaA'].shape[1:]
         shape_size = np.prod(shape_block)
@@ -7880,7 +7633,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['aIaA'] += -1.00000000 * np.einsum('oa,psCtA,to,as,rAbO->prCbO',Hbar['aa'],c['aIaA'],eta1['aa'],gamma1['aa'],lambda2['aAaA'],optimize=True)
         sigma['aIaA'] += +1.00000000 * np.einsum('oa,psCtA,to,rs,aAbO->prCbO',Hbar['aa'],c['aIaA'],eta1['aa'],gamma1['aa'],lambda2['aAaA'],optimize=True)
         sigma['aIaA'] += +1.00000000 * np.einsum('oa,psCtA,to,arAbsO->prCbO',Hbar['aa'],c['aIaA'],eta1['aa'],lambda3['aaAaaA'],optimize=True)
@@ -8331,14 +8083,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIaA'] += +0.50000000 * np.einsum('OABR,pbCrT,BROS,arTobA->paCoS',Hbar['AAAA'],c['aIaA'],lambda2['AAAA'],lambda3['aaAaaA'],optimize=True)
         sigma['aIaA'] += -1.00000000 * np.einsum('OABR,pbCrT,RTAS,arBobO->paCoS',Hbar['AAAA'],c['aIaA'],lambda2['AAAA'],lambda3['aaAaaA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         # IAAA sub-block
         shape_block = template_c['IAAA'].shape[1:]
         shape_size = np.prod(shape_block)
@@ -8348,7 +8098,6 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         np.fill_diagonal(c_vec, 1)
         c = vec_to_dict(c, c_vec)
         c = antisymmetrize(c)
-
         sigma['IAAA'] += +0.50000000 * np.einsum('oa,pCRST,TA,SO,aBoR->pCBOA',Hbar['aa'],c['IAAA'],eta1['AA'],eta1['AA'],lambda2['aAaA'],optimize=True)
         sigma['IAAA'] += -1.00000000 * np.einsum('oa,pCRST,TA,BR,aSoO->pCBOA',Hbar['aa'],c['IAAA'],eta1['AA'],gamma1['AA'],lambda2['aAaA'],optimize=True)
         sigma['IAAA'] += +1.00000000 * np.einsum('oa,pCRST,TA,aBSoOR->pCBOA',Hbar['aa'],c['IAAA'],eta1['AA'],lambda3['aAAaAA'],optimize=True)
@@ -8617,17 +8366,13 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAAA'] += -0.25000000 * np.einsum('OABR,pCVWX,UXTV,BRWOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
         sigma['IAAA'] += +0.12500000 * np.einsum('OABR,pCVWX,WXTV,BRUOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
-
         H_temp = dict_to_vec(sigma, shape_size)
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
-
         diagonal.append(vmv.diagonal())
-
-    start += 1
     sigma.clear()
     c.clear()
 
@@ -8635,9 +8380,7 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
     return full_diag
 
 def build_sigma_vector_Hbar(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):
-    sigma = {}
-    for key in c.keys():
-        sigma[key] = np.zeros(c[key].shape)
+    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}
     sigma['iv'] += -1.00000000 * np.einsum('cd,pde->pce',Hbar['ii'],c['iv'],optimize=True)
     sigma['ia'] += -1.00000000 * np.einsum('cd,pda,ao->pco',Hbar['ii'],c['ia'],eta1['aa'],optimize=True)
     sigma['ia'] += +0.50000000 * np.einsum('cd,pdabr,broa->pco',Hbar['ii'],c['iaaa'],lambda2['aaaa'],optimize=True)
@@ -17103,10 +16846,7 @@ def build_sigma_vector_Hbar(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):
     sigma['IAAA'] += -0.25000000 * np.einsum('OABR,pCVWX,UXTV,BRWOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
     sigma['IAAA'] += +0.12500000 * np.einsum('OABR,pCVWX,WXTV,BRUOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
     for key in first_row.keys():
-        if len(key) == 2:
-           tmp = first_row[key] * c['first'][:, :, np.newaxis]
-        elif len(key) == 4:
-           tmp = first_row[key] * c['first'][:, :, np.newaxis, np.newaxis, np.newaxis]
+        tmp = first_row[key] * c['first'][..., np.newaxis]
         sigma[key] += tmp
     c_vec = dict_to_vec(c, c[list(c.keys())[0]].shape[0])
     first_row_vec = dict_to_vec(first_row, 1)
@@ -17114,9 +16854,7 @@ def build_sigma_vector_Hbar(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):
     return sigma
 
 def build_sigma_vector_s(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):
-    sigma = {}
-    for key in c.keys():
-        sigma[key] = np.zeros(c[key].shape)
+    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}
     sigma['iv'] += +1.00000000 * np.einsum('pce->pce',c['iv'],optimize=True)
     sigma['ia'] += +1.00000000 * np.einsum('pca,ao->pco',c['ia'],eta1['aa'],optimize=True)
     sigma['ia'] += -0.50000000 * np.einsum('pcabr,broa->pco',c['iaaa'],lambda2['aaaa'],optimize=True)
@@ -17197,11 +16935,7 @@ def build_sigma_vector_s(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):
     return sigma
 
 def build_first_row(c, Hbar, gamma1, eta1, lambda2, lambda3):
-    sigma = {}
-    for key in c.keys():
-       if key == 'first':
-           continue
-       sigma[key] = np.zeros((1, *c[key].shape[1:]))
+    sigma = {key: np.zeros((1, *tensor.shape[1:])) for key, tensor in c.items() if key != 'first'}
     sigma['iv'] += +1.00000000 * np.einsum('ec->ce',Hbar['vi'],optimize=True)
     sigma['ia'] += +1.00000000 * np.einsum('oc,ao->ca',Hbar['ai'],eta1['aa'],optimize=True)
     sigma['iaaa'] += -0.50000000 * np.einsum('oc,broa->cabr',Hbar['ai'],lambda2['aaaa'],optimize=True)

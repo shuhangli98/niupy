@@ -10,8 +10,18 @@ davidson = lib.linalg_helper.davidson1
 
 
 def kernel(eom_dsrg):
-    # TODO: Logging system
+    """
+    Main function that sets up the Davidson algorithm, solves it, and determines the spin multiplicity.
 
+    Parameters:
+        eom_dsrg: An object with configuration parameters and functions required for calculations.
+
+    Returns:
+        conv: Convergence status of the Davidson algorithm.
+        e: Eigenvalues from the Davidson algorithm.
+        eigvec: Eigenvectors after processing.
+        spin: Spin multiplicities ('Singlet', 'Triplet', or 'Incorrect spin').
+    """
     # Setup Davidson algorithm parameters
     start = time.time()
     print("Setting up Davidson algorithm...")
@@ -20,70 +30,128 @@ def kernel(eom_dsrg):
     conv, e, u = davidson(lambda xs: [apply_M(x) for x in xs], x0, precond, nroots=eom_dsrg.nroots, verbose=eom_dsrg.verbose,
                           max_space=eom_dsrg.max_space, max_cycle=eom_dsrg.max_cycle, tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson)
 
-    # This part should be in a separate function
-    eigvec = []
-    for i_vec in range(len(u)):
-        vec = apply_S_12(S_12, nop, u[i_vec], transpose=False)
-        eigvec.append(vec.flatten())
-    eigvec = np.array(eigvec).T
-
-    eigvec_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec)
-    eigvec_dict = antisymmetrize(eigvec_dict)
-    eigvec = dict_to_vec(eigvec_dict, len(e))
-    eigvec = eigvec.T
-
-    spin = []
-
-    # for i_idx, i_v in enumerate(e):
-
-    #     current_vec = eigvec[i_idx]
-
-    #     current_vec_dict = vec_to_dict(eom_dsrg.full_template_c, current_vec.reshape(-1, 1))
-    #     cv_norm = np.linalg.norm(current_vec_dict['cv'] - current_vec_dict['CV'])
-    #     ca_norm = np.linalg.norm(current_vec_dict['ca'] - current_vec_dict['CA'])
-    #     av_norm = np.linalg.norm(current_vec_dict['av'] - current_vec_dict['AV'])
-
-    #     cv_norm_tri = np.linalg.norm(current_vec_dict['cv'] + current_vec_dict['CV'])
-    #     ca_norm_tri = np.linalg.norm(current_vec_dict['ca'] + current_vec_dict['CA'])
-    #     av_norm_tri = np.linalg.norm(current_vec_dict['av'] + current_vec_dict['AV'])
-
-    #     if cv_norm_tri < 1e-4 and ca_norm_tri < 1e-4 and av_norm_tri < 1e-4:
-    #         spin.append("Triplet")
-    #     elif cv_norm < 1e-4 and ca_norm < 1e-4 and av_norm < 1e-4:
-    #         spin.append("Singlet")
-    #     else:
-    #         spin.append("Incorrect spin")
-
+    spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
     return conv, e, eigvec, spin
 
 
-def setup_davidson(eom_dsrg):
-    eom_dsrg.first_row = eom_dsrg.build_first_row(eom_dsrg.full_template_c, eom_dsrg.Hbar, eom_dsrg.gamma1, eom_dsrg.eta1,
-                                                  eom_dsrg.lambda2, eom_dsrg.lambda3)
-    eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
-    S_12 = eom_dsrg.get_S_12(eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1, eom_dsrg.lambda2,
-                             eom_dsrg.lambda3, eom_dsrg.sym, eom_dsrg.target_sym, tol=eom_dsrg.tol_s, tol_act=eom_dsrg.tol_s_act)
+def calculate_norms(current_vec_dict):
+    """
+    Calculate subtraction and addition norms for each length-2 key pair in the vector dictionary.
 
-    if eom_dsrg.diagonal_type == "exact":
-        precond = eom_dsrg.compute_preconditioner_exact(
-            eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1, eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3)
-    elif eom_dsrg.diagonal_type == "block":
-        precond = eom_dsrg.compute_preconditioner_block(
-            eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1, eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3)
-    else:
-        raise ValueError("Invalid diagonal type.")
-    precond += eom_dsrg.diag_shift
+    Parameters:
+        current_vec_dict (dict): Dictionary containing vector components.
+
+    Returns:
+        subtraction_norms (list): Norms of the differences between matched lower and upper case keys.
+        addition_norms (list): Norms of the sums between matched lower and upper case keys.
+    """
+    subtraction_norms = []
+    addition_norms = []
+
+    for key in current_vec_dict.keys():
+        if len(key) == 2 and key.islower():
+            upper_key = key.upper()
+            if upper_key in current_vec_dict:
+                sub_norm = np.linalg.norm(current_vec_dict[key] - current_vec_dict[upper_key])
+                add_norm = np.linalg.norm(current_vec_dict[key] + current_vec_dict[upper_key])
+                subtraction_norms.append(sub_norm)
+                addition_norms.append(add_norm)
+
+    return subtraction_norms, addition_norms
+
+
+def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
+    """
+    Process vectors to classify their spin multiplicities.
+
+    Parameters:
+        eom_dsrg: Object with a full_template_c attribute, used for vector processing.
+        u: List of eigenvectors.
+        nop: Operation parameter.
+        S_12: Transformation matrix/function parameter.
+
+    Returns:
+        spin (list): List of spin classifications ("Singlet", "Triplet", or "Incorrect spin").
+        eigvec (np.ndarray): Processed eigenvectors.
+    """
+    eigvec = np.array([apply_S_12(S_12, nop, vec, transpose=False).flatten() for vec in u]).T
+    eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec))
+    eigvec = dict_to_vec(eigvec_dict, len(u)).T
+
+    spin = []
+
+    for i_idx in range(len(u)):
+        current_vec = eigvec[i_idx]
+        current_vec_dict = vec_to_dict(eom_dsrg.full_template_c, current_vec.reshape(-1, 1))
+
+        subtraction_norms, addition_norms = calculate_norms(current_vec_dict)
+
+        # Check spin classification based on calculated norms
+        singlet = all(norm < 1e-4 for norm in subtraction_norms)  # The parent state is assumed to be singlet.
+        triplet = all(norm < 1e-4 for norm in addition_norms) and not all(norm < 1e-4 for norm in subtraction_norms)
+
+        if triplet:
+            spin.append("Triplet")
+        elif singlet:
+            spin.append("Singlet")
+        else:
+            spin.append("Incorrect spin")
+
+    return spin, eigvec
+
+
+def setup_davidson(eom_dsrg):
+    """
+    Set up parameters and functions required for the Davidson algorithm.
+
+    Parameters:
+        eom_dsrg: Object with method and algorithm-specific parameters.
+
+    Returns:
+        apply_M: Function that applies the effective Hamiltonian.
+        precond: Preconditioner vector.
+        x0: Initial guess vectors.
+        nop: Dimension size.
+        S_12: Transformation matrix/function parameter.
+    """
+    eom_dsrg.first_row = eom_dsrg.build_first_row(
+        eom_dsrg.full_template_c, eom_dsrg.Hbar, eom_dsrg.gamma1,
+        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3
+    )
+    eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
+    S_12 = eom_dsrg.get_S_12(
+        eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1,
+        eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.sym,
+        eom_dsrg.target_sym, tol=eom_dsrg.tol_s, tol_act=eom_dsrg.tol_s_act
+    )
+
+    precond_func = eom_dsrg.compute_preconditioner_exact if eom_dsrg.diagonal_type == "exact" else eom_dsrg.compute_preconditioner_block
+    precond = precond_func(
+        eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
+        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3
+    ) + eom_dsrg.diag_shift
+
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = define_effective_hamiltonian(eom_dsrg, S_12, nop, northo)
 
     x0 = compute_guess_vectors(eom_dsrg, precond)
-    # x0 = np.zeros(len(precond))
-    # x0[0] = 1.0
     return apply_M, precond, x0, nop, S_12
 
 
 def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
+    """
+    Define the effective Hamiltonian application function.
+
+    Parameters:
+        eom_dsrg: Object with method-specific parameters.
+        S_12: Transformation matrix/function parameter.
+        nop: Dimension size of operators.
+        northo: Dimension size of orthogonal components.
+
+    Returns:
+        Function that applies the effective Hamiltonian to a vector.
+    """
     # nop and northo include the first row/column
     def apply_M(x):
         Xt = apply_S_12(S_12, nop, x, transpose=False)
@@ -101,43 +169,49 @@ def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
 
 
 def apply_S_12(S_12, ndim, t, transpose=False):
+    """
+    Apply the S_12 transformation matrix/function to a vector.
+
+    Parameters:
+        S_12: List of transformation matrices/functions.
+        ndim: Resulting vector size.
+        t: Input vector.
+        transpose (bool): Whether to apply the transpose of the transformation.
+
+    Returns:
+        Transformed vector.
+    """
     # t is a vector. S_half is a list of ndarray. ndim is the resulting vector size.
     Xt = np.zeros((ndim, 1))  # With first column/row.
     i_start_xt = 1
     i_start_t = 1
     Xt[0, 0] = t[0]
-    if not transpose:
-        for i_tensor in S_12:
-            num_op = i_tensor.shape[0]
-            num_ortho = i_tensor.shape[1]
-            i_end_xt = i_start_xt + num_op
-            i_end_t = i_start_t + num_ortho
-            # (nop * northo) @ (northo * 1)
-            Xt[i_start_xt:i_end_xt, :] += i_tensor @ (t[i_start_t:i_end_t].reshape(-1, 1))
-            i_start_t = i_end_t
-            i_start_xt = i_end_xt
-    else:
-        for i_tensor in S_12:
-            num_op = i_tensor.shape[0]
-            num_ortho = i_tensor.shape[1]
-            i_end_xt = i_start_xt + num_ortho
-            i_end_t = i_start_t + num_op
 
-            # (northo * nop) @ (nop * 1)
-            Xt[i_start_xt:i_end_xt, :] += i_tensor.T @ (t[i_start_t:i_end_t].reshape(-1, 1))
-            i_start_t = i_end_t
-            i_start_xt = i_end_xt
+    for i_tensor in S_12:
+        num_op, num_ortho = i_tensor.shape
+        i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + \
+            (num_ortho if not transpose else num_op)
+        # (nop * northo) @ (northo * 1) if not transpose else (northo * nop) @ (nop * 1)
+        Xt[i_start_xt:i_end_xt, :] += (i_tensor @ t[i_start_t:i_end_t].reshape(-1, 1)
+                                       if not transpose else i_tensor.T @ t[i_start_t:i_end_t].reshape(-1, 1))
+        i_start_xt, i_start_t = i_end_xt, i_end_t
 
     return Xt
 
 
 def compute_guess_vectors(eom_dsrg, precond, ascending=True):
+    """
+    Compute initial guess vectors for the Davidson algorithm.
 
-    sort_ind = None
-    if ascending:
-        sort_ind = np.argsort(precond)
-    else:
-        sort_ind = np.argsort(precond)[::-1]
+    Parameters:
+        eom_dsrg: Object containing the number of roots and preconditioner.
+        precond (np.ndarray): Preconditioner vector.
+        ascending (bool): Whether to sort the preconditioner in ascending order.
+
+    Returns:
+        List of initial guess vectors.
+    """
+    sort_ind = np.argsort(precond) if ascending else np.argsort(precond)[::-1]
 
     x0s = np.zeros((precond.shape[0], eom_dsrg.nroots))
     min_shape = min(precond.shape[0], eom_dsrg.nroots)
@@ -154,19 +228,23 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
 
 
 def get_templates(eom_dsrg):
-    if eom_dsrg.method_type == "ee":
-        template = ee_eom_dsrg.get_template_c(1, eom_dsrg.ncore, eom_dsrg.nocc, eom_dsrg.nact, eom_dsrg.nvir)
-    elif eom_dsrg.method_type == "cvs-ee":
-        template = cvs_ee_eom_dsrg.get_template_c(1, eom_dsrg.ncore, eom_dsrg.nocc, eom_dsrg.nact, eom_dsrg.nvir)
-    elif eom_dsrg.method_type == "ip":
-        pass
-    elif eom_dsrg.method_type == "ea":
-        pass
-    elif eom_dsrg.method_type == "cvs-ip":
-        pass
-    else:
-        raise ValueError("Invalid method type.")
+    """Generate the initial and full templates based on the method type."""
+    # Dictionary mapping method types to the appropriate template functions
+    template_funcs = {
+        "ee": ee_eom_dsrg.get_template_c,
+        "cvs-ee": cvs_ee_eom_dsrg.get_template_c
+        # Additional mappings for other methods can be added here
+    }
 
+    # Fetch the correct template function based on method type
+    template_func = template_funcs.get(eom_dsrg.method_type)
+    if template_func is None:
+        raise ValueError(f"Invalid method type: {eom_dsrg.method_type}")
+
+    # Generate the template with the specified parameters
+    template = template_func(1, eom_dsrg.ncore, eom_dsrg.nocc, eom_dsrg.nact, eom_dsrg.nvir)
+
+    # Create a deep copy of the template and adjust its structure
     full_template = copy.deepcopy(template)
     full_template['first'] = np.zeros(1).reshape(1, 1)
     full_template = {'first': full_template.pop('first'), **full_template}
@@ -175,25 +253,24 @@ def get_templates(eom_dsrg):
 
 
 def get_sigma_build(eom_dsrg):
-    if eom_dsrg.method_type == "ee":
-        build_first_row = ee_eom_dsrg.build_first_row
-        build_sigma_vector_Hbar = ee_eom_dsrg.build_sigma_vector_Hbar
-        get_S_12 = ee_eom_dsrg.get_S_12
-        compute_preconditioner_exact = ee_eom_dsrg.compute_preconditioner_exact
-        compute_preconditioner_block = ee_eom_dsrg.compute_preconditioner_block
-    elif eom_dsrg.method_type == "cvs-ee":
-        build_first_row = cvs_ee_eom_dsrg.build_first_row
-        build_sigma_vector_Hbar = cvs_ee_eom_dsrg.build_sigma_vector_Hbar
-        get_S_12 = cvs_ee_eom_dsrg.get_S_12
-        compute_preconditioner_exact = cvs_ee_eom_dsrg.compute_preconditioner_exact
-        compute_preconditioner_block = cvs_ee_eom_dsrg.compute_preconditioner_block
-    elif eom_dsrg.method_type == "ip":
-        pass
-    elif eom_dsrg.method_type == "ea":
-        pass
-    elif eom_dsrg.method_type == "cvs-ip":
-        pass
-    else:
-        raise ValueError("Invalid method type.")
+    """Get the appropriate sigma build functions based on the method type."""
+    # Dictionary mapping method types to the appropriate sigma build functions
+    sigma_funcs = {
+        "ee": ee_eom_dsrg,
+        "cvs-ee": cvs_ee_eom_dsrg
+        # Additional mappings for other methods can be added here
+    }
+
+    # Fetch the correct module based on the method type
+    sigma_module = sigma_funcs.get(eom_dsrg.method_type)
+    if sigma_module is None:
+        raise ValueError(f"Invalid method type: {eom_dsrg.method_type}")
+
+    # Extract the specific functions from the module
+    build_first_row = sigma_module.build_first_row
+    build_sigma_vector_Hbar = sigma_module.build_sigma_vector_Hbar
+    get_S_12 = sigma_module.get_S_12
+    compute_preconditioner_exact = sigma_module.compute_preconditioner_exact
+    compute_preconditioner_block = sigma_module.compute_preconditioner_block
 
     return build_first_row, build_sigma_vector_Hbar, get_S_12, compute_preconditioner_exact, compute_preconditioner_block

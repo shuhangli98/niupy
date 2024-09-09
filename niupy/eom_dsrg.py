@@ -76,17 +76,18 @@ class EOM_DSRG:
             self.act_sym = np.array([0, 3])
             self.vir_sym = np.array([0, 2, 3])
         elif method_type == 'cvs-ee':
-            print("Running H2O/aug-cc-pvdz since no wfn and mo_spaces are provided.")
+            print("Running H2O/6-31g since no wfn and mo_spaces are provided.")
             # 6-31g
-            # self.core_sym = np.array([0])
-            # self.occ_sym = np.array([0, 0, 2, 3])
-            # self.act_sym = np.array([0, 2, 3, 3])
-            # self.vir_sym = np.array([0, 0, 0, 3])
             self.core_sym = np.array([0])
-            self.occ_sym = np.array([0, 3])
-            self.act_sym = np.array([0, 0, 2, 3])
-            self.vir_sym = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
-                                    1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
+            self.occ_sym = np.array([0, 0, 2, 3])
+            self.act_sym = np.array([0, 2, 3, 3])
+            self.vir_sym = np.array([0, 0, 0, 3])
+            # aug-cc-pvdz
+            # self.core_sym = np.array([0])
+            # self.occ_sym = np.array([0, 3])
+            # self.act_sym = np.array([0, 0, 2, 3])
+            # self.vir_sym = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
+            #                         1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
 
     def _print_symmetry_info(self):
         print("\n")
@@ -112,7 +113,7 @@ class EOM_DSRG:
 
 if __name__ == "__main__":
     import os
-    test = 3
+    test = 2
     script_dir = os.path.dirname(__file__)
 
     def load_data(rel_path):
@@ -130,21 +131,22 @@ if __name__ == "__main__":
                             verbose=5, max_cycle=100, target_sym=0, method_type='ee', diagonal_type='block')
         conv, e, u, spin = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
-            print(f"Root {idx}: {i_e - e[0]} Hartree")  # , spin: {spin[idx]}
+            print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
     elif test == 2:
-        # Disabled for now
         Hbar, gamma1, eta1, lambda2, lambda3 = load_data("H2O")
         Hbar = slice_H_core(Hbar, 1)
         eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, nroots=3,
                             verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='block')
         conv, e, u, spin = eom_dsrg.kernel()
-        # for idx, i_e in enumerate(e):
-        #     print(f"Root {idx}: {i_e - e[0]} Hartree")  # , spin: {spin[idx]}
-    elif test == 3:
-        Hbar, gamma1, eta1, lambda2, lambda3 = load_data("H2O_Prism")
-        Hbar = slice_H_core(Hbar, 1)
-        eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, nroots=3,
-                            verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='block')
-        conv, e, u, spin = eom_dsrg.kernel()
-        # for idx, i_e in enumerate(e):
-        #     print(f"Root {idx}: {i_e - e[0]} Hartree")  # , spin: {spin[idx]}
+        for idx, i_e in enumerate(e):
+            print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
+
+    # elif test == 3:
+    #     # Disabled for now
+    #     Hbar, gamma1, eta1, lambda2, lambda3 = load_data("H2O_Prism")
+    #     Hbar = slice_H_core(Hbar, 1)
+    #     eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, nroots=3,
+    #                         verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='block')
+    #     conv, e, u, spin = eom_dsrg.kernel()
+    #     # for idx, i_e in enumerate(e):
+    #     #     print(f"Root {idx}: {i_e - e[0]} Hartree")  # , spin: {spin[idx]}
