@@ -62,10 +62,10 @@ class EOM_DSRG:
         if wfn is not None and mo_spaces is not None:
             res = forte.utils.prepare_forte_objects(wfn, mo_spaces)
             mo_space_info = res['mo_space_info']
-            self.core_sym = mo_space_info.symmetry('FROZEN_DOCC')
-            self.occ_sym = mo_space_info.symmetry('RESTRICTED_DOCC')
-            self.act_sym = mo_space_info.symmetry('ACTIVE')
-            self.vir_sym = mo_space_info.symmetry('VIRTUAL')
+            self.core_sym = np.array(mo_space_info.symmetry('FROZEN_DOCC'))
+            self.occ_sym = np.array(mo_space_info.symmetry('RESTRICTED_DOCC'))
+            self.act_sym = np.array(mo_space_info.symmetry('ACTIVE'))
+            self.vir_sym = np.array(mo_space_info.symmetry('VIRTUAL'))
         else:
             self._set_default_symmetry(method_type)
 
