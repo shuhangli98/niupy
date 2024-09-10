@@ -8,7 +8,7 @@ import niupy.eom_dsrg_compute as eom_dsrg_compute
 class EOM_DSRG:
     def __init__(
         self,
-        Hbar, gamma1, eta1, lambda2, lambda3, diag_shift=0.0,
+        Hbar, gamma1, eta1, lambda2, lambda3, dp1, diag_shift=0.0,
         tol_e=1e-8, max_space=100, max_cycle=100,
         tol_davidson=1e-5, tol_s=1e-4, tol_s_act=1e-4,
         target_sym=0, target_spin=0, nroots=6,
@@ -31,14 +31,14 @@ class EOM_DSRG:
         self.method_type = method_type
         self.diagonal_type = diagonal_type  # 'exact' or 'block'
         self.verbose = verbose
-        self.nroots = nroots              # Number of EOM-DSRG roots requested
-        self.max_space = max_space        # Maximum size of the Davidson trial space
-        self.max_cycle = max_cycle        # Maximum number of iterations in the Davidson procedure
-        self.tol_e = tol_e                # Tolerance for the energy in the Davidson procedure
-        self.tol_davidson = tol_davidson  # Tolerance for the residual in the Davidson procedure
-        self.tol_s = tol_s                # Tolerance for the orthogonalization of excitation spaces
-        self.tol_s_act = tol_s_act        # Tolerance for the orthogonalization of the active space
-        self.diag_shift = diag_shift      # Shift for the diagonal of the effective Hamiltonian
+        self.nroots = nroots                # Number of EOM-DSRG roots requested
+        self.max_space = max_space          # Maximum size of the Davidson trial space
+        self.max_cycle = max_cycle          # Maximum number of iterations in the Davidson procedure
+        self.tol_e = tol_e                  # Tolerance for the energy in the Davidson procedure
+        self.tol_davidson = tol_davidson    # Tolerance for the residual in the Davidson procedure
+        self.tol_s = tol_s                  # Tolerance for the orthogonalization of excitation spaces
+        self.tol_s_act = tol_s_act          # Tolerance for the orthogonalization of the active space
+        self.diag_shift = diag_shift        # Shift for the diagonal of the effective Hamiltonian
         self.target_sym = target_sym
         self.target_spin = target_spin
 
@@ -48,6 +48,7 @@ class EOM_DSRG:
         self.eta1 = eta1
         self.lambda2 = lambda2
         self.lambda3 = lambda3
+        self.dp1 = dp1
 
         # Initialize templates and sigma vectors
         self.template_c, self.full_template_c = eom_dsrg_compute.get_templates(self)
@@ -101,14 +102,15 @@ class EOM_DSRG:
         (
             self.build_first_row,
             self.build_sigma_vector_Hbar,
+            self.build_sigma_vector_s,
             self.get_S_12,
             self.compute_preconditioner_exact,
             self.compute_preconditioner_block
         ) = eom_dsrg_compute.get_sigma_build(self)
 
     def kernel(self):
-        conv, e, u, spin = eom_dsrg_compute.kernel(self)
-        return conv, e, u, spin
+        conv, e, u, spin, osc_strength = eom_dsrg_compute.kernel(self)
+        return conv, e, u, spin, osc_strength
 
 
 if __name__ == "__main__":
@@ -123,23 +125,27 @@ if __name__ == "__main__":
         lambda2 = np.load(f'{abs_file_path}/save_lambda2.npz')
         lambda3 = np.load(f'{abs_file_path}/save_lambda3.npz')
         Hbar = np.load(f'{abs_file_path}/save_Hbar.npz')
-        return Hbar, gamma1, eta1, lambda2, lambda3
+        dp1 = np.load(f'{abs_file_path}/save_dp1.npy', allow_pickle=True)
+        return Hbar, gamma1, eta1, lambda2, lambda3, dp1
 
     if test == 1:
-        Hbar, gamma1, eta1, lambda2, lambda3 = load_data("BeH2")
-        eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, nroots=3,
+        Hbar, gamma1, eta1, lambda2, lambda3, dp1 = load_data("BeH2")
+        eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, dp1, nroots=3,
                             verbose=5, max_cycle=100, target_sym=0, method_type='ee', diagonal_type='block')
-        conv, e, u, spin = eom_dsrg.kernel()
+        conv, e, u, spin, _ = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
             print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
     elif test == 2:
-        Hbar, gamma1, eta1, lambda2, lambda3 = load_data("H2O")
+        Hbar, gamma1, eta1, lambda2, lambda3, dp1 = load_data("H2O")
         Hbar = slice_H_core(Hbar, 1)
-        eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, nroots=3,
+        eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, dp1, nroots=3,
                             verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='block')
-        conv, e, u, spin = eom_dsrg.kernel()
+        conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
-            print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
+            if idx == 0:
+                print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
+            else:
+                print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
 
     # elif test == 3:
     #     # Disabled for now

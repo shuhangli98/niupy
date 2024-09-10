@@ -21,6 +21,7 @@ def kernel(eom_dsrg):
         e: Eigenvalues from the Davidson algorithm.
         eigvec: Eigenvectors after processing.
         spin: Spin multiplicities ('Singlet', 'Triplet', or 'Incorrect spin').
+        osc_strength: Computed oscillator strengths.
     """
     # Setup Davidson algorithm parameters
     start = time.time()
@@ -31,7 +32,88 @@ def kernel(eom_dsrg):
                           max_space=eom_dsrg.max_space, max_cycle=eom_dsrg.max_cycle, tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson)
 
     spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
-    return conv, e, eigvec, spin
+    osc_strength = compute_oscillator_strength(eom_dsrg, e, eigvec)
+
+    return conv, e, eigvec, spin, osc_strength
+
+
+def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
+    """
+    Computes the oscillator strengths based on eigenvalues and eigenvectors.
+
+    Parameters:
+        eom_dsrg: An object with configuration parameters and functions required for calculations.
+        eigval: Array of eigenvalues.
+        eigvec: Array of eigenvectors.
+
+    Returns:
+        osc_strength: List of oscillator strengths.
+    """
+    dp1_list = build_dp1_list(eom_dsrg)
+
+    # Compute oscillator strengths for each eigenvector
+    osc_strength = [
+        2.0 / 3.0 * (eigval[i_v] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i_v], dp1_list)
+        for i_v in range(1, eigvec.shape[1])
+    ]
+
+    return osc_strength
+
+
+def build_dp1_list(eom_dsrg):
+    """
+    Builds a list of dp1 vectors for dipole moment calculations.
+
+    Parameters:
+        eom_dsrg: An object with configuration parameters and functions required for calculations.
+
+    Returns:
+        dp1_list: List of dp1 vectors for x, y, z directions.
+    """
+    index_dict = {
+        "c": slice(eom_dsrg.ncore, eom_dsrg.ncore+eom_dsrg.nocc),
+        "a": slice(eom_dsrg.ncore+eom_dsrg.nocc, eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact),
+        "v": slice(eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact, eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact+eom_dsrg.nvir),
+        "C": slice(eom_dsrg.ncore, eom_dsrg.ncore+eom_dsrg.nocc),
+        "A": slice(eom_dsrg.ncore+eom_dsrg.nocc, eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact),
+        "V": slice(eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact, eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact+eom_dsrg.nvir),
+        "i": slice(0, eom_dsrg.ncore),
+        "I": slice(0, eom_dsrg.ncore)
+    }
+
+    dp1_list = [
+        dict_to_vec({
+            key: eom_dsrg.dp1[i][index_dict[key[0]], index_dict[key[1]]
+                                 ].reshape(1, *eom_dsrg.template_c[key].shape[1:])
+            if len(key) == 2 else np.zeros((1, *eom_dsrg.template_c[key].shape[1:]))
+            for key in eom_dsrg.template_c.keys()
+        }, 1).flatten()
+        for i in range(3)
+    ]
+
+    return dp1_list
+
+
+def compute_dipole(eom_dsrg, current_vec, dp1_list):
+    """
+    Computes the squared transition dipole moment for a given eigenvector.
+
+    Parameters:
+        eom_dsrg: An object with configuration parameters and functions required for calculations.
+        current_vec: Current eigenvector under consideration.
+        dp1_list: List of dp1 vectors for x, y, z directions.
+
+    Returns:
+        current_dipole_2: Squared transition dipole moment
+    """
+    current_vec_dict = vec_to_dict(eom_dsrg.full_template_c, current_vec.reshape(-1, 1))
+    Sv_dict = eom_dsrg.build_sigma_vector_s(
+        current_vec_dict, eom_dsrg.Hbar, eom_dsrg.gamma1,
+        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, None
+    )
+    Sv = dict_to_vec(antisymmetrize(Sv_dict), 1).flatten()
+
+    return sum(np.dot(dp1, Sv[1:])**2 for dp1 in dp1_list)
 
 
 def calculate_norms(current_vec_dict):
@@ -76,12 +158,12 @@ def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
     """
     eigvec = np.array([apply_S_12(S_12, nop, vec, transpose=False).flatten() for vec in u]).T
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec))
-    eigvec = dict_to_vec(eigvec_dict, len(u)).T
+    eigvec = dict_to_vec(eigvec_dict, len(u))
 
     spin = []
 
     for i_idx in range(len(u)):
-        current_vec = eigvec[i_idx]
+        current_vec = eigvec[:, i_idx]
         current_vec_dict = vec_to_dict(eom_dsrg.full_template_c, current_vec.reshape(-1, 1))
 
         subtraction_norms, addition_norms = calculate_norms(current_vec_dict)
@@ -269,8 +351,9 @@ def get_sigma_build(eom_dsrg):
     # Extract the specific functions from the module
     build_first_row = sigma_module.build_first_row
     build_sigma_vector_Hbar = sigma_module.build_sigma_vector_Hbar
+    build_sigma_vector_s = sigma_module.build_sigma_vector_s
     get_S_12 = sigma_module.get_S_12
     compute_preconditioner_exact = sigma_module.compute_preconditioner_exact
     compute_preconditioner_block = sigma_module.compute_preconditioner_block
 
-    return build_first_row, build_sigma_vector_Hbar, get_S_12, compute_preconditioner_exact, compute_preconditioner_block
+    return build_first_row, build_sigma_vector_Hbar, build_sigma_vector_s, get_S_12, compute_preconditioner_exact, compute_preconditioner_block
