@@ -201,18 +201,31 @@ def setup_davidson(eom_dsrg):
         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3
     )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
+    start = time.time()
+    print("Starting S_12...")
     S_12 = eom_dsrg.get_S_12(
         eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1,
         eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.sym,
         eom_dsrg.target_sym, tol=eom_dsrg.tol_s, tol_act=eom_dsrg.tol_s_act
     )
+    print("Time(s) for S_12: ", time.time() - start)
+    start = time.time()
+    print("Starting Precond...")
 
-    precond_func = eom_dsrg.compute_preconditioner_exact if eom_dsrg.diagonal_type == "exact" else eom_dsrg.compute_preconditioner_block
-    precond = precond_func(
-        eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
-        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3
-    ) + eom_dsrg.diag_shift
-
+    nop = 0
+    for i_tensor in S_12:
+        nop += i_tensor.shape[1]
+    if eom_dsrg.diagonal_type == "identity":
+        print("Using Identity Preconditioner")
+        precond = np.ones(nop+1)
+    elif eom_dsrg.diagonal_type == "exact":
+        precond = eom_dsrg.compute_preconditioner_exact(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
+                                                        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
+    else:
+        precond = eom_dsrg.compute_preconditioner_block(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
+                                                        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
+    print("Precond: ", len(precond), precond.shape, type(precond))
+    print("Time(s) for Precond: ", time.time() - start)
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = define_effective_hamiltonian(eom_dsrg, S_12, nop, northo)

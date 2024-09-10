@@ -62,10 +62,11 @@ class EOM_DSRG:
         if wfn is not None and mo_spaces is not None:
             res = forte.utils.prepare_forte_objects(wfn, mo_spaces)
             mo_space_info = res['mo_space_info']
-            self.core_sym = mo_space_info.symmetry('FROZEN_DOCC')
-            self.occ_sym = mo_space_info.symmetry('RESTRICTED_DOCC')
-            self.act_sym = mo_space_info.symmetry('ACTIVE')
-            self.vir_sym = mo_space_info.symmetry('VIRTUAL')
+            self.core_sym = np.array(mo_space_info.symmetry('FROZEN_DOCC'))
+            self.occ_sym = np.array(mo_space_info.symmetry('RESTRICTED_DOCC'))
+            self.act_sym = np.array(mo_space_info.symmetry('ACTIVE'))
+            self.vir_sym = np.array(mo_space_info.symmetry('VIRTUAL'))
+            self.occ_sym_old = np.sort(np.concatenate((self.core_sym, self.occ_sym)))
         else:
             self._set_default_symmetry(method_type)
 
@@ -139,7 +140,7 @@ if __name__ == "__main__":
         Hbar, gamma1, eta1, lambda2, lambda3, dp1 = load_data("H2O")
         Hbar = slice_H_core(Hbar, 1)
         eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, dp1, nroots=3,
-                            verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='block')
+                            verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='identity')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
             if idx == 0:
