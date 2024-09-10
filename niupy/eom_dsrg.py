@@ -66,7 +66,6 @@ class EOM_DSRG:
             self.occ_sym = np.array(mo_space_info.symmetry('RESTRICTED_DOCC'))
             self.act_sym = np.array(mo_space_info.symmetry('ACTIVE'))
             self.vir_sym = np.array(mo_space_info.symmetry('VIRTUAL'))
-            self.occ_sym_old = np.sort(np.concatenate((self.core_sym, self.occ_sym)))
         else:
             self._set_default_symmetry(method_type)
 
