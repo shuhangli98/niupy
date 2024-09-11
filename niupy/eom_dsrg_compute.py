@@ -25,9 +25,9 @@ def kernel(eom_dsrg):
     """
     # Setup Davidson algorithm parameters
     start = time.time()
-    print("Setting up Davidson algorithm...")
+    print("Setting up Davidson algorithm...", flush=True)
     apply_M, precond, x0, nop, S_12 = setup_davidson(eom_dsrg)
-    print("Time(s) for Davidson Setup: ", time.time() - start)
+    print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
     conv, e, u = davidson(lambda xs: [apply_M(x) for x in xs], x0, precond, nroots=eom_dsrg.nroots, verbose=eom_dsrg.verbose,
                           max_space=eom_dsrg.max_space, max_cycle=eom_dsrg.max_cycle, tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson)
 
@@ -202,15 +202,15 @@ def setup_davidson(eom_dsrg):
     )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
     start = time.time()
-    print("Starting S_12...")
+    print("Starting S_12...", flush=True)
     S_12 = eom_dsrg.get_S_12(
         eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1,
         eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.sym,
         eom_dsrg.target_sym, tol=eom_dsrg.tol_s, tol_act=eom_dsrg.tol_s_act
     )
-    print("Time(s) for S_12: ", time.time() - start)
+    print("Time(s) for S_12: ", time.time() - start, flush=True)
     start = time.time()
-    print("Starting Precond...")
+    print("Starting Precond...", flush=True)
     if eom_dsrg.diagonal_type == "identity":
         print("Using Identity Preconditioner")
         nop = 0
@@ -223,7 +223,7 @@ def setup_davidson(eom_dsrg):
     elif eom_dsrg.diagonal_type == "block":
         precond = eom_dsrg.compute_preconditioner_block(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
                                                         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
-    print("Time(s) for Precond: ", time.time() - start)
+    print("Time(s) for Precond: ", time.time() - start, flush=True)
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = define_effective_hamiltonian(eom_dsrg, S_12, nop, northo)
