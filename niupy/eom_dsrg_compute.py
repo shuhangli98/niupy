@@ -211,17 +211,16 @@ def setup_davidson(eom_dsrg):
     print("Time(s) for S_12: ", time.time() - start)
     start = time.time()
     print("Starting Precond...")
-
-    nop = 0
-    for i_tensor in S_12:
-        nop += i_tensor.shape[1]
     if eom_dsrg.diagonal_type == "identity":
         print("Using Identity Preconditioner")
+        nop = 0
+        for i_tensor in S_12:
+            nop += i_tensor.shape[1]
         precond = np.ones(nop+1)
     elif eom_dsrg.diagonal_type == "exact":
         precond = eom_dsrg.compute_preconditioner_exact(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
                                                         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
-    else:
+    elif eom_dsrg.diagonal_type == "block":
         precond = eom_dsrg.compute_preconditioner_block(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
                                                         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
     print("Time(s) for Precond: ", time.time() - start)

@@ -44,6 +44,8 @@ class EOM_DSRG:
 
         # Set Hamiltonian and RDMs
         self.Hbar = Hbar
+        if method_type == 'cvs-ee':
+            self.Hbar = slice_H_core(Hbar, self.core_sym, self.occ_sym)
         self.gamma1 = gamma1
         self.eta1 = eta1
         self.lambda2 = lambda2
@@ -137,7 +139,6 @@ if __name__ == "__main__":
             print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
     elif test == 2:
         Hbar, gamma1, eta1, lambda2, lambda3, dp1 = load_data("H2O")
-        Hbar = slice_H_core(Hbar, 1)
         eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, dp1, nroots=3,
                             verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='identity')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()

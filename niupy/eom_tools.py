@@ -478,9 +478,42 @@ def sym_dir(c, core_sym, occ_sym, act_sym, vir_sym):
     return out_dir
 
 
-def slice_H_core(Hbar_old, ncore):
+def slice_H_core(Hbar_old, core_sym, occ_sym):
+    # Combine and sort all orbitals by symmetry to get the correct order
+    all_orbitals = np.sort(np.concatenate((core_sym, occ_sym)))
+
+    # Initialize core and occupied indices lists
+    core_indices = []
+    occ_indices = []
+    used_indices = set()
+
+    # Create a counter for core and occupied symmetries
+    core_sym_count = {sym: np.sum(core_sym == sym) for sym in np.unique(core_sym)}
+    occ_sym_count = {sym: np.sum(occ_sym == sym) for sym in np.unique(occ_sym)}
+
+    # Find core indices based on required counts in core_sym
+    for sym, count in core_sym_count.items():
+        indices = np.where(all_orbitals == sym)[0]
+        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
+        core_indices.extend(selected_indices)
+        used_indices.update(selected_indices)
+
+    # Find occupied indices based on required counts in occ_sym
+    for sym, count in occ_sym_count.items():
+        indices = np.where(all_orbitals == sym)[0]
+        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
+        occ_indices.extend(selected_indices)
+        used_indices.update(selected_indices)
+
+    # Initialize indices dictionary
+    indices_dict = {
+        'i': core_indices, 'c': occ_indices, 'a': ..., 'v': ...,
+        'I': core_indices, 'C': occ_indices, 'A': ..., 'V': ...
+    }
+
+    # Initialize the new dictionary to hold the sliced tensors
     Hbar = {}
-    nocc = Hbar_old['cc'].shape[0]
+
     for key, tensor in Hbar_old.items():
         indices_c = [index for index, char in enumerate(key) if char == 'c']
         indices_C = [index for index, char in enumerate(key) if char == 'C']
@@ -494,29 +527,23 @@ def slice_H_core(Hbar_old, ncore):
         # Iterate through all combinations of 'c' and 'C' replacements
         for comb_c in combinations_c:
             for comb_C in combinations_C:
-                # Create a copy of the key and slices for tensor slicing
                 new_key = list(key)
-                slices = [slice(None)] * tensor.ndim
-
-                # Replace 'c' with 'i' and adjust slicing
-                for idx, char in zip(indices_c, comb_c):
-                    new_key[idx] = char
-                    if char == 'i':
-                        slices[idx] = slice(0, ncore)  # 'i' slice
-                    else:
-                        slices[idx] = slice(ncore, nocc)  # 'c' slice
-
-                # Replace 'C' with 'I' and adjust slicing
-                for idx, char in zip(indices_C, comb_C):
-                    new_key[idx] = char
-                    if char == 'I':
-                        slices[idx] = slice(0, ncore)  # 'I' slice
-                    else:
-                        slices[idx] = slice(ncore, nocc)  # 'C' slice
-
-                # Convert the new key list back to string
+                for i, char in zip(indices_c, comb_c):
+                    new_key[i] = char
+                for i, char in zip(indices_C, comb_C):
+                    new_key[i] = char
                 new_key = ''.join(new_key)
 
-                # Add the sliced tensor to the new dictionary
-                Hbar[new_key] = tensor[tuple(slices)]
+                if len(new_key) == 2:
+                    first_dim_indices = indices_dict[new_key[0]]
+                    second_dim_indices = indices_dict[new_key[1]]
+                    Hbar[new_key] = tensor[first_dim_indices, :][:, second_dim_indices]
+                elif len(new_key) == 4:
+                    first_dim_indices = indices_dict[new_key[0]]
+                    second_dim_indices = indices_dict[new_key[1]]
+                    third_dim_indices = indices_dict[new_key[2]]
+                    fourth_dim_indices = indices_dict[new_key[3]]
+                    Hbar[new_key] = tensor[first_dim_indices, :, :, :][:, second_dim_indices,
+                                                                       :, :][:, :, third_dim_indices, :][:, :, :, fourth_dim_indices]
+
     return Hbar
