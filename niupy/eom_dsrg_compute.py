@@ -158,6 +158,8 @@ def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
     """
     eigvec = np.array([apply_S_12(S_12, nop, vec, transpose=False).flatten() for vec in u]).T
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec))
+    excitation_analysis = find_top_values(eigvec_dict, 3)
+    print(excitation_analysis)
     eigvec = dict_to_vec(eigvec_dict, len(u))
 
     spin = []
@@ -180,6 +182,38 @@ def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
             spin.append("Incorrect spin")
 
     return spin, eigvec
+
+
+def find_top_values(data, num):
+    random_key = next(iter(data))
+    num_slices = data[random_key].shape[0]
+    results = {i: [] for i in range(num_slices)}
+
+    for i in range(num_slices):
+        # Initialize a list to store the top values for the current slice index
+        slice_top_values = []
+
+        # Iterate over each array in the dictionary
+        for key, array in data.items():
+            # Extract the slice corresponding to the current index i
+            current_slice = array[i]
+            # Flatten the slice and get the indices
+            flat_slice = current_slice.flatten()
+            indices = np.arange(flat_slice.size)
+
+            # Create tuples of (absolute value, original value, index, key)
+            values_with_info = [(abs(val), val, np.unravel_index(idx, current_slice.shape), key)
+                                for idx, val in zip(indices, flat_slice)]
+            # Extend the list with current slice values
+            slice_top_values.extend(values_with_info)
+
+        # Sort by absolute value in descending order and take the top three
+        top_three = sorted(slice_top_values, key=lambda x: -x[0])[:num]
+
+        # Store the top three as (original value, original index in the slice, key)
+        results[i] = [(val[1], val[2], val[3]) for val in top_three]
+
+    return results
 
 
 def setup_davidson(eom_dsrg):
