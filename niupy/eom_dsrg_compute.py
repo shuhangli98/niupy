@@ -61,31 +61,52 @@ def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
 
 
 def build_dp1_list(eom_dsrg):
-    """
-    Builds a list of dp1 vectors for dipole moment calculations.
+    all_orbitals = np.sort(np.concatenate((eom_dsrg.core_sym, eom_dsrg.occ_sym, eom_dsrg.act_sym, eom_dsrg.vir_sym)))
 
-    Parameters:
-        eom_dsrg: An object with configuration parameters and functions required for calculations.
+    core_indices = []
+    occ_indices = []
+    act_indices = []
+    vir_indices = []
+    used_indices = set()
 
-    Returns:
-        dp1_list: List of dp1 vectors for x, y, z directions.
-    """
-    index_dict = {
-        "c": slice(eom_dsrg.ncore, eom_dsrg.ncore+eom_dsrg.nocc),
-        "a": slice(eom_dsrg.ncore+eom_dsrg.nocc, eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact),
-        "v": slice(eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact, eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact+eom_dsrg.nvir),
-        "C": slice(eom_dsrg.ncore, eom_dsrg.ncore+eom_dsrg.nocc),
-        "A": slice(eom_dsrg.ncore+eom_dsrg.nocc, eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact),
-        "V": slice(eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact, eom_dsrg.ncore+eom_dsrg.nocc+eom_dsrg.nact+eom_dsrg.nvir),
-        "i": slice(0, eom_dsrg.ncore),
-        "I": slice(0, eom_dsrg.ncore)
+    core_sym_count = {sym: np.sum(eom_dsrg.core_sym == sym) for sym in np.unique(eom_dsrg.core_sym)}
+    occ_sym_count = {sym: np.sum(eom_dsrg.occ_sym == sym) for sym in np.unique(eom_dsrg.occ_sym)}
+    act_sym_count = {sym: np.sum(eom_dsrg.act_sym == sym) for sym in np.unique(eom_dsrg.act_sym)}
+    vir_sym_count = {sym: np.sum(eom_dsrg.vir_sym == sym) for sym in np.unique(eom_dsrg.vir_sym)}
+
+    for sym, count in core_sym_count.items():
+        indices = np.where(all_orbitals == sym)[0]
+        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
+        core_indices.extend(selected_indices)
+        used_indices.update(selected_indices)
+
+    for sym, count in occ_sym_count.items():
+        indices = np.where(all_orbitals == sym)[0]
+        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
+        occ_indices.extend(selected_indices)
+        used_indices.update(selected_indices)
+
+    for sym, count in act_sym_count.items():
+        indices = np.where(all_orbitals == sym)[0]
+        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
+        act_indices.extend(selected_indices)
+        used_indices.update(selected_indices)
+
+    for sym, count in vir_sym_count.items():
+        indices = np.where(all_orbitals == sym)[0]
+        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
+        vir_indices.extend(selected_indices)
+        used_indices.update(selected_indices)
+
+    indices_dict = {
+        'i': core_indices, 'c': occ_indices, 'a': act_indices, 'v': vir_indices,
+        'I': core_indices, 'C': occ_indices, 'A': act_indices, 'V': vir_indices
     }
 
     dp1_list = [
         dict_to_vec({
-            key: eom_dsrg.dp1[i][index_dict[key[0]], index_dict[key[1]]
-                                 ].reshape(1, *eom_dsrg.template_c[key].shape[1:])
-            if len(key) == 2 else np.zeros((1, *eom_dsrg.template_c[key].shape[1:]))
+            key: eom_dsrg.dp1[i][indices_dict[key[0]], :][:, indices_dict[key[1]]].reshape(
+                1, *eom_dsrg.template_c[key].shape[1:]) if len(key) == 2 else np.zeros((1, *eom_dsrg.template_c[key].shape[1:]))
             for key in eom_dsrg.template_c.keys()
         }, 1).flatten()
         for i in range(3)
@@ -159,7 +180,9 @@ def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
     eigvec = np.array([apply_S_12(S_12, nop, vec, transpose=False).flatten() for vec in u]).T
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec))
     excitation_analysis = find_top_values(eigvec_dict, 3)
-    print(excitation_analysis)
+    for key, values in excitation_analysis.items():
+        print(f"Root {key}: {values}")
+
     eigvec = dict_to_vec(eigvec_dict, len(u))
 
     spin = []

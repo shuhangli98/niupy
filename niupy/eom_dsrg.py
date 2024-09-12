@@ -82,9 +82,9 @@ class EOM_DSRG:
             print("Running H2O/6-31g since no wfn and mo_spaces are provided.")
             # 6-31g
             self.core_sym = np.array([0])
-            self.occ_sym = np.array([0, 0, 2, 3])
-            self.act_sym = np.array([0, 2, 3, 3])
-            self.vir_sym = np.array([0, 0, 0, 3])
+            self.occ_sym = np.array([0, 3])
+            self.act_sym = np.array([0, 0, 2, 3])
+            self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
             # aug-cc-pvdz
             # self.core_sym = np.array([0])
             # self.occ_sym = np.array([0, 3])
