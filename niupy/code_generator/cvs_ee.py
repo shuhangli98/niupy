@@ -99,7 +99,7 @@ rel_path = "../cvs_ee_eom_dsrg.py"
 abs_file_path = os.path.join(script_dir, rel_path)
 
 with open(abs_file_path, 'w') as f:
-    f.write('import numpy as np\nimport time\n\nfrom niupy.eom_tools import *\n\n')
+    f.write('import numpy as np\nimport scipy\nimport time\n\nfrom niupy.eom_tools import *\n\n')
     f.write(f'{func_template_c}\n\n')
     f.write(f'{funct_S_12}\n\n')
     f.write(f'{funct_preconditioner_exact}\n\n')
