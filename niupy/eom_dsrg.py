@@ -140,7 +140,7 @@ if __name__ == "__main__":
     elif test == 2:
         Hbar, gamma1, eta1, lambda2, lambda3, dp1 = load_data("H2O")
         eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, dp1, nroots=3,
-                            verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='identity')
+                            verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='block')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
             if idx == 0:

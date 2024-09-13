@@ -266,6 +266,7 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
     def add_single_space_code(key, i_key):
         return [
             f"    # {key} block",
+            f'    print("Starts {key} block precond", flush=True)',
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    tensor = S_12[{i_key}]",
             f"    northo = tensor.shape[1]",
@@ -278,6 +279,7 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
             f"        vec = dict_to_vec(sigma, northo)",
             f"        vmv = tensor.T @ vec",
             f"        diagonal.append(vmv.diagonal())",
+            f"        del vec, vmv",
             "    sigma.clear()",
             "    c.clear()"
         ]
@@ -285,6 +287,7 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
     def add_composite_space_code(space, start):
         code_block = [
             f"    # {space} composite block",
+            f'    print("Starts {space} composite block precond", flush=True)',
             f"    tensor = S_12[{start}]",
             f"    northo = tensor.shape[1]",
             f"    if northo != 0:",
@@ -301,7 +304,9 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
                 f"        c = antisymmetrize(c)",
                 generate_block_contraction(space, mbeq, block_type='composite', indent='twice'),
                 f"        vec = dict_to_vec(sigma, northo)",
-                f"        vmv = tensor.T @ vec"
+                f"        vmv = tensor.T @ vec",
+                f"        diagonal.append(vmv.diagonal())",
+                f"        del vec, vmv",
             ])
         elif diagonal_type == 'block':
             code_block.extend([
@@ -310,6 +315,7 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
             for key_space in space:
                 code_block.extend([
                     f"        # {key_space} sub-block",
+                    f'        print("Starts {key_space} sub-block precond", flush=True)',
                     f"        shape_block = template_c['{key_space}'].shape[1:]",
                     f"        shape_size = np.prod(shape_block)",
                     f"        c['{key_space}'] = np.zeros((shape_size, *shape_block))",
@@ -323,8 +329,9 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
                     f"        S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]",
                     f"        vmv += S_temp.T @ H_temp @ S_temp",
                     f"        slice_tensor += shape_size",
-                    "        sigma.clear()",
-                    "        c.clear()"
+                    f"        sigma.clear()",
+                    f"        c.clear()",
+                    f"        del c_vec, H_temp, S_temp",
                 ])
         code_block.append(f"        diagonal.append(vmv.diagonal())")
         code_block.extend([

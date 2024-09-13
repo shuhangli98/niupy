@@ -913,6 +913,7 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
     c = {}
     diagonal = [np.array([0.0])]
     # iv block
+    print("Starts iv block precond", flush=True)
     shape_block = template_c['iv'].shape[1:]
     tensor = S_12[0]
     northo = tensor.shape[1]
@@ -928,10 +929,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # IV block
+    print("Starts IV block precond", flush=True)
     shape_block = template_c['IV'].shape[1:]
     tensor = S_12[1]
     northo = tensor.shape[1]
@@ -947,10 +950,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iAaV block
+    print("Starts iAaV block precond", flush=True)
     shape_block = template_c['iAaV'].shape[1:]
     tensor = S_12[2]
     northo = tensor.shape[1]
@@ -1050,10 +1055,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # aIvA block
+    print("Starts aIvA block precond", flush=True)
     shape_block = template_c['aIvA'].shape[1:]
     tensor = S_12[3]
     northo = tensor.shape[1]
@@ -1153,10 +1160,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # icvv block
+    print("Starts icvv block precond", flush=True)
     shape_block = template_c['icvv'].shape[1:]
     tensor = S_12[4]
     northo = tensor.shape[1]
@@ -1176,10 +1185,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iCvV block
+    print("Starts iCvV block precond", flush=True)
     shape_block = template_c['iCvV'].shape[1:]
     tensor = S_12[5]
     northo = tensor.shape[1]
@@ -1202,10 +1213,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # cIvV block
+    print("Starts cIvV block precond", flush=True)
     shape_block = template_c['cIvV'].shape[1:]
     tensor = S_12[6]
     northo = tensor.shape[1]
@@ -1228,10 +1241,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # ICVV block
+    print("Starts ICVV block precond", flush=True)
     shape_block = template_c['ICVV'].shape[1:]
     tensor = S_12[7]
     northo = tensor.shape[1]
@@ -1251,10 +1266,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # icva block
+    print("Starts icva block precond", flush=True)
     shape_block = template_c['icva'].shape[1:]
     tensor = S_12[8]
     northo = tensor.shape[1]
@@ -1292,10 +1309,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iCvA block
+    print("Starts iCvA block precond", flush=True)
     shape_block = template_c['iCvA'].shape[1:]
     tensor = S_12[9]
     northo = tensor.shape[1]
@@ -1333,10 +1352,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iCaV block
+    print("Starts iCaV block precond", flush=True)
     shape_block = template_c['iCaV'].shape[1:]
     tensor = S_12[10]
     northo = tensor.shape[1]
@@ -1374,10 +1395,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # cIvA block
+    print("Starts cIvA block precond", flush=True)
     shape_block = template_c['cIvA'].shape[1:]
     tensor = S_12[11]
     northo = tensor.shape[1]
@@ -1415,10 +1438,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # cIaV block
+    print("Starts cIaV block precond", flush=True)
     shape_block = template_c['cIaV'].shape[1:]
     tensor = S_12[12]
     northo = tensor.shape[1]
@@ -1456,10 +1481,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # ICVA block
+    print("Starts ICVA block precond", flush=True)
     shape_block = template_c['ICVA'].shape[1:]
     tensor = S_12[13]
     northo = tensor.shape[1]
@@ -1497,10 +1524,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iavv block
+    print("Starts iavv block precond", flush=True)
     shape_block = template_c['iavv'].shape[1:]
     tensor = S_12[14]
     northo = tensor.shape[1]
@@ -1533,10 +1562,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iAvV block
+    print("Starts iAvV block precond", flush=True)
     shape_block = template_c['iAvV'].shape[1:]
     tensor = S_12[15]
     northo = tensor.shape[1]
@@ -1574,10 +1605,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # aIvV block
+    print("Starts aIvV block precond", flush=True)
     shape_block = template_c['aIvV'].shape[1:]
     tensor = S_12[16]
     northo = tensor.shape[1]
@@ -1615,10 +1648,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # IAVV block
+    print("Starts IAVV block precond", flush=True)
     shape_block = template_c['IAVV'].shape[1:]
     tensor = S_12[17]
     northo = tensor.shape[1]
@@ -1651,10 +1686,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # icaa block
+    print("Starts icaa block precond", flush=True)
     shape_block = template_c['icaa'].shape[1:]
     tensor = S_12[18]
     northo = tensor.shape[1]
@@ -1718,10 +1755,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iCaA block
+    print("Starts iCaA block precond", flush=True)
     shape_block = template_c['iCaA'].shape[1:]
     tensor = S_12[19]
     northo = tensor.shape[1]
@@ -1821,10 +1860,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # cIaA block
+    print("Starts cIaA block precond", flush=True)
     shape_block = template_c['cIaA'].shape[1:]
     tensor = S_12[20]
     northo = tensor.shape[1]
@@ -1924,10 +1965,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # ICAA block
+    print("Starts ICAA block precond", flush=True)
     shape_block = template_c['ICAA'].shape[1:]
     tensor = S_12[21]
     northo = tensor.shape[1]
@@ -1991,10 +2034,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # ['iava', 'iAvA'] composite block
+    print("Starts ['iava', 'iAvA'] composite block precond", flush=True)
     tensor = S_12[22]
     northo = tensor.shape[1]
     if northo != 0:
@@ -2297,10 +2342,13 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
+        diagonal.append(vmv.diagonal())
     sigma.clear()
     c.clear()
 
     # ['aIaV', 'IAVA'] composite block
+    print("Starts ['aIaV', 'IAVA'] composite block precond", flush=True)
     tensor = S_12[23]
     northo = tensor.shape[1]
     if northo != 0:
@@ -2603,10 +2651,13 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
+        diagonal.append(vmv.diagonal())
     sigma.clear()
     c.clear()
 
     # ['ia', 'iaaa', 'iAaA'] composite block
+    print("Starts ['ia', 'iaaa', 'iAaA'] composite block precond", flush=True)
     tensor = S_12[24]
     northo = tensor.shape[1]
     if northo != 0:
@@ -3995,10 +4046,13 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
+        diagonal.append(vmv.diagonal())
     sigma.clear()
     c.clear()
 
     # ['IA', 'aIaA', 'IAAA'] composite block
+    print("Starts ['IA', 'aIaA', 'IAAA'] composite block precond", flush=True)
     tensor = S_12[25]
     northo = tensor.shape[1]
     if northo != 0:
@@ -5387,6 +5441,8 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
+        diagonal.append(vmv.diagonal())
     sigma.clear()
     c.clear()
 
@@ -5398,6 +5454,7 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
     c = {}
     diagonal = [np.array([0.0])]
     # iv block
+    print("Starts iv block precond", flush=True)
     shape_block = template_c['iv'].shape[1:]
     tensor = S_12[0]
     northo = tensor.shape[1]
@@ -5413,10 +5470,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # IV block
+    print("Starts IV block precond", flush=True)
     shape_block = template_c['IV'].shape[1:]
     tensor = S_12[1]
     northo = tensor.shape[1]
@@ -5432,10 +5491,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iAaV block
+    print("Starts iAaV block precond", flush=True)
     shape_block = template_c['iAaV'].shape[1:]
     tensor = S_12[2]
     northo = tensor.shape[1]
@@ -5535,10 +5596,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # aIvA block
+    print("Starts aIvA block precond", flush=True)
     shape_block = template_c['aIvA'].shape[1:]
     tensor = S_12[3]
     northo = tensor.shape[1]
@@ -5638,10 +5701,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # icvv block
+    print("Starts icvv block precond", flush=True)
     shape_block = template_c['icvv'].shape[1:]
     tensor = S_12[4]
     northo = tensor.shape[1]
@@ -5661,10 +5726,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iCvV block
+    print("Starts iCvV block precond", flush=True)
     shape_block = template_c['iCvV'].shape[1:]
     tensor = S_12[5]
     northo = tensor.shape[1]
@@ -5687,10 +5754,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # cIvV block
+    print("Starts cIvV block precond", flush=True)
     shape_block = template_c['cIvV'].shape[1:]
     tensor = S_12[6]
     northo = tensor.shape[1]
@@ -5713,10 +5782,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # ICVV block
+    print("Starts ICVV block precond", flush=True)
     shape_block = template_c['ICVV'].shape[1:]
     tensor = S_12[7]
     northo = tensor.shape[1]
@@ -5736,10 +5807,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # icva block
+    print("Starts icva block precond", flush=True)
     shape_block = template_c['icva'].shape[1:]
     tensor = S_12[8]
     northo = tensor.shape[1]
@@ -5777,10 +5850,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iCvA block
+    print("Starts iCvA block precond", flush=True)
     shape_block = template_c['iCvA'].shape[1:]
     tensor = S_12[9]
     northo = tensor.shape[1]
@@ -5818,10 +5893,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iCaV block
+    print("Starts iCaV block precond", flush=True)
     shape_block = template_c['iCaV'].shape[1:]
     tensor = S_12[10]
     northo = tensor.shape[1]
@@ -5859,10 +5936,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # cIvA block
+    print("Starts cIvA block precond", flush=True)
     shape_block = template_c['cIvA'].shape[1:]
     tensor = S_12[11]
     northo = tensor.shape[1]
@@ -5900,10 +5979,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # cIaV block
+    print("Starts cIaV block precond", flush=True)
     shape_block = template_c['cIaV'].shape[1:]
     tensor = S_12[12]
     northo = tensor.shape[1]
@@ -5941,10 +6022,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # ICVA block
+    print("Starts ICVA block precond", flush=True)
     shape_block = template_c['ICVA'].shape[1:]
     tensor = S_12[13]
     northo = tensor.shape[1]
@@ -5982,10 +6065,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iavv block
+    print("Starts iavv block precond", flush=True)
     shape_block = template_c['iavv'].shape[1:]
     tensor = S_12[14]
     northo = tensor.shape[1]
@@ -6018,10 +6103,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iAvV block
+    print("Starts iAvV block precond", flush=True)
     shape_block = template_c['iAvV'].shape[1:]
     tensor = S_12[15]
     northo = tensor.shape[1]
@@ -6059,10 +6146,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # aIvV block
+    print("Starts aIvV block precond", flush=True)
     shape_block = template_c['aIvV'].shape[1:]
     tensor = S_12[16]
     northo = tensor.shape[1]
@@ -6100,10 +6189,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # IAVV block
+    print("Starts IAVV block precond", flush=True)
     shape_block = template_c['IAVV'].shape[1:]
     tensor = S_12[17]
     northo = tensor.shape[1]
@@ -6136,10 +6227,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # icaa block
+    print("Starts icaa block precond", flush=True)
     shape_block = template_c['icaa'].shape[1:]
     tensor = S_12[18]
     northo = tensor.shape[1]
@@ -6203,10 +6296,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # iCaA block
+    print("Starts iCaA block precond", flush=True)
     shape_block = template_c['iCaA'].shape[1:]
     tensor = S_12[19]
     northo = tensor.shape[1]
@@ -6306,10 +6401,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # cIaA block
+    print("Starts cIaA block precond", flush=True)
     shape_block = template_c['cIaA'].shape[1:]
     tensor = S_12[20]
     northo = tensor.shape[1]
@@ -6409,10 +6506,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # ICAA block
+    print("Starts ICAA block precond", flush=True)
     shape_block = template_c['ICAA'].shape[1:]
     tensor = S_12[21]
     northo = tensor.shape[1]
@@ -6476,16 +6575,19 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         vec = dict_to_vec(sigma, northo)
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
+        del vec, vmv
     sigma.clear()
     c.clear()
 
     # ['iava', 'iAvA'] composite block
+    print("Starts ['iava', 'iAvA'] composite block precond", flush=True)
     tensor = S_12[22]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
         slice_tensor = 0
         # iava sub-block
+        print("Starts iava sub-block precond", flush=True)
         shape_block = template_c['iava'].shape[1:]
         shape_size = np.prod(shape_block)
         c['iava'] = np.zeros((shape_size, *shape_block))
@@ -6593,7 +6695,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         # iAvA sub-block
+        print("Starts iAvA sub-block precond", flush=True)
         shape_block = template_c['iAvA'].shape[1:]
         shape_size = np.prod(shape_block)
         c['iAvA'] = np.zeros((shape_size, *shape_block))
@@ -6701,17 +6805,20 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         diagonal.append(vmv.diagonal())
     sigma.clear()
     c.clear()
 
     # ['aIaV', 'IAVA'] composite block
+    print("Starts ['aIaV', 'IAVA'] composite block precond", flush=True)
     tensor = S_12[23]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
         slice_tensor = 0
         # aIaV sub-block
+        print("Starts aIaV sub-block precond", flush=True)
         shape_block = template_c['aIaV'].shape[1:]
         shape_size = np.prod(shape_block)
         c['aIaV'] = np.zeros((shape_size, *shape_block))
@@ -6819,7 +6926,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         # IAVA sub-block
+        print("Starts IAVA sub-block precond", flush=True)
         shape_block = template_c['IAVA'].shape[1:]
         shape_size = np.prod(shape_block)
         c['IAVA'] = np.zeros((shape_size, *shape_block))
@@ -6927,17 +7036,20 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         diagonal.append(vmv.diagonal())
     sigma.clear()
     c.clear()
 
     # ['ia', 'iaaa', 'iAaA'] composite block
+    print("Starts ['ia', 'iaaa', 'iAaA'] composite block precond", flush=True)
     tensor = S_12[24]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
         slice_tensor = 0
         # ia sub-block
+        print("Starts ia sub-block precond", flush=True)
         shape_block = template_c['ia'].shape[1:]
         shape_size = np.prod(shape_block)
         c['ia'] = np.zeros((shape_size, *shape_block))
@@ -6967,7 +7079,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         # iaaa sub-block
+        print("Starts iaaa sub-block precond", flush=True)
         shape_block = template_c['iaaa'].shape[1:]
         shape_size = np.prod(shape_block)
         c['iaaa'] = np.zeros((shape_size, *shape_block))
@@ -7250,7 +7364,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         # iAaA sub-block
+        print("Starts iAaA sub-block precond", flush=True)
         shape_block = template_c['iAaA'].shape[1:]
         shape_size = np.prod(shape_block)
         c['iAaA'] = np.zeros((shape_size, *shape_block))
@@ -7715,17 +7831,20 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         diagonal.append(vmv.diagonal())
     sigma.clear()
     c.clear()
 
     # ['IA', 'aIaA', 'IAAA'] composite block
+    print("Starts ['IA', 'aIaA', 'IAAA'] composite block precond", flush=True)
     tensor = S_12[25]
     northo = tensor.shape[1]
     if northo != 0:
         vmv = np.zeros((northo, northo))
         slice_tensor = 0
         # IA sub-block
+        print("Starts IA sub-block precond", flush=True)
         shape_block = template_c['IA'].shape[1:]
         shape_size = np.prod(shape_block)
         c['IA'] = np.zeros((shape_size, *shape_block))
@@ -7755,7 +7874,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         # aIaA sub-block
+        print("Starts aIaA sub-block precond", flush=True)
         shape_block = template_c['aIaA'].shape[1:]
         shape_size = np.prod(shape_block)
         c['aIaA'] = np.zeros((shape_size, *shape_block))
@@ -8220,7 +8341,9 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         # IAAA sub-block
+        print("Starts IAAA sub-block precond", flush=True)
         shape_block = template_c['IAAA'].shape[1:]
         shape_size = np.prod(shape_block)
         c['IAAA'] = np.zeros((shape_size, *shape_block))
@@ -8503,6 +8626,7 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         slice_tensor += shape_size
         sigma.clear()
         c.clear()
+        del c_vec, H_temp, S_temp
         diagonal.append(vmv.diagonal())
     sigma.clear()
     c.clear()

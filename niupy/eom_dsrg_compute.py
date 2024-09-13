@@ -266,6 +266,7 @@ def setup_davidson(eom_dsrg):
         eom_dsrg.target_sym, tol=eom_dsrg.tol_s, tol_act=eom_dsrg.tol_s_act
     )
     print("Time(s) for S_12: ", time.time() - start, flush=True)
+    np.savez('save_S_12', *S_12)
     start = time.time()
     print("Starting Precond...", flush=True)
     if eom_dsrg.diagonal_type == "identity":
