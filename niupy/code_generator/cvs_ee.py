@@ -90,6 +90,7 @@ mbeq_s = expr_s.to_manybody_equation('sigma')
 funct = generate_sigma_build(mbeq, 'Hbar')  # HC
 funct_s = generate_sigma_build(mbeq_s, 's')  # SC
 funct_first = generate_first_row(mbeq_first)  # First row/column
+funct_dipole = generate_transition_dipole(mbeq_first)
 funct_S_12 = generate_S_12(mbeq_s, single_space, composite_space)
 funct_preconditioner_exact = generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='exact')
 funct_preconditioner_block = generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='block')
@@ -107,3 +108,4 @@ with open(abs_file_path, 'w') as f:
     f.write(f'{funct}\n\n')
     f.write(f'{funct_s}\n\n')
     f.write(f'{funct_first}\n\n')
+    f.write(f'{funct_dipole}\n\n')

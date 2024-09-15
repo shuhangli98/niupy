@@ -102,6 +102,18 @@ def generate_first_row(mbeq):
     return funct
 
 
+def generate_transition_dipole(mbeq):
+    code = [f"def build_transition_dipole(c, Hbar, gamma1, eta1, lambda2, lambda3):",
+            "    sigma = 0.0"]
+    for eq in mbeq['|']:
+        if not any(t.label() in ['lambda4', 'lambda5', 'lambda6'] for t in eq.rhs().tensors()):
+            code.append(f"    {w.compile_einsum(eq)}")
+
+    code.append("    return sigma")
+    funct = "\n".join(code)
+    return funct
+
+
 def dict_to_vec(dictionary, n_lowest):
     reshape_vec = [np.reshape(value, (n_lowest, -1)) for value in dictionary.values()]
     vec = np.concatenate(reshape_vec, axis=1)

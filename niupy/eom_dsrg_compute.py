@@ -2,7 +2,7 @@ import niupy.ee_eom_dsrg as ee_eom_dsrg
 import niupy.cvs_ee_eom_dsrg as cvs_ee_eom_dsrg
 import numpy as np
 import copy
-from niupy.eom_tools import dict_to_vec, vec_to_dict, antisymmetrize
+from niupy.eom_tools import dict_to_vec, vec_to_dict, antisymmetrize, slice_H_core, is_antisymmetric
 from pyscf import lib
 import time
 
@@ -23,15 +23,28 @@ def kernel(eom_dsrg):
         spin: Spin multiplicities ('Singlet', 'Triplet', or 'Incorrect spin').
         osc_strength: Computed oscillator strengths.
     """
-    # Setup Davidson algorithm parameters
     start = time.time()
     print("Setting up Davidson algorithm...", flush=True)
+
+    # Setup Davidson algorithm
     apply_M, precond, x0, nop, S_12 = setup_davidson(eom_dsrg)
     print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
-    conv, e, u = davidson(lambda xs: [apply_M(x) for x in xs], x0, precond, nroots=eom_dsrg.nroots, verbose=eom_dsrg.verbose,
-                          max_space=eom_dsrg.max_space, max_cycle=eom_dsrg.max_cycle, tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson)
 
+    # Davidson algorithm
+    conv, e, u = davidson(
+        lambda xs: [apply_M(x) for x in xs], x0, precond,
+        nroots=eom_dsrg.nroots, verbose=eom_dsrg.verbose,
+        max_space=eom_dsrg.max_space, max_cycle=eom_dsrg.max_cycle,
+        tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson
+    )
+
+    # Get spin multiplicity and process eigenvectors
     spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
+
+    # Optimize slicing by vectorizing
+    eom_dsrg.Mbar = [slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar]
+
+    # Compute oscillator strengths
     osc_strength = compute_oscillator_strength(eom_dsrg, e, eigvec)
 
     return conv, e, eigvec, spin, osc_strength
@@ -39,102 +52,36 @@ def kernel(eom_dsrg):
 
 def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
     """
-    Computes the oscillator strengths based on eigenvalues and eigenvectors.
-
-    Parameters:
-        eom_dsrg: An object with configuration parameters and functions required for calculations.
-        eigval: Array of eigenvalues.
-        eigvec: Array of eigenvectors.
-
-    Returns:
-        osc_strength: List of oscillator strengths.
+    Compute oscillator strengths for each eigenvector.
     """
-    dp1_list = build_dp1_list(eom_dsrg)
-
-    # Compute oscillator strengths for each eigenvector
-    osc_strength = [
-        2.0 / 3.0 * (eigval[i_v] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i_v], dp1_list)
-        for i_v in range(1, eigvec.shape[1])
+    return [
+        2.0 / 3.0 * (eigval[i] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i])
+        for i in range(1, eigvec.shape[1])
     ]
 
-    return osc_strength
 
-
-def build_dp1_list(eom_dsrg):
-    all_orbitals = np.sort(np.concatenate((eom_dsrg.core_sym, eom_dsrg.occ_sym, eom_dsrg.act_sym, eom_dsrg.vir_sym)))
-
-    core_indices = []
-    occ_indices = []
-    act_indices = []
-    vir_indices = []
-    used_indices = set()
-
-    core_sym_count = {sym: np.sum(eom_dsrg.core_sym == sym) for sym in np.unique(eom_dsrg.core_sym)}
-    occ_sym_count = {sym: np.sum(eom_dsrg.occ_sym == sym) for sym in np.unique(eom_dsrg.occ_sym)}
-    act_sym_count = {sym: np.sum(eom_dsrg.act_sym == sym) for sym in np.unique(eom_dsrg.act_sym)}
-    vir_sym_count = {sym: np.sum(eom_dsrg.vir_sym == sym) for sym in np.unique(eom_dsrg.vir_sym)}
-
-    for sym, count in core_sym_count.items():
-        indices = np.where(all_orbitals == sym)[0]
-        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
-        core_indices.extend(selected_indices)
-        used_indices.update(selected_indices)
-
-    for sym, count in occ_sym_count.items():
-        indices = np.where(all_orbitals == sym)[0]
-        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
-        occ_indices.extend(selected_indices)
-        used_indices.update(selected_indices)
-
-    for sym, count in act_sym_count.items():
-        indices = np.where(all_orbitals == sym)[0]
-        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
-        act_indices.extend(selected_indices)
-        used_indices.update(selected_indices)
-
-    for sym, count in vir_sym_count.items():
-        indices = np.where(all_orbitals == sym)[0]
-        selected_indices = [idx for idx in indices if idx not in used_indices][:count]
-        vir_indices.extend(selected_indices)
-        used_indices.update(selected_indices)
-
-    indices_dict = {
-        'i': core_indices, 'c': occ_indices, 'a': act_indices, 'v': vir_indices,
-        'I': core_indices, 'C': occ_indices, 'A': act_indices, 'V': vir_indices
-    }
-
-    dp1_list = [
-        dict_to_vec({
-            key: eom_dsrg.dp1[i][indices_dict[key[0]], :][:, indices_dict[key[1]]].reshape(
-                1, *eom_dsrg.template_c[key].shape[1:]) if len(key) == 2 else np.zeros((1, *eom_dsrg.template_c[key].shape[1:]))
-            for key in eom_dsrg.template_c.keys()
-        }, 1).flatten()
-        for i in range(3)
-    ]
-
-    return dp1_list
-
-
-def compute_dipole(eom_dsrg, current_vec, dp1_list):
+def compute_dipole(eom_dsrg, current_vec):
     """
-    Computes the squared transition dipole moment for a given eigenvector.
-
-    Parameters:
-        eom_dsrg: An object with configuration parameters and functions required for calculations.
-        current_vec: Current eigenvector under consideration.
-        dp1_list: List of dp1 vectors for x, y, z directions.
-
-    Returns:
-        current_dipole_2: Squared transition dipole moment
+    Compute the squared dipole moment for a given eigenvector.
     """
     current_vec_dict = vec_to_dict(eom_dsrg.full_template_c, current_vec.reshape(-1, 1))
-    Sv_dict = eom_dsrg.build_sigma_vector_s(
-        current_vec_dict, eom_dsrg.Hbar, eom_dsrg.gamma1,
-        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, None
-    )
-    Sv = dict_to_vec(antisymmetrize(Sv_dict), 1).flatten()
 
-    return sum(np.dot(dp1, Sv[1:])**2 for dp1 in dp1_list)
+    # Reshape dictionaries only when necessary
+    for key, val in current_vec_dict.items():
+        if key != 'first':
+            current_vec_dict[key] = val.reshape(val.shape[1:])
+
+    dipole_sum_squared = 0.0
+
+    for i, Mbar_i in enumerate(eom_dsrg.Mbar):
+        HT = eom_dsrg.build_transition_dipole(
+            current_vec_dict, Mbar_i, eom_dsrg.gamma1, eom_dsrg.eta1,
+            eom_dsrg.lambda2, eom_dsrg.lambda3
+        )
+        HT_first = HT + current_vec_dict['first'][0, 0] * eom_dsrg.Mbar0[i]
+        dipole_sum_squared += HT_first ** 2
+
+    return dipole_sum_squared
 
 
 def calculate_norms(current_vec_dict):
@@ -179,6 +126,7 @@ def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
     """
     eigvec = np.array([apply_S_12(S_12, nop, vec, transpose=False).flatten() for vec in u]).T
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec))
+    # eigvec_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec)
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
         print(f"Root {key}: {values}")
@@ -421,8 +369,9 @@ def get_sigma_build(eom_dsrg):
     build_first_row = sigma_module.build_first_row
     build_sigma_vector_Hbar = sigma_module.build_sigma_vector_Hbar
     build_sigma_vector_s = sigma_module.build_sigma_vector_s
+    build_transition_dipole = sigma_module.build_transition_dipole
     get_S_12 = sigma_module.get_S_12
     compute_preconditioner_exact = sigma_module.compute_preconditioner_exact
     compute_preconditioner_block = sigma_module.compute_preconditioner_block
 
-    return build_first_row, build_sigma_vector_Hbar, build_sigma_vector_s, get_S_12, compute_preconditioner_exact, compute_preconditioner_block
+    return build_first_row, build_sigma_vector_Hbar, build_sigma_vector_s, build_transition_dipole, get_S_12, compute_preconditioner_exact, compute_preconditioner_block

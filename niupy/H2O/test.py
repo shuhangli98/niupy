@@ -54,15 +54,3 @@ forte_options = {
 }
 
 E_dsrg = psi4.energy('forte', forte_options=forte_options, ref_wfn=wfn_cas)
-
-# mo_spaces = {'frozen_docc': [1, 0, 0, 0], 'RESTRICTED_DOCC': [1, 0, 0, 1], 'ACTIVE': [2, 0, 1, 1]}
-# res = forte.utils.prepare_forte_objects(wfn_cas, mo_spaces)
-# mo_space_info = res['mo_space_info']
-# core_sym = mo_space_info.symmetry('FROZEN_DOCC')
-# occ_sym = mo_space_info.symmetry('RESTRICTED_DOCC')
-# act_sym = mo_space_info.symmetry('ACTIVE')
-# vir_sym = mo_space_info.symmetry('VIRTUAL')
-# print(f"Core Symmetry: {core_sym}")
-# print(f"Occ Symmetry: {occ_sym}")
-# print(f"Act Symmetry: {act_sym}")
-# print(f"Vir Symmetry: {vir_sym}")
