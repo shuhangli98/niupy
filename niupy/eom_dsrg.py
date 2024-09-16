@@ -15,8 +15,9 @@ class EOM_DSRG:
         verbose=0, wfn=None, mo_spaces=None,
         method_type='ee', diagonal_type='exact'
     ):
-        script_dir = os.path.dirname(__file__)
+        script_dir = os.getcwd()
         self.abs_file_path = os.path.join(script_dir, rel_path)
+        print(self.abs_file_path, flush=True)
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
