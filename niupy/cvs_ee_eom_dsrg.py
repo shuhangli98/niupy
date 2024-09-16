@@ -54,27 +54,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iv'] = np.zeros((shape_size, *shape_block))
     sym_space['iv'] = sym_dict['iv']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['iv'] += +1.00000000 * np.einsum('pce->pce',c['iv'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # IV block
     print("Starts IV block", flush=True)
@@ -84,27 +86,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['IV'] = np.zeros((shape_size, *shape_block))
     sym_space['IV'] = sym_dict['IV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['IV'] += +1.00000000 * np.einsum('pCE->pCE',c['IV'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # iAaV block
     print("Starts iAaV block", flush=True)
@@ -114,28 +118,30 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iAaV'] = np.zeros((shape_size, *shape_block))
     sym_space['iAaV'] = sym_dict['iAaV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['iAaV'] += +1.00000000 * np.einsum('pcAaE,ao,OA->pcOoE',c['iAaV'],eta1['aa'],gamma1['AA'],optimize=True)
     sigma['iAaV'] += -1.00000000 * np.einsum('pcAaE,aOoA->pcOoE',c['iAaV'],lambda2['aAaA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # aIvA block
     print("Starts aIvA block", flush=True)
@@ -145,28 +151,30 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['aIvA'] = np.zeros((shape_size, *shape_block))
     sym_space['aIvA'] = sym_dict['aIvA']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['aIvA'] += +1.00000000 * np.einsum('paCeA,AO,oa->poCeO',c['aIvA'],eta1['AA'],gamma1['aa'],optimize=True)
     sigma['aIvA'] += -1.00000000 * np.einsum('paCeA,oAaO->poCeO',c['aIvA'],lambda2['aAaA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # icvv block
     print("Starts icvv block", flush=True)
@@ -176,27 +184,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['icvv'] = np.zeros((shape_size, *shape_block))
     sym_space['icvv'] = sym_dict['icvv']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['icvv'] += +0.50000000 * np.einsum('pckef->pckef',c['icvv'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # iCvV block
     print("Starts iCvV block", flush=True)
@@ -206,27 +216,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iCvV'] = np.zeros((shape_size, *shape_block))
     sym_space['iCvV'] = sym_dict['iCvV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['iCvV'] += +1.00000000 * np.einsum('pcKeE->pcKeE',c['iCvV'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # cIvV block
     print("Starts cIvV block", flush=True)
@@ -236,27 +248,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['cIvV'] = np.zeros((shape_size, *shape_block))
     sym_space['cIvV'] = sym_dict['cIvV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['cIvV'] += +1.00000000 * np.einsum('pkCeE->pkCeE',c['cIvV'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # ICVV block
     print("Starts ICVV block", flush=True)
@@ -266,27 +280,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['ICVV'] = np.zeros((shape_size, *shape_block))
     sym_space['ICVV'] = sym_dict['ICVV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['ICVV'] += +0.50000000 * np.einsum('pCKEF->pCKEF',c['ICVV'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # icva block
     print("Starts icva block", flush=True)
@@ -296,27 +312,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['icva'] = np.zeros((shape_size, *shape_block))
     sym_space['icva'] = sym_dict['icva']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['icva'] += +1.00000000 * np.einsum('pckea,ao->pckeo',c['icva'],eta1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # iCvA block
     print("Starts iCvA block", flush=True)
@@ -326,27 +344,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iCvA'] = np.zeros((shape_size, *shape_block))
     sym_space['iCvA'] = sym_dict['iCvA']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['iCvA'] += +1.00000000 * np.einsum('pcKeA,AO->pcKeO',c['iCvA'],eta1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # iCaV block
     print("Starts iCaV block", flush=True)
@@ -356,27 +376,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iCaV'] = np.zeros((shape_size, *shape_block))
     sym_space['iCaV'] = sym_dict['iCaV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['iCaV'] += +1.00000000 * np.einsum('pcKaE,ao->pcKoE',c['iCaV'],eta1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # cIvA block
     print("Starts cIvA block", flush=True)
@@ -386,27 +408,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['cIvA'] = np.zeros((shape_size, *shape_block))
     sym_space['cIvA'] = sym_dict['cIvA']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['cIvA'] += +1.00000000 * np.einsum('pkCeA,AO->pkCeO',c['cIvA'],eta1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # cIaV block
     print("Starts cIaV block", flush=True)
@@ -416,27 +440,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['cIaV'] = np.zeros((shape_size, *shape_block))
     sym_space['cIaV'] = sym_dict['cIaV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['cIaV'] += +1.00000000 * np.einsum('pkCaE,ao->pkCoE',c['cIaV'],eta1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # ICVA block
     print("Starts ICVA block", flush=True)
@@ -446,27 +472,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['ICVA'] = np.zeros((shape_size, *shape_block))
     sym_space['ICVA'] = sym_dict['ICVA']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['ICVA'] += +1.00000000 * np.einsum('pCKEA,AO->pCKEO',c['ICVA'],eta1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # iavv block
     print("Starts iavv block", flush=True)
@@ -476,27 +504,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iavv'] = np.zeros((shape_size, *shape_block))
     sym_space['iavv'] = sym_dict['iavv']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['iavv'] += +0.50000000 * np.einsum('pcaef,oa->pcoef',c['iavv'],gamma1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # iAvV block
     print("Starts iAvV block", flush=True)
@@ -506,27 +536,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iAvV'] = np.zeros((shape_size, *shape_block))
     sym_space['iAvV'] = sym_dict['iAvV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['iAvV'] += +1.00000000 * np.einsum('pcAeE,OA->pcOeE',c['iAvV'],gamma1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # aIvV block
     print("Starts aIvV block", flush=True)
@@ -536,27 +568,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['aIvV'] = np.zeros((shape_size, *shape_block))
     sym_space['aIvV'] = sym_dict['aIvV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['aIvV'] += +1.00000000 * np.einsum('paCeE,oa->poCeE',c['aIvV'],gamma1['aa'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # IAVV block
     print("Starts IAVV block", flush=True)
@@ -566,27 +600,29 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['IAVV'] = np.zeros((shape_size, *shape_block))
     sym_space['IAVV'] = sym_dict['IAVV']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['IAVV'] += +0.50000000 * np.einsum('pCAEF,OA->pCOEF',c['IAVV'],gamma1['AA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # icaa block
     print("Starts icaa block", flush=True)
@@ -596,28 +632,30 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['icaa'] = np.zeros((shape_size, *shape_block))
     sym_space['icaa'] = sym_dict['icaa']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['icaa'] += +0.50000000 * np.einsum('pckbr,ra,bo->pckoa',c['icaa'],eta1['aa'],eta1['aa'],optimize=True)
     sigma['icaa'] += +0.25000000 * np.einsum('pckbr,broa->pckoa',c['icaa'],lambda2['aaaa'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # iCaA block
     print("Starts iCaA block", flush=True)
@@ -627,28 +665,30 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iCaA'] = np.zeros((shape_size, *shape_block))
     sym_space['iCaA'] = sym_dict['iCaA']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['iCaA'] += +1.00000000 * np.einsum('pcKaA,AO,ao->pcKoO',c['iCaA'],eta1['AA'],eta1['aa'],optimize=True)
     sigma['iCaA'] += +1.00000000 * np.einsum('pcKaA,aAoO->pcKoO',c['iCaA'],lambda2['aAaA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # cIaA block
     print("Starts cIaA block", flush=True)
@@ -658,28 +698,30 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['cIaA'] = np.zeros((shape_size, *shape_block))
     sym_space['cIaA'] = sym_dict['cIaA']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['cIaA'] += +1.00000000 * np.einsum('pkCaA,AO,ao->pkCoO',c['cIaA'],eta1['AA'],eta1['aa'],optimize=True)
     sigma['cIaA'] += +1.00000000 * np.einsum('pkCaA,aAoO->pkCoO',c['cIaA'],lambda2['aAaA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # ICAA block
     print("Starts ICAA block", flush=True)
@@ -689,28 +731,30 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['ICAA'] = np.zeros((shape_size, *shape_block))
     sym_space['ICAA'] = sym_dict['ICAA']
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['ICAA'] += +0.50000000 * np.einsum('pCKBR,RA,BO->pCKOA',c['ICAA'],eta1['AA'],eta1['AA'],optimize=True)
     sigma['ICAA'] += +0.25000000 * np.einsum('pCKBR,BROA->pCKOA',c['ICAA'],lambda2['AAAA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X
+    del sevals, sevecs, trunc_indices, X
 
     # ['iava', 'iAvA'] composite block
     print("Starts ['iava', 'iAvA'] composite block", flush=True)
@@ -726,9 +770,11 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
         c[key] = np.zeros((shape_size, *shape_block))
         sigma[key] = np.zeros((shape_size, *shape_block))
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['iava'] += +1.00000000 * np.einsum('pcber,ro,ab->pcaeo',c['iava'],eta1['aa'],gamma1['aa'],optimize=True)
@@ -738,20 +784,20 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iAvA'] += +1.00000000 * np.einsum('pcBeR,RO,AB->pcAeO',c['iAvA'],eta1['AA'],gamma1['AA'],optimize=True)
     sigma['iAvA'] += +1.00000000 * np.einsum('pcBeR,AROB->pcAeO',c['iAvA'],lambda2['AAAA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X 
+    del sevals, sevecs, trunc_indices, X 
 
     # ['aIaV', 'IAVA'] composite block
     print("Starts ['aIaV', 'IAVA'] composite block", flush=True)
@@ -767,9 +813,11 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
         c[key] = np.zeros((shape_size, *shape_block))
         sigma[key] = np.zeros((shape_size, *shape_block))
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['aIaV'] += +1.00000000 * np.einsum('pbCrE,ro,ab->paCoE',c['aIaV'],eta1['aa'],gamma1['aa'],optimize=True)
@@ -779,20 +827,20 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['IAVA'] += +1.00000000 * np.einsum('pCBER,RO,AB->pCAEO',c['IAVA'],eta1['AA'],gamma1['AA'],optimize=True)
     sigma['IAVA'] += +1.00000000 * np.einsum('pCBER,AROB->pCAEO',c['IAVA'],lambda2['AAAA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X 
+    del sevals, sevecs, trunc_indices, X 
 
     # ['ia', 'iaaa', 'iAaA'] composite block
     print("Starts ['ia', 'iaaa', 'iAaA'] composite block", flush=True)
@@ -811,9 +859,11 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
         c[key] = np.zeros((shape_size, *shape_block))
         sigma[key] = np.zeros((shape_size, *shape_block))
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['ia'] += +1.00000000 * np.einsum('pca,ao->pco',c['ia'],eta1['aa'],optimize=True)
@@ -835,20 +885,20 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['iAaA'] += +1.00000000 * np.einsum('pcBaR,AB,aRoO->pcAoO',c['iAaA'],gamma1['AA'],lambda2['aAaA'],optimize=True)
     sigma['iAaA'] += -1.00000000 * np.einsum('pcBaR,aARoOB->pcAoO',c['iAaA'],lambda3['aAAaAA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X 
+    del sevals, sevecs, trunc_indices, X 
 
     # ['IA', 'aIaA', 'IAAA'] composite block
     print("Starts ['IA', 'aIaA', 'IAAA'] composite block", flush=True)
@@ -867,9 +917,11 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
         c[key] = np.zeros((shape_size, *shape_block))
         sigma[key] = np.zeros((shape_size, *shape_block))
     sym_vec = dict_to_vec(sym_space, 1).flatten()
+    sym_space.clear()
     c_vec = dict_to_vec(c, shape_size)
     np.fill_diagonal(c_vec, 1)
     c = vec_to_dict(c, c_vec)
+    del c_vec
     c = antisymmetrize(c)
     print('Starts contraction', flush=True)
     sigma['aIaA'] += -1.00000000 * np.einsum('pbCrA,ro,aAbO->paCoO',c['aIaA'],eta1['aa'],lambda2['aAaA'],optimize=True)
@@ -891,20 +943,20 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
     sigma['IAAA'] += +0.25000000 * np.einsum('pCRST,BR,STOA->pCBOA',c['IAAA'],gamma1['AA'],lambda2['AAAA'],optimize=True)
     sigma['IAAA'] += +0.25000000 * np.einsum('pCRST,BSTOAR->pCBOA',c['IAAA'],lambda3['AAAAAA'],optimize=True)
     sigma = antisymmetrize(sigma)
+    c.clear()
     vec = dict_to_vec(sigma, shape_size)
+    sigma.clear()
     x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
     mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
     vec[~mask] = 0
     print('Starts diagonalization', flush=True)
     sevals, sevecs = scipy.linalg.eigh(vec)
+    del sym_vec, vec, x_index, y_index, mask
     print('Diagonalization done', flush=True)
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     S_12.append(X)
-    sigma.clear()
-    sym_space.clear()
-    c.clear()
-    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X 
+    del sevals, sevecs, trunc_indices, X 
 
     return S_12
 

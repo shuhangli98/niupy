@@ -17,7 +17,6 @@ class EOM_DSRG:
     ):
         script_dir = os.getcwd()
         self.abs_file_path = os.path.join(script_dir, rel_path)
-        print(self.abs_file_path, flush=True)
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
@@ -125,7 +124,7 @@ if __name__ == "__main__":
     test = 1
     if test == 1:
         # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
-        rel_path = "H2O"
+        rel_path = "niupy/H2O"
         eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100,
                             target_sym=0, method_type='cvs-ee', diagonal_type='block')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()

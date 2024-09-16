@@ -190,26 +190,28 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
             f"    sigma['{key}'] = np.zeros((shape_size, *shape_block))",
             f"    sym_space['{key}'] = sym_dict['{key}']",
             f"    sym_vec = dict_to_vec(sym_space, 1).flatten()",
+            f"    sym_space.clear()",
             f"    c_vec = dict_to_vec(c, shape_size)",
             f"    np.fill_diagonal(c_vec, 1)",
             f"    c = vec_to_dict(c, c_vec)",
+            f"    del c_vec",
             f"    c = antisymmetrize(c)",
             f"    print('Starts contraction', flush=True)",
             generate_block_contraction(key, mbeq, block_type='single', indent='once'),
+            f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
+            f"    sigma.clear()",
             f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]",
             f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)",
             f"    vec[~mask] = 0",
             f"    print('Starts diagonalization', flush=True)",
             f"    sevals, sevecs = scipy.linalg.eigh(vec)",
+            f"    del sym_vec, vec, x_index, y_index, mask",
             f"    print('Diagonalization done', flush=True)",
             f"    trunc_indices = np.where(sevals > tol)[0]",
             f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
             "    S_12.append(X)",
-            "    sigma.clear()",
-            "    sym_space.clear()",
-            "    c.clear()",
-            "    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X"
+            "    del sevals, sevecs, trunc_indices, X"
         ]
 
     def add_composite_space_code(space):
@@ -230,20 +232,25 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
             f"        c[key] = np.zeros((shape_size, *shape_block))",
             f"        sigma[key] = np.zeros((shape_size, *shape_block))",
             f"    sym_vec = dict_to_vec(sym_space, 1).flatten()",
+            f"    sym_space.clear()",
             f"    c_vec = dict_to_vec(c, shape_size)",
             f"    np.fill_diagonal(c_vec, 1)",
             f"    c = vec_to_dict(c, c_vec)",
+            f"    del c_vec",
             f"    c = antisymmetrize(c)",
             f"    print('Starts contraction', flush=True)",
         ])
         code_block.append(generate_block_contraction(space, mbeq, block_type='composite', indent='once'))
         code_block.extend([
+            f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
+            f"    sigma.clear()",
             f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]",
             f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)",
             f"    vec[~mask] = 0",
             f"    print('Starts diagonalization', flush=True)",
             f"    sevals, sevecs = scipy.linalg.eigh(vec)",
+            f"    del sym_vec, vec, x_index, y_index, mask",
             f"    print('Diagonalization done', flush=True)",
         ])
         if space == ['aa', 'AA', 'aaaa', 'AAAA', 'aAaA']:
@@ -253,10 +260,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
         code_block.extend([
             f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
             "    S_12.append(X)",
-            "    sigma.clear()",
-            "    sym_space.clear()",
-            "    c.clear()",
-            "    del sym_vec, c_vec, vec, x_index, y_index, mask, sevals, sevecs, trunc_indices, X "
+            "    del sevals, sevecs, trunc_indices, X "
         ])
         return code_block
 
