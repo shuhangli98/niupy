@@ -38,6 +38,8 @@ def kernel(eom_dsrg):
         tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson
     )
 
+    del eom_dsrg.Hbar
+
     # Get spin multiplicity and process eigenvectors
     spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
 
@@ -201,11 +203,7 @@ def setup_davidson(eom_dsrg):
         nop: Dimension size.
         S_12: Transformation matrix/function parameter.
     """
-    eom_dsrg.first_row = eom_dsrg.build_first_row(
-        eom_dsrg.full_template_c, eom_dsrg.Hbar, eom_dsrg.gamma1,
-        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3
-    )
-    eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
+
     start = time.time()
     print("Starting S_12...", flush=True)
     S_12 = eom_dsrg.get_S_12(
@@ -215,6 +213,18 @@ def setup_davidson(eom_dsrg):
     )
     print("Time(s) for S_12: ", time.time() - start, flush=True)
     np.savez('save_S_12', *S_12)
+
+    # Load Hbar
+    eom_dsrg.Hbar = np.load(f'{eom_dsrg.abs_file_path}/save_Hbar.npz')
+    if eom_dsrg.method_type == 'cvs-ee':
+        eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
+    # Finish Hbar
+
+    eom_dsrg.first_row = eom_dsrg.build_first_row(
+        eom_dsrg.full_template_c, eom_dsrg.Hbar, eom_dsrg.gamma1,
+        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3
+    )
+    eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
     start = time.time()
     print("Starting Precond...", flush=True)
     if eom_dsrg.diagonal_type == "identity":

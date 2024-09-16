@@ -3,18 +3,20 @@ import forte
 import forte.utils
 import numpy as np
 import niupy.eom_dsrg_compute as eom_dsrg_compute
+import os
 
 
 class EOM_DSRG:
     def __init__(
-        self,
-        Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0, diag_shift=0.0,
+        self, rel_path, diag_shift=0.0,
         tol_e=1e-8, max_space=100, max_cycle=100,
         tol_davidson=1e-5, tol_s=1e-4, tol_s_act=1e-4,
         target_sym=0, target_spin=0, nroots=6,
         verbose=0, wfn=None, mo_spaces=None,
         method_type='ee', diagonal_type='exact'
     ):
+        script_dir = os.path.dirname(__file__)
+        self.abs_file_path = os.path.join(script_dir, rel_path)
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
@@ -43,15 +45,22 @@ class EOM_DSRG:
         self.target_spin = target_spin
 
         # Set Hamiltonian and RDMs
-        self.Hbar = Hbar
-        if method_type == 'cvs-ee':
-            self.Hbar = slice_H_core(Hbar, self.core_sym, self.occ_sym)
-        self.gamma1 = gamma1
-        self.eta1 = eta1
-        self.lambda2 = lambda2
-        self.lambda3 = lambda3
-        self.Mbar = Mbar
-        self.Mbar0 = Mbar0
+        self.gamma1 = np.load(f'{self.abs_file_path}/save_gamma1.npz')
+        self.eta1 = np.load(f'{self.abs_file_path}/save_eta1.npz')
+        self.lambda2 = np.load(f'{self.abs_file_path}/save_lambda2.npz')
+        self.lambda3 = np.load(f'{self.abs_file_path}/save_lambda3.npz')
+        # self.Hbar = np.load(f'{self.abs_file_path}/save_Hbar.npz')
+        self.Mbar0 = np.load(f'{self.abs_file_path}/Mbar0.npy')
+        Mbar1_x = np.load(f'{self.abs_file_path}/Mbar1_0.npz')
+        Mbar1_y = np.load(f'{self.abs_file_path}/Mbar1_1.npz')
+        Mbar1_z = np.load(f'{self.abs_file_path}/Mbar1_2.npz')
+        Mbar2_x = np.load(f'{self.abs_file_path}/Mbar2_0.npz')
+        Mbar2_y = np.load(f'{self.abs_file_path}/Mbar2_1.npz')
+        Mbar2_z = np.load(f'{self.abs_file_path}/Mbar2_2.npz')
+        Mbar_x = {**Mbar1_x, **Mbar2_x}
+        Mbar_y = {**Mbar1_y, **Mbar2_y}
+        Mbar_z = {**Mbar1_z, **Mbar2_z}
+        self.Mbar = [Mbar_x, Mbar_y, Mbar_z]
 
         # Initialize templates and sigma vectors
         self.template_c, self.full_template_c = eom_dsrg_compute.get_templates(self)
@@ -86,12 +95,6 @@ class EOM_DSRG:
             self.occ_sym = np.array([0, 3])
             self.act_sym = np.array([0, 0, 2, 3])
             self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
-            # aug-cc-pvdz
-            # self.core_sym = np.array([0])
-            # self.occ_sym = np.array([0, 3])
-            # self.act_sym = np.array([0, 0, 2, 3])
-            # self.vir_sym = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1,
-            #                         1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3])
 
     def _print_symmetry_info(self):
         print("\n")
@@ -118,47 +121,19 @@ class EOM_DSRG:
 
 
 if __name__ == "__main__":
-    import os
-    test = 2
-    script_dir = os.path.dirname(__file__)
-
-    def load_data(rel_path):
-        abs_file_path = os.path.join(script_dir, rel_path)
-        gamma1 = np.load(f'{abs_file_path}/save_gamma1.npz')
-        eta1 = np.load(f'{abs_file_path}/save_eta1.npz')
-        lambda2 = np.load(f'{abs_file_path}/save_lambda2.npz')
-        lambda3 = np.load(f'{abs_file_path}/save_lambda3.npz')
-        Hbar = np.load(f'{abs_file_path}/save_Hbar.npz')
-        Mbar0 = np.load(f'{abs_file_path}/Mbar0.npy')
-        Mbar1_x = np.load(f'{abs_file_path}/Mbar1_0.npz')
-        Mbar1_y = np.load(f'{abs_file_path}/Mbar1_1.npz')
-        Mbar1_z = np.load(f'{abs_file_path}/Mbar1_2.npz')
-        Mbar2_x = np.load(f'{abs_file_path}/Mbar2_0.npz')
-        Mbar2_y = np.load(f'{abs_file_path}/Mbar2_1.npz')
-        Mbar2_z = np.load(f'{abs_file_path}/Mbar2_2.npz')
-        Mbar_x = {**Mbar1_x, **Mbar2_x}
-        Mbar_y = {**Mbar1_y, **Mbar2_y}
-        Mbar_z = {**Mbar1_z, **Mbar2_z}
-        Mbar = [Mbar_x, Mbar_y, Mbar_z]
-
-        return Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0
-
+    test = 1
     if test == 1:
-        # Disabled for now
-        # Hbar, gamma1, eta1, lambda2, lambda3, dp1 = load_data("BeH2")
-        # eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, dp1, nroots=3,
-        #                     verbose=5, max_cycle=100, target_sym=0, method_type='ee', diagonal_type='block')
-        # conv, e, u, spin, _ = eom_dsrg.kernel()
-        # for idx, i_e in enumerate(e):
-        #     print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
-        pass
-    elif test == 2:
-        Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
-        eom_dsrg = EOM_DSRG(Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0, nroots=3,
-                            verbose=5, max_cycle=100, target_sym=0, method_type='cvs-ee', diagonal_type='block')
+        # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
+        rel_path = "H2O"
+        eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100,
+                            target_sym=0, method_type='cvs-ee', diagonal_type='block')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
             if idx == 0:
                 print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
             else:
                 print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
+
+# Root 0: 0.0 Hartree, spin: Singlet
+# Root 1: 19.85801514477547 Hartree, spin: Triplet, osc_strength: 8.882149755332066e-15
+# Root 2: 19.884122785946218 Hartree, spin: Singlet, osc_strength: 0.02027260029312239
