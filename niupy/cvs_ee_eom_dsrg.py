@@ -41,7 +41,7 @@ def get_template_c(nlow, ncore, nocc, nact, nvir):
         }
     return c
 
-def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, tol=0.0001, tol_act=0.01):
+def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, act_sym, tol=0.0001, tol_act=0.01):
     sigma = {}
     c = {}
     S_12 = []
@@ -594,35 +594,63 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, t
 
     # IAVV block
     print("Starts IAVV block", flush=True)
-    shape_block = template_c['IAVV'].shape[1:]
-    shape_size = np.prod(shape_block)
-    c['IAVV'] = np.zeros((shape_size, *shape_block))
-    sigma['IAVV'] = np.zeros((shape_size, *shape_block))
-    sym_space['IAVV'] = sym_dict['IAVV']
-    sym_vec = dict_to_vec(sym_space, 1).flatten()
-    sym_space.clear()
-    c_vec = dict_to_vec(c, shape_size)
-    np.fill_diagonal(c_vec, 1)
-    c = vec_to_dict(c, c_vec)
-    del c_vec
-    c = antisymmetrize(c)
-    print('Starts contraction', flush=True)
-    sigma['IAVV'] += +0.50000000 * np.einsum('pCAEF,OA->pCOEF',c['IAVV'],gamma1['AA'],optimize=True)
-    sigma = antisymmetrize(sigma)
-    c.clear()
-    vec = dict_to_vec(sigma, shape_size)
-    sigma.clear()
-    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]
-    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)
-    vec[~mask] = 0
-    print('Starts diagonalization', flush=True)
-    sevals, sevecs = scipy.linalg.eigh(vec)
-    del sym_vec, vec, x_index, y_index, mask
-    print('Diagonalization done', flush=True)
-    trunc_indices = np.where(sevals > tol)[0]
-    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
+    sym_space['IAVV'] = sym_dict['IAVV'].transpose(0, 2, 3, 1)
+    
+    max_sym = np.max(sym_space['IAVV'])
+    nocc, nact, nvir = template_c['IAVV'].shape[1], template_c['IAVV'].shape[2], template_c['IAVV'].shape[3]
+
+    ge, gv = np.linalg.eigh(gamma1['AA'])
+    trunc_indices = np.where(ge > tol)[0]
+    gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])
+    rows, cols = gv_half.shape
+
+    # Diagonalize gamma1 for different symmetry
+    gv_half_dict = {}
+    for i_sym in range(max_sym+1):
+        temp = gamma1['AA'].copy()
+        mask = (act_sym != i_sym)
+        temp[:, mask] = 0
+        temp[mask, :] = 0
+        ge, gv = np.linalg.eigh(temp)
+        trunc_indices = np.where(ge > tol)[0]
+        gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])
+        gv_half_dict[i_sym] = gv_half
+
+
+    # Initialize X matrix
+    num = nocc * nvir * nvir
+    zero_idx = [i * nvir * nvir + a * nvir + a for i in range(nocc) for a in range(nvir)]
+    X = np.zeros((num * rows, (num - len(zero_idx)) * cols))
+
+    # Precompute shape for unraveling
+    current_shape = (nocc, nvir, nvir)
+    start_col = 0
+    for i in range(num):
+        if i in zero_idx:
+            continue
+        
+        unravel_idx = np.unravel_index(i, current_shape)
+        possible_sym = sym_space['IAVV'][unravel_idx]
+        find_target_sym = np.where(possible_sym == target_sym)[0]
+        if len(find_target_sym) == 0:
+            continue
+        else:
+            act_sym_needed = act_sym[find_target_sym[0]]
+        
+        # Fill X matrix
+        current_col = gv_half_dict[act_sym_needed].shape[1]
+        if unravel_idx[1] > unravel_idx[2]:
+            X[i * rows: (i+1) * rows, start_col:(start_col + current_col)] = gv_half_dict[act_sym_needed]
+            start_col += current_col
+
+    X = X[:, :start_col]
+    # Reshape and verify
+    nlow = X.shape[1]
+    X_tensor = X.reshape(nocc, nvir, nvir, nact, nlow)
+    X_tensor = np.transpose(X_tensor, axes=(0, 3, 1, 2, 4))
+    X = X_tensor.reshape(nocc * nact * nvir * nvir, nlow)
     S_12.append(X)
-    del sevals, sevecs, trunc_indices, X
+    del X
 
     # icaa block
     print("Starts icaa block", flush=True)

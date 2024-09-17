@@ -580,3 +580,44 @@ def slice_H_core(Hbar_old, core_sym, occ_sym):
                                                                        :, :][:, :, third_dim_indices, :][:, :, :, fourth_dim_indices]
 
     return Hbar
+
+def normalize(input_obj):
+    if type(input_obj) is dict:
+        vec = dict_to_vec(input_obj, input_obj[list(input_obj.keys())[0]].shape[0])
+    elif type(input_obj) is np.ndarray:
+        vec = input_obj
+        
+    out_array = np.zeros_like(vec)
+    
+    for i in range(vec.shape[1]):
+        vec_i = vec[:, i]
+        norm = np.linalg.norm(vec_i)
+        if norm < 1e-6:
+            continue
+        else:
+            out_array[:, i] = vec_i/np.linalg.norm(vec_i)
+            
+    if type(input_obj) is dict:
+        output_obj = vec_to_dict(input_obj, out_array)
+    elif type(input_obj) is np.ndarray:
+        output_obj = out_array
+        
+    return output_obj
+
+def orthonormalize(vectors, num_orthonormals=1, eps=1e-6):
+    ortho_normals = vectors
+    count_orthonormals = num_orthonormals
+    # Skip unchanged ones.
+    for i in range(num_orthonormals, vectors.shape[1]):
+        vector_i = vectors[:, i]
+        # Makes sure vector_i is orthogonal to all processed vectors.
+        for j in range(i):
+            vector_i -= ortho_normals[:, j] * \
+                np.dot(ortho_normals[:, j].conj(), vector_i)
+
+        # Makes sure vector_i is normalized.
+        if np.max(np.abs(vector_i)) < eps:
+            continue
+        ortho_normals[:, count_orthonormals] = vector_i / np.linalg.norm(vector_i)
+        count_orthonormals += 1
+    return ortho_normals[:, :count_orthonormals]

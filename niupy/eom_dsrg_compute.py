@@ -209,7 +209,7 @@ def setup_davidson(eom_dsrg):
     S_12 = eom_dsrg.get_S_12(
         eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1,
         eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.sym,
-        eom_dsrg.target_sym, tol=eom_dsrg.tol_s, tol_act=eom_dsrg.tol_s_act
+        eom_dsrg.target_sym, eom_dsrg.act_sym, tol=eom_dsrg.tol_s, tol_act=eom_dsrg.tol_s_act
     )
     print("Time(s) for S_12: ", time.time() - start, flush=True)
     np.savez('save_S_12', *S_12)
