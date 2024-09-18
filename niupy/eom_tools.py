@@ -255,6 +255,39 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
             f"    del X",
         ])
         return code_block
+    
+    def no_active(key):
+        anti_up, anti_down = False, False
+        if len(key) == 4:
+            if key[0] == key[1] and key[2] == key[3]:
+                anti_up, anti_down = True, True
+            elif key[0] == key[1] and key[2] != key[3]:
+                anti_up, anti_down = True, False
+            elif key[0] != key[1] and key[2] == key[3]:
+                anti_up, anti_down = False, True
+        
+        code_block = [
+            f"    # {key} block",
+            f'    print("Starts {key} block", flush=True)',
+            f"    shape_block = template_c['{key}'].shape[1:]",
+            f"    shape_size = np.prod(shape_block)",
+            f"    sym_space['{key}'] = sym_dict['{key}']",
+            f"    sym_vec = dict_to_vec(sym_space, 1).flatten()",
+            f"    sym_space.clear()",
+            f"    zero_up, zero_down = [], []",
+            f"    if {anti_down}:",
+            f"        zero_down = [i * shape_block[1] * shape_block[2] * shape_block[3] + j * shape_block[2] * shape_block[3] + a * shape_block[3] + b for i in range(shape_block[0]) for j in range(shape_block[1]) for a in range(shape_block[2]) for b in range(a, shape_block[3])]",
+            f"    if {anti_up}:",
+            f"        zero_up = [i * shape_block[1] * shape_block[2] * shape_block[3] + j * shape_block[2] * shape_block[3] + a * shape_block[3] + b for i in range(shape_block[0]) for j in range (i, shape_block[1]) for a in range(shape_block[2]) for b in range(shape_block[3])]",
+            f"    mask = np.where(sym_vec != target_sym)[0]",
+            f"    tol_mask = list(set(zero_down) | set(zero_up) | set(mask))",
+            f"    X = np.identity(shape_size) ",
+            f"    X = np.delete(X, tol_mask, axis=1)",
+            f"    S_12.append(X)",
+            f"    del tol_mask, sym_vec, zero_down, zero_up, X",
+        ]
+        
+        return code_block
 
     def add_single_space_code(key):
         return [
@@ -345,6 +378,8 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
         # One active, two virtual
         if len(key) == 4 and key[2] in ['v', 'V'] and key[3] in ['v', 'V'] and (key[0] in ['a', 'A'] or key[1] in ['a', 'A']) and not (key[0] in ['a', 'A'] and key[1] in ['a', 'A']):
             code.extend(one_active_two_virtual(key))
+        elif 'a' not in key and 'A' not in key:
+            code.extend(no_active(key))
         else:
             code.extend(add_single_space_code(key))
         code.append("")  # Blank line for separation
