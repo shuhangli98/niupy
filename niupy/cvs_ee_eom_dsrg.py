@@ -540,12 +540,12 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, a
             start_col += current_col
     X = X[:, :start_col]
     nlow = X.shape[1]
-    X_tensor = X.reshape(nocc, nvir, nvir, nact, nlow)
-    X_tensor = np.transpose(X_tensor, axes=(*[0, 3, 1, 2], 4))
-    X = X_tensor.reshape(-1, nlow)
+    X = X.reshape(nocc, nvir, nvir, nact, nlow)
+    X = np.transpose(X, axes=(*[0, 3, 1, 2], 4))
+    X = X.reshape(-1, nlow)
     sym_space.clear()
     S_12.append(X)
-    del X, X_tensor
+    del X
 
     # iAvV block (one active, two virtual)
     print("Starts iAvV block", flush=True)
@@ -591,12 +591,12 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, a
             start_col += current_col
     X = X[:, :start_col]
     nlow = X.shape[1]
-    X_tensor = X.reshape(nocc, nvir, nvir, nact, nlow)
-    X_tensor = np.transpose(X_tensor, axes=(*[0, 3, 1, 2], 4))
-    X = X_tensor.reshape(-1, nlow)
+    X = X.reshape(nocc, nvir, nvir, nact, nlow)
+    X = np.transpose(X, axes=(*[0, 3, 1, 2], 4))
+    X = X.reshape(-1, nlow)
     sym_space.clear()
     S_12.append(X)
-    del X, X_tensor
+    del X
 
     # aIvV block (one active, two virtual)
     print("Starts aIvV block", flush=True)
@@ -642,12 +642,12 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, a
             start_col += current_col
     X = X[:, :start_col]
     nlow = X.shape[1]
-    X_tensor = X.reshape(nocc, nvir, nvir, nact, nlow)
-    X_tensor = np.transpose(X_tensor, axes=(*[3, 0, 1, 2], 4))
-    X = X_tensor.reshape(-1, nlow)
+    X = X.reshape(nocc, nvir, nvir, nact, nlow)
+    X = np.transpose(X, axes=(*[3, 0, 1, 2], 4))
+    X = X.reshape(-1, nlow)
     sym_space.clear()
     S_12.append(X)
-    del X, X_tensor
+    del X
 
     # IAVV block (one active, two virtual)
     print("Starts IAVV block", flush=True)
@@ -693,12 +693,12 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, a
             start_col += current_col
     X = X[:, :start_col]
     nlow = X.shape[1]
-    X_tensor = X.reshape(nocc, nvir, nvir, nact, nlow)
-    X_tensor = np.transpose(X_tensor, axes=(*[0, 3, 1, 2], 4))
-    X = X_tensor.reshape(-1, nlow)
+    X = X.reshape(nocc, nvir, nvir, nact, nlow)
+    X = np.transpose(X, axes=(*[0, 3, 1, 2], 4))
+    X = X.reshape(-1, nlow)
     sym_space.clear()
     S_12.append(X)
-    del X, X_tensor
+    del X
 
     # icaa block
     print("Starts icaa block", flush=True)

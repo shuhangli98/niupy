@@ -247,12 +247,12 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
             f"            start_col += current_col",
             f"    X = X[:, :start_col]",
             f"    nlow = X.shape[1]",
-            f"    X_tensor = X.reshape(nocc, nvir, nvir, nact, nlow)",
-            f"    X_tensor = np.transpose(X_tensor, axes=(*{reorder_back}, 4))",
-            f"    X = X_tensor.reshape(-1, nlow)",
+            f"    X = X.reshape(nocc, nvir, nvir, nact, nlow)",
+            f"    X = np.transpose(X, axes=(*{reorder_back}, 4))",
+            f"    X = X.reshape(-1, nlow)",
             f"    sym_space.clear()",
             f"    S_12.append(X)",
-            f"    del X, X_tensor",
+            f"    del X",
         ])
         return code_block
 
