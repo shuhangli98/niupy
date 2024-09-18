@@ -1,7 +1,6 @@
 import wicked as w
 import itertools
 import os
-
 from niupy.eom_tools import *
 
 

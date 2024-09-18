@@ -10,7 +10,7 @@ class EOM_DSRG:
     def __init__(
         self, rel_path, diag_shift=0.0,
         tol_e=1e-8, max_space=100, max_cycle=100,
-        tol_davidson=1e-5, tol_s=1e-4, tol_s_act=1e-4,
+        tol_davidson=1e-5, tol_s=1e-4,
         target_sym=0, target_spin=0, nroots=6,
         verbose=0, wfn=None, mo_spaces=None,
         method_type='ee', diagonal_type='exact'
@@ -39,7 +39,6 @@ class EOM_DSRG:
         self.tol_e = tol_e                  # Tolerance for the energy in the Davidson procedure
         self.tol_davidson = tol_davidson    # Tolerance for the residual in the Davidson procedure
         self.tol_s = tol_s                  # Tolerance for the orthogonalization of excitation spaces
-        self.tol_s_act = tol_s_act          # Tolerance for the orthogonalization of the active space
         self.diag_shift = diag_shift        # Shift for the diagonal of the effective Hamiltonian
         self.target_sym = target_sym
         self.target_spin = target_spin

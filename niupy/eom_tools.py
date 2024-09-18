@@ -173,12 +173,88 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
     composite_space: a list of lists of strings.
     '''
     code = [
-        f"def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, tol={tol}, tol_act={tol_act}):",
+        f"def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, act_sym, tol={tol}):",
         "    sigma = {}",
         "    c = {}",
         "    S_12 = []",
         "    sym_space = {}"
     ]
+    
+    def one_active_two_virtual(key):
+        code_block = [
+            f"    # {key} block (one active, two virtual)",
+            f'    print("Starts {key} block", flush=True)',
+            "    gv_half_dict = {}",
+        ]
+        space_order = {}
+        for i_space in range(2):
+            if key[i_space] not in ['a', 'A']:
+                space_order['noact'] = i_space
+            else:
+                space_order['act'] = i_space
+        reorder_temp = (space_order['noact'], 2, 3, space_order['act'])
+        reorder_back = np.argsort(reorder_temp).tolist()
+        
+        if key[space_order['act']] == 'A':
+            temp_rdm = "gamma1['AA']"
+        else:
+            temp_rdm = "gamma1['aa']"
+            
+        if key[2] == key[3]: # Should be antisymmetrized
+            anti = True
+        else:
+            anti = False
+        
+        code_block.extend([
+            f"    anti = {anti}",
+            f"    sym_space['{key}'] = sym_dict['{key}'].transpose(*{reorder_temp})",
+            f"    max_sym = np.max(sym_space['{key}'])",
+            f"    nocc, nact, nvir = template_c['{key}'].shape[{space_order['noact']+1}], template_c['{key}'].shape[{space_order['act']+1}], template_c['{key}'].shape[3]",
+            f"    ge, gv = np.linalg.eigh({temp_rdm})",
+            f"    trunc_indices = np.where(ge > tol)[0]",
+            f"    gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
+            f"    rows, cols = gv_half.shape",
+            f"    for i_sym in range(max_sym+1):",
+            f"        temp = {temp_rdm}.copy()",
+            f"        mask = (act_sym != i_sym)",
+            f"        temp[:, mask] = 0",
+            f"        temp[mask, :] = 0",
+            f"        ge, gv = np.linalg.eigh(temp)",
+            f"        trunc_indices = np.where(ge > tol)[0]",
+            f"        gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
+            f"        gv_half_dict[i_sym] = gv_half",
+            f"    num = nocc * nvir * nvir",
+            f"    if anti:",
+            f"        zero_idx = [i * nvir * nvir + a * nvir + a for i in range(nocc) for a in range(nvir)]",
+            f"    else:",
+            f"        zero_idx = []",
+            f"    X = np.zeros((num * rows, (num - len(zero_idx)) * cols))",
+            f"    current_shape = (nocc, nvir, nvir)",
+            f"    start_col = 0",
+            f"    for i in range(num):",
+            f"        if i in zero_idx:",
+            f"            continue",
+            f"        unravel_idx = np.unravel_index(i, current_shape)",
+            f"        possible_sym = sym_space['{key}'][unravel_idx]",
+            f"        find_target_sym = np.where(possible_sym == target_sym)[0]",
+            f"        if len(find_target_sym) == 0:",
+            f"            continue",
+            f"        else:",
+            f"            act_sym_needed = act_sym[find_target_sym[0]]",
+            f"        current_col = gv_half_dict[act_sym_needed].shape[1]",
+            f"        if (unravel_idx[1] > unravel_idx[2] and anti) or (not anti):",
+            f"            X[i * rows: (i+1) * rows, start_col:(start_col + current_col)] = gv_half_dict[act_sym_needed]",
+            f"            start_col += current_col",
+            f"    X = X[:, :start_col]",
+            f"    nlow = X.shape[1]",
+            f"    X_tensor = X.reshape(nocc, nvir, nvir, nact, nlow)",
+            f"    X_tensor = np.transpose(X_tensor, axes=(*{reorder_back}, 4))",
+            f"    X = X_tensor.reshape(-1, nlow)",
+            f"    sym_space.clear()",
+            f"    S_12.append(X)",
+            f"    del X, X_tensor",
+        ])
+        return code_block
 
     def add_single_space_code(key):
         return [
@@ -253,10 +329,10 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
             f"    del sym_vec, vec, x_index, y_index, mask",
             f"    print('Diagonalization done', flush=True)",
         ])
-        if space == ['aa', 'AA', 'aaaa', 'AAAA', 'aAaA']:
-            code_block.append(f"    trunc_indices = np.where(sevals > tol_act)[0]")
-        else:
-            code_block.append(f"    trunc_indices = np.where(sevals > tol)[0]")
+        # if space == ['aa', 'AA', 'aaaa', 'AAAA', 'aAaA']:
+        #     code_block.append(f"    trunc_indices = np.where(sevals > tol_act)[0]")
+        # else:
+        code_block.append(f"    trunc_indices = np.where(sevals > tol)[0]")
         code_block.extend([
             f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
             "    S_12.append(X)",
@@ -266,7 +342,11 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
 
     # Add single space code blocks
     for key in single_space:
-        code.extend(add_single_space_code(key))
+        # One active, two virtual
+        if len(key) == 4 and key[2] in ['v', 'V'] and key[3] in ['v', 'V'] and (key[0] in ['a', 'A'] or key[1] in ['a', 'A']) and not (key[0] in ['a', 'A'] and key[1] in ['a', 'A']):
+            code.extend(one_active_two_virtual(key))
+        else:
+            code.extend(add_single_space_code(key))
         code.append("")  # Blank line for separation
 
     # Add composite space code blocks
