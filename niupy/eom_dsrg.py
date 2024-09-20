@@ -13,7 +13,7 @@ class EOM_DSRG:
         tol_davidson=1e-5, tol_s=1e-4,
         target_sym=0, target_spin=0, nroots=6,
         verbose=0, wfn=None, mo_spaces=None,
-        method_type='ee', diagonal_type='exact'
+        method_type='ee', diagonal_type='exact', diag_val=1.0
     ):
         script_dir = os.getcwd()
         self.abs_file_path = os.path.join(script_dir, rel_path)
@@ -42,6 +42,7 @@ class EOM_DSRG:
         self.diag_shift = diag_shift        # Shift for the diagonal of the effective Hamiltonian
         self.target_sym = target_sym
         self.target_spin = target_spin
+        self.diag_val = diag_val  # Diagonal value for identity preconditioner
 
         # Set Hamiltonian and RDMs
         self.gamma1 = np.load(f'{self.abs_file_path}/save_gamma1.npz')
@@ -124,7 +125,7 @@ if __name__ == "__main__":
     if test == 1:
         # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
         rel_path = "niupy/H2O"
-        eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100,
+        eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=1.0,
                             target_sym=0, method_type='cvs-ee', diagonal_type='block')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):

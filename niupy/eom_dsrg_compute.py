@@ -232,7 +232,7 @@ def setup_davidson(eom_dsrg):
         nop = 0
         for i_tensor in S_12:
             nop += i_tensor.shape[1]
-        precond = np.ones(nop+1)
+        precond = np.ones(nop+1) * eom_dsrg.diag_val
     elif eom_dsrg.diagonal_type == "exact":
         precond = eom_dsrg.compute_preconditioner_exact(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
                                                         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift

@@ -976,12 +976,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iv'] += -1.00000000 * np.einsum('cedf,pde->pcf',Hbar['iviv'],c['iv'],optimize=True)
         sigma['iv'] += +1.00000000 * np.einsum('ef,pce->pcf',Hbar['vv'],c['iv'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # IV block
     print("Starts IV block precond", flush=True)
@@ -997,12 +997,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IV'] += -1.00000000 * np.einsum('CEDF,pDE->pCF',Hbar['IVIV'],c['IV'],optimize=True)
         sigma['IV'] += +1.00000000 * np.einsum('EF,pCE->pCF',Hbar['VV'],c['IV'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iAaV block
     print("Starts iAaV block precond", flush=True)
@@ -1102,12 +1102,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaV'] += +0.50000000 * np.einsum('OABR,pcTaE,BROT,aSoA->pcSoE',Hbar['AAAA'],c['iAaV'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['iAaV'] += -1.00000000 * np.einsum('OABR,pcTaE,RSAT,aBoO->pcSoE',Hbar['AAAA'],c['iAaV'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # aIvA block
     print("Starts aIvA block precond", flush=True)
@@ -1207,12 +1207,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvA'] += +0.50000000 * np.einsum('OABR,paCeT,BROS,oTaA->poCeS',Hbar['AAAA'],c['aIvA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['aIvA'] += -1.00000000 * np.einsum('OABR,paCeT,RTAS,oBaO->poCeS',Hbar['AAAA'],c['aIvA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # icvv block
     print("Starts icvv block precond", flush=True)
@@ -1232,12 +1232,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icvv'] += +1.00000000 * np.einsum('ef,pckeg->pckfg',Hbar['vv'],c['icvv'],optimize=True)
         sigma['icvv'] += +0.25000000 * np.einsum('efgh,pckef->pckgh',Hbar['vvvv'],c['icvv'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iCvV block
     print("Starts iCvV block precond", flush=True)
@@ -1260,12 +1260,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvV'] += -1.00000000 * np.einsum('KELF,pcLeE->pcKeF',Hbar['CVCV'],c['iCvV'],optimize=True)
         sigma['iCvV'] += +1.00000000 * np.einsum('EF,pcKeE->pcKeF',Hbar['VV'],c['iCvV'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # cIvV block
     print("Starts cIvV block precond", flush=True)
@@ -1288,12 +1288,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvV'] += -1.00000000 * np.einsum('CEDF,pkDeE->pkCeF',Hbar['IVIV'],c['cIvV'],optimize=True)
         sigma['cIvV'] += +1.00000000 * np.einsum('EF,pkCeE->pkCeF',Hbar['VV'],c['cIvV'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # ICVV block
     print("Starts ICVV block precond", flush=True)
@@ -1313,12 +1313,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVV'] += +1.00000000 * np.einsum('EF,pCKEG->pCKFG',Hbar['VV'],c['ICVV'],optimize=True)
         sigma['ICVV'] += +0.25000000 * np.einsum('EFGH,pCKEF->pCKGH',Hbar['VVVV'],c['ICVV'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # icva block
     print("Starts icva block precond", flush=True)
@@ -1356,12 +1356,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icva'] += -1.00000000 * np.einsum('OA,pckea,aAoO->pckeo',Hbar['AA'],c['icva'],lambda2['aAaA'],optimize=True)
         sigma['icva'] += -0.25000000 * np.einsum('OABR,pckea,aBRoOA->pckeo',Hbar['AAAA'],c['icva'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iCvA block
     print("Starts iCvA block precond", flush=True)
@@ -1399,12 +1399,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvA'] += +0.50000000 * np.einsum('OABR,pcKeT,BS,RTOA->pcKeS',Hbar['AAAA'],c['iCvA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['iCvA'] += -0.25000000 * np.einsum('OABR,pcKeT,BRTOAS->pcKeS',Hbar['AAAA'],c['iCvA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iCaV block
     print("Starts iCaV block precond", flush=True)
@@ -1442,12 +1442,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaV'] += -1.00000000 * np.einsum('OA,pcKaE,aAoO->pcKoE',Hbar['AA'],c['iCaV'],lambda2['aAaA'],optimize=True)
         sigma['iCaV'] += -0.25000000 * np.einsum('OABR,pcKaE,aBRoOA->pcKoE',Hbar['AAAA'],c['iCaV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # cIvA block
     print("Starts cIvA block precond", flush=True)
@@ -1485,12 +1485,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvA'] += +0.50000000 * np.einsum('OABR,pkCeT,BS,RTOA->pkCeS',Hbar['AAAA'],c['cIvA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['cIvA'] += -0.25000000 * np.einsum('OABR,pkCeT,BRTOAS->pkCeS',Hbar['AAAA'],c['cIvA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # cIaV block
     print("Starts cIaV block precond", flush=True)
@@ -1528,12 +1528,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaV'] += -1.00000000 * np.einsum('OA,pkCaE,aAoO->pkCoE',Hbar['AA'],c['cIaV'],lambda2['aAaA'],optimize=True)
         sigma['cIaV'] += -0.25000000 * np.einsum('OABR,pkCaE,aBRoOA->pkCoE',Hbar['AAAA'],c['cIaV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # ICVA block
     print("Starts ICVA block precond", flush=True)
@@ -1571,12 +1571,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVA'] += +0.50000000 * np.einsum('OABR,pCKET,BS,RTOA->pCKES',Hbar['AAAA'],c['ICVA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['ICVA'] += -0.25000000 * np.einsum('OABR,pCKET,BRTOAS->pCKES',Hbar['AAAA'],c['ICVA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iavv block
     print("Starts iavv block precond", flush=True)
@@ -1609,12 +1609,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iavv'] += +0.50000000 * np.einsum('OA,pcaef,oAaO->pcoef',Hbar['AA'],c['iavv'],lambda2['aAaA'],optimize=True)
         sigma['iavv'] += +0.12500000 * np.einsum('OABR,pcaef,oBRaOA->pcoef',Hbar['AAAA'],c['iavv'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iAvV block
     print("Starts iAvV block precond", flush=True)
@@ -1652,12 +1652,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvV'] += -0.50000000 * np.einsum('OABR,pcTeE,RT,BSOA->pcSeE',Hbar['AAAA'],c['iAvV'],gamma1['AA'],lambda2['AAAA'],optimize=True)
         sigma['iAvV'] += +0.25000000 * np.einsum('OABR,pcTeE,BRSOAT->pcSeE',Hbar['AAAA'],c['iAvV'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # aIvV block
     print("Starts aIvV block precond", flush=True)
@@ -1695,12 +1695,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvV'] += +1.00000000 * np.einsum('OA,paCeE,oAaO->poCeE',Hbar['AA'],c['aIvV'],lambda2['aAaA'],optimize=True)
         sigma['aIvV'] += +0.25000000 * np.einsum('OABR,paCeE,oBRaOA->poCeE',Hbar['AAAA'],c['aIvV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # IAVV block
     print("Starts IAVV block precond", flush=True)
@@ -1733,12 +1733,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVV'] += -0.25000000 * np.einsum('OABR,pCTEF,RT,BSOA->pCSEF',Hbar['AAAA'],c['IAVV'],gamma1['AA'],lambda2['AAAA'],optimize=True)
         sigma['IAVV'] += +0.12500000 * np.einsum('OABR,pCTEF,BRSOAT->pCSEF',Hbar['AAAA'],c['IAVV'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # icaa block
     print("Starts icaa block precond", flush=True)
@@ -1802,12 +1802,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icaa'] += -0.25000000 * np.einsum('OABR,pckbr,ra,bBRoOA->pckoa',Hbar['AAAA'],c['icaa'],eta1['aa'],lambda3['aAAaAA'],optimize=True)
         sigma['icaa'] += +0.50000000 * np.einsum('OABR,pckbr,rRaA,bBoO->pckoa',Hbar['AAAA'],c['icaa'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iCaA block
     print("Starts iCaA block precond", flush=True)
@@ -1907,12 +1907,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaA'] += -0.50000000 * np.einsum('OABR,pcKaT,BROS,aToA->pcKoS',Hbar['AAAA'],c['iCaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['iCaA'] += +1.00000000 * np.einsum('OABR,pcKaT,RTAS,aBoO->pcKoS',Hbar['AAAA'],c['iCaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # cIaA block
     print("Starts cIaA block precond", flush=True)
@@ -2012,12 +2012,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaA'] += -0.50000000 * np.einsum('OABR,pkCaT,BROS,aToA->pkCoS',Hbar['AAAA'],c['cIaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['cIaA'] += +1.00000000 * np.einsum('OABR,pkCaT,RTAS,aBoO->pkCoS',Hbar['AAAA'],c['cIaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # ICAA block
     print("Starts ICAA block precond", flush=True)
@@ -2081,12 +2081,12 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICAA'] += +0.06250000 * np.einsum('OABR,pCKUV,BRST,UVOA->pCKST',Hbar['AAAA'],c['ICAA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['ICAA'] += -0.25000000 * np.einsum('OABR,pCKUV,RVST,BUOA->pCKST',Hbar['AAAA'],c['ICAA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # ['iava', 'iAvA'] composite block
     print("Starts ['iava', 'iAvA'] composite block precond", flush=True)
@@ -2389,13 +2389,13 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvA'] += +0.50000000 * np.einsum('OABR,pcUeV,RTSU,BVOA->pcTeS',Hbar['AAAA'],c['iAvA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['iAvA'] += -0.50000000 * np.einsum('OABR,pcUeV,RVSU,BTOA->pcTeS',Hbar['AAAA'],c['iAvA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
         diagonal.append(vmv.diagonal())
-    sigma.clear()
-    c.clear()
 
     # ['aIaV', 'IAVA'] composite block
     print("Starts ['aIaV', 'IAVA'] composite block precond", flush=True)
@@ -2698,13 +2698,13 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVA'] += +0.50000000 * np.einsum('OABR,pCUEV,RTSU,BVOA->pCTES',Hbar['AAAA'],c['IAVA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['IAVA'] += -0.50000000 * np.einsum('OABR,pCUEV,RVSU,BTOA->pCTES',Hbar['AAAA'],c['IAVA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
         diagonal.append(vmv.diagonal())
-    sigma.clear()
-    c.clear()
 
     # ['ia', 'iaaa', 'iAaA'] composite block
     print("Starts ['ia', 'iaaa', 'iAaA'] composite block precond", flush=True)
@@ -4093,13 +4093,13 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaA'] += +0.50000000 * np.einsum('OABR,pcUaV,RVSU,aBToOA->pcToS',Hbar['AAAA'],c['iAaA'],lambda2['AAAA'],lambda3['aAAaAA'],optimize=True)
         sigma['iAaA'] += -0.25000000 * np.einsum('OABR,pcUaV,TVSU,aBRoOA->pcToS',Hbar['AAAA'],c['iAaA'],lambda2['AAAA'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
         diagonal.append(vmv.diagonal())
-    sigma.clear()
-    c.clear()
 
     # ['IA', 'aIaA', 'IAAA'] composite block
     print("Starts ['IA', 'aIaA', 'IAAA'] composite block precond", flush=True)
@@ -5488,13 +5488,13 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAAA'] += -0.25000000 * np.einsum('OABR,pCVWX,UXTV,BRWOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
         sigma['IAAA'] += +0.12500000 * np.einsum('OABR,pCVWX,WXTV,BRUOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
         diagonal.append(vmv.diagonal())
-    sigma.clear()
-    c.clear()
 
     full_diag = np.concatenate(diagonal)
     return full_diag
@@ -5517,12 +5517,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iv'] += -1.00000000 * np.einsum('cedf,pde->pcf',Hbar['iviv'],c['iv'],optimize=True)
         sigma['iv'] += +1.00000000 * np.einsum('ef,pce->pcf',Hbar['vv'],c['iv'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # IV block
     print("Starts IV block precond", flush=True)
@@ -5538,12 +5538,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IV'] += -1.00000000 * np.einsum('CEDF,pDE->pCF',Hbar['IVIV'],c['IV'],optimize=True)
         sigma['IV'] += +1.00000000 * np.einsum('EF,pCE->pCF',Hbar['VV'],c['IV'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iAaV block
     print("Starts iAaV block precond", flush=True)
@@ -5643,12 +5643,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaV'] += +0.50000000 * np.einsum('OABR,pcTaE,BROT,aSoA->pcSoE',Hbar['AAAA'],c['iAaV'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['iAaV'] += -1.00000000 * np.einsum('OABR,pcTaE,RSAT,aBoO->pcSoE',Hbar['AAAA'],c['iAaV'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # aIvA block
     print("Starts aIvA block precond", flush=True)
@@ -5748,12 +5748,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvA'] += +0.50000000 * np.einsum('OABR,paCeT,BROS,oTaA->poCeS',Hbar['AAAA'],c['aIvA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['aIvA'] += -1.00000000 * np.einsum('OABR,paCeT,RTAS,oBaO->poCeS',Hbar['AAAA'],c['aIvA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # icvv block
     print("Starts icvv block precond", flush=True)
@@ -5773,12 +5773,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icvv'] += +1.00000000 * np.einsum('ef,pckeg->pckfg',Hbar['vv'],c['icvv'],optimize=True)
         sigma['icvv'] += +0.25000000 * np.einsum('efgh,pckef->pckgh',Hbar['vvvv'],c['icvv'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iCvV block
     print("Starts iCvV block precond", flush=True)
@@ -5801,12 +5801,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvV'] += -1.00000000 * np.einsum('KELF,pcLeE->pcKeF',Hbar['CVCV'],c['iCvV'],optimize=True)
         sigma['iCvV'] += +1.00000000 * np.einsum('EF,pcKeE->pcKeF',Hbar['VV'],c['iCvV'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # cIvV block
     print("Starts cIvV block precond", flush=True)
@@ -5829,12 +5829,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvV'] += -1.00000000 * np.einsum('CEDF,pkDeE->pkCeF',Hbar['IVIV'],c['cIvV'],optimize=True)
         sigma['cIvV'] += +1.00000000 * np.einsum('EF,pkCeE->pkCeF',Hbar['VV'],c['cIvV'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # ICVV block
     print("Starts ICVV block precond", flush=True)
@@ -5854,12 +5854,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVV'] += +1.00000000 * np.einsum('EF,pCKEG->pCKFG',Hbar['VV'],c['ICVV'],optimize=True)
         sigma['ICVV'] += +0.25000000 * np.einsum('EFGH,pCKEF->pCKGH',Hbar['VVVV'],c['ICVV'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # icva block
     print("Starts icva block precond", flush=True)
@@ -5897,12 +5897,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icva'] += -1.00000000 * np.einsum('OA,pckea,aAoO->pckeo',Hbar['AA'],c['icva'],lambda2['aAaA'],optimize=True)
         sigma['icva'] += -0.25000000 * np.einsum('OABR,pckea,aBRoOA->pckeo',Hbar['AAAA'],c['icva'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iCvA block
     print("Starts iCvA block precond", flush=True)
@@ -5940,12 +5940,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCvA'] += +0.50000000 * np.einsum('OABR,pcKeT,BS,RTOA->pcKeS',Hbar['AAAA'],c['iCvA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['iCvA'] += -0.25000000 * np.einsum('OABR,pcKeT,BRTOAS->pcKeS',Hbar['AAAA'],c['iCvA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iCaV block
     print("Starts iCaV block precond", flush=True)
@@ -5983,12 +5983,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaV'] += -1.00000000 * np.einsum('OA,pcKaE,aAoO->pcKoE',Hbar['AA'],c['iCaV'],lambda2['aAaA'],optimize=True)
         sigma['iCaV'] += -0.25000000 * np.einsum('OABR,pcKaE,aBRoOA->pcKoE',Hbar['AAAA'],c['iCaV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # cIvA block
     print("Starts cIvA block precond", flush=True)
@@ -6026,12 +6026,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIvA'] += +0.50000000 * np.einsum('OABR,pkCeT,BS,RTOA->pkCeS',Hbar['AAAA'],c['cIvA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['cIvA'] += -0.25000000 * np.einsum('OABR,pkCeT,BRTOAS->pkCeS',Hbar['AAAA'],c['cIvA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # cIaV block
     print("Starts cIaV block precond", flush=True)
@@ -6069,12 +6069,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaV'] += -1.00000000 * np.einsum('OA,pkCaE,aAoO->pkCoE',Hbar['AA'],c['cIaV'],lambda2['aAaA'],optimize=True)
         sigma['cIaV'] += -0.25000000 * np.einsum('OABR,pkCaE,aBRoOA->pkCoE',Hbar['AAAA'],c['cIaV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # ICVA block
     print("Starts ICVA block precond", flush=True)
@@ -6112,12 +6112,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICVA'] += +0.50000000 * np.einsum('OABR,pCKET,BS,RTOA->pCKES',Hbar['AAAA'],c['ICVA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['ICVA'] += -0.25000000 * np.einsum('OABR,pCKET,BRTOAS->pCKES',Hbar['AAAA'],c['ICVA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iavv block
     print("Starts iavv block precond", flush=True)
@@ -6150,12 +6150,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iavv'] += +0.50000000 * np.einsum('OA,pcaef,oAaO->pcoef',Hbar['AA'],c['iavv'],lambda2['aAaA'],optimize=True)
         sigma['iavv'] += +0.12500000 * np.einsum('OABR,pcaef,oBRaOA->pcoef',Hbar['AAAA'],c['iavv'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iAvV block
     print("Starts iAvV block precond", flush=True)
@@ -6193,12 +6193,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvV'] += -0.50000000 * np.einsum('OABR,pcTeE,RT,BSOA->pcSeE',Hbar['AAAA'],c['iAvV'],gamma1['AA'],lambda2['AAAA'],optimize=True)
         sigma['iAvV'] += +0.25000000 * np.einsum('OABR,pcTeE,BRSOAT->pcSeE',Hbar['AAAA'],c['iAvV'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # aIvV block
     print("Starts aIvV block precond", flush=True)
@@ -6236,12 +6236,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIvV'] += +1.00000000 * np.einsum('OA,paCeE,oAaO->poCeE',Hbar['AA'],c['aIvV'],lambda2['aAaA'],optimize=True)
         sigma['aIvV'] += +0.25000000 * np.einsum('OABR,paCeE,oBRaOA->poCeE',Hbar['AAAA'],c['aIvV'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # IAVV block
     print("Starts IAVV block precond", flush=True)
@@ -6274,12 +6274,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVV'] += -0.25000000 * np.einsum('OABR,pCTEF,RT,BSOA->pCSEF',Hbar['AAAA'],c['IAVV'],gamma1['AA'],lambda2['AAAA'],optimize=True)
         sigma['IAVV'] += +0.12500000 * np.einsum('OABR,pCTEF,BRSOAT->pCSEF',Hbar['AAAA'],c['IAVV'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # icaa block
     print("Starts icaa block precond", flush=True)
@@ -6343,12 +6343,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['icaa'] += -0.25000000 * np.einsum('OABR,pckbr,ra,bBRoOA->pckoa',Hbar['AAAA'],c['icaa'],eta1['aa'],lambda3['aAAaAA'],optimize=True)
         sigma['icaa'] += +0.50000000 * np.einsum('OABR,pckbr,rRaA,bBoO->pckoa',Hbar['AAAA'],c['icaa'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # iCaA block
     print("Starts iCaA block precond", flush=True)
@@ -6448,12 +6448,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iCaA'] += -0.50000000 * np.einsum('OABR,pcKaT,BROS,aToA->pcKoS',Hbar['AAAA'],c['iCaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['iCaA'] += +1.00000000 * np.einsum('OABR,pcKaT,RTAS,aBoO->pcKoS',Hbar['AAAA'],c['iCaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # cIaA block
     print("Starts cIaA block precond", flush=True)
@@ -6553,12 +6553,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['cIaA'] += -0.50000000 * np.einsum('OABR,pkCaT,BROS,aToA->pkCoS',Hbar['AAAA'],c['cIaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma['cIaA'] += +1.00000000 * np.einsum('OABR,pkCaT,RTAS,aBoO->pkCoS',Hbar['AAAA'],c['cIaA'],lambda2['AAAA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # ICAA block
     print("Starts ICAA block precond", flush=True)
@@ -6622,12 +6622,12 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ICAA'] += +0.06250000 * np.einsum('OABR,pCKUV,BRST,UVOA->pCKST',Hbar['AAAA'],c['ICAA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['ICAA'] += -0.25000000 * np.einsum('OABR,pCKUV,RVST,BUOA->pCKST',Hbar['AAAA'],c['ICAA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
         vec = dict_to_vec(sigma, northo)
+        sigma.clear()
         vmv = tensor.T @ vec
         diagonal.append(vmv.diagonal())
         del vec, vmv
-    sigma.clear()
-    c.clear()
 
     # ['iava', 'iAvA'] composite block
     print("Starts ['iava', 'iAvA'] composite block precond", flush=True)
@@ -6739,13 +6739,14 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iava'] += -1.00000000 * np.einsum('OABR,pcber,aBbO,rRoA->pcaeo',Hbar['AAAA'],c['iava'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma['iava'] += +1.00000000 * np.einsum('OABR,pcber,rRbA,aBoO->pcaeo',Hbar['AAAA'],c['iava'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         # iAvA sub-block
         print("Starts iAvA sub-block precond", flush=True)
         shape_block = template_c['iAvA'].shape[1:]
@@ -6849,16 +6850,15 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAvA'] += +0.50000000 * np.einsum('OABR,pcUeV,RTSU,BVOA->pcTeS',Hbar['AAAA'],c['iAvA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['iAvA'] += -0.50000000 * np.einsum('OABR,pcUeV,RVSU,BTOA->pcTeS',Hbar['AAAA'],c['iAvA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         diagonal.append(vmv.diagonal())
-    sigma.clear()
-    c.clear()
 
     # ['aIaV', 'IAVA'] composite block
     print("Starts ['aIaV', 'IAVA'] composite block precond", flush=True)
@@ -6970,13 +6970,14 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIaV'] += -1.00000000 * np.einsum('OABR,pbCrE,aBbO,rRoA->paCoE',Hbar['AAAA'],c['aIaV'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma['aIaV'] += +1.00000000 * np.einsum('OABR,pbCrE,rRbA,aBoO->paCoE',Hbar['AAAA'],c['aIaV'],lambda2['aAaA'],lambda2['aAaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         # IAVA sub-block
         print("Starts IAVA sub-block precond", flush=True)
         shape_block = template_c['IAVA'].shape[1:]
@@ -7080,16 +7081,15 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAVA'] += +0.50000000 * np.einsum('OABR,pCUEV,RTSU,BVOA->pCTES',Hbar['AAAA'],c['IAVA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma['IAVA'] += -0.50000000 * np.einsum('OABR,pCUEV,RVSU,BTOA->pCTES',Hbar['AAAA'],c['IAVA'],lambda2['AAAA'],lambda2['AAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         diagonal.append(vmv.diagonal())
-    sigma.clear()
-    c.clear()
 
     # ['ia', 'iaaa', 'iAaA'] composite block
     print("Starts ['ia', 'iaaa', 'iAaA'] composite block precond", flush=True)
@@ -7123,13 +7123,14 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['ia'] += -1.00000000 * np.einsum('OA,pca,aAoO->pco',Hbar['AA'],c['ia'],lambda2['aAaA'],optimize=True)
         sigma['ia'] += -0.25000000 * np.einsum('OABR,pca,aBRoOA->pco',Hbar['AAAA'],c['ia'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         # iaaa sub-block
         print("Starts iaaa sub-block precond", flush=True)
         shape_block = template_c['iaaa'].shape[1:]
@@ -7408,13 +7409,14 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iaaa'] += +0.25000000 * np.einsum('OABR,pcrst,bBrO,stRoaA->pcboa',Hbar['AAAA'],c['iaaa'],lambda2['aAaA'],lambda3['aaAaaA'],optimize=True)
         sigma['iaaa'] += +0.50000000 * np.einsum('OABR,pcrst,tRrA,bsBoaO->pcboa',Hbar['AAAA'],c['iaaa'],lambda2['aAaA'],lambda3['aaAaaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         # iAaA sub-block
         print("Starts iAaA sub-block precond", flush=True)
         shape_block = template_c['iAaA'].shape[1:]
@@ -7875,16 +7877,15 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['iAaA'] += +0.50000000 * np.einsum('OABR,pcUaV,RVSU,aBToOA->pcToS',Hbar['AAAA'],c['iAaA'],lambda2['AAAA'],lambda3['aAAaAA'],optimize=True)
         sigma['iAaA'] += -0.25000000 * np.einsum('OABR,pcUaV,TVSU,aBRoOA->pcToS',Hbar['AAAA'],c['iAaA'],lambda2['AAAA'],lambda3['aAAaAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         diagonal.append(vmv.diagonal())
-    sigma.clear()
-    c.clear()
 
     # ['IA', 'aIaA', 'IAAA'] composite block
     print("Starts ['IA', 'aIaA', 'IAAA'] composite block precond", flush=True)
@@ -7918,13 +7919,14 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IA'] += +0.50000000 * np.einsum('OABR,pCT,BS,RTOA->pCS',Hbar['AAAA'],c['IA'],eta1['AA'],lambda2['AAAA'],optimize=True)
         sigma['IA'] += -0.25000000 * np.einsum('OABR,pCT,BRTOAS->pCS',Hbar['AAAA'],c['IA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         # aIaA sub-block
         print("Starts aIaA sub-block precond", flush=True)
         shape_block = template_c['aIaA'].shape[1:]
@@ -8385,13 +8387,14 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['aIaA'] += +0.50000000 * np.einsum('OABR,pbCrT,BROS,arTobA->paCoS',Hbar['AAAA'],c['aIaA'],lambda2['AAAA'],lambda3['aaAaaA'],optimize=True)
         sigma['aIaA'] += -1.00000000 * np.einsum('OABR,pbCrT,RTAS,arBobO->paCoS',Hbar['AAAA'],c['aIaA'],lambda2['AAAA'],lambda3['aaAaaA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         # IAAA sub-block
         print("Starts IAAA sub-block precond", flush=True)
         shape_block = template_c['IAAA'].shape[1:]
@@ -8670,16 +8673,15 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
         sigma['IAAA'] += -0.25000000 * np.einsum('OABR,pCVWX,UXTV,BRWOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
         sigma['IAAA'] += +0.12500000 * np.einsum('OABR,pCVWX,WXTV,BRUOAS->pCUST',Hbar['AAAA'],c['IAAA'],lambda2['AAAA'],lambda3['AAAAAA'],optimize=True)
         sigma = antisymmetrize(sigma)
+        c.clear()
+        del c_vec
         H_temp = dict_to_vec(sigma, shape_size)
+        sigma.clear()
         S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]
         vmv += S_temp.T @ H_temp @ S_temp
         slice_tensor += shape_size
-        sigma.clear()
-        c.clear()
-        del c_vec, H_temp, S_temp
+        del H_temp, S_temp
         diagonal.append(vmv.diagonal())
-    sigma.clear()
-    c.clear()
 
     full_diag = np.concatenate(diagonal)
     return full_diag

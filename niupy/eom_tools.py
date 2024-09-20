@@ -179,7 +179,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
         "    S_12 = []",
         "    sym_space = {}"
     ]
-    
+
     def one_active_two_virtual(key):
         code_block = [
             f"    # {key} block (one active, two virtual)",
@@ -194,17 +194,17 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
                 space_order['act'] = i_space
         reorder_temp = (space_order['noact'], 2, 3, space_order['act'])
         reorder_back = np.argsort(reorder_temp).tolist()
-        
+
         if key[space_order['act']] == 'A':
             temp_rdm = "gamma1['AA']"
         else:
             temp_rdm = "gamma1['aa']"
-            
-        if key[2] == key[3]: # Should be antisymmetrized
+
+        if key[2] == key[3]:  # Should be antisymmetrized
             anti = True
         else:
             anti = False
-        
+
         code_block.extend([
             f"    anti = {anti}",
             f"    sym_space['{key}'] = sym_dict['{key}'].transpose(*{reorder_temp})",
@@ -255,7 +255,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
             f"    del X",
         ])
         return code_block
-    
+
     def no_active(key):
         anti_up, anti_down = False, False
         if len(key) == 4:
@@ -265,7 +265,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
                 anti_up, anti_down = True, False
             elif key[0] != key[1] and key[2] == key[3]:
                 anti_up, anti_down = False, True
-        
+
         code_block = [
             f"    # {key} block",
             f'    print("Starts {key} block", flush=True)',
@@ -286,7 +286,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2):
             f"    S_12.append(X)",
             f"    del tol_mask, sym_vec, zero_down, zero_up, X",
         ]
-        
+
         return code_block
 
     def add_single_space_code(key):
@@ -407,12 +407,12 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
             f"        c = vec_to_dict(c, tensor)",
             f"        c = antisymmetrize(c)",
             generate_block_contraction(key, mbeq, block_type='single', indent='twice'),
+            f"        c.clear()",
             f"        vec = dict_to_vec(sigma, northo)",
+            f"        sigma.clear()",
             f"        vmv = tensor.T @ vec",
             f"        diagonal.append(vmv.diagonal())",
             f"        del vec, vmv",
-            "    sigma.clear()",
-            "    c.clear()"
         ]
 
     def add_composite_space_code(space, start):
@@ -434,7 +434,9 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
                 f"        c = vec_to_dict(c, tensor)",
                 f"        c = antisymmetrize(c)",
                 generate_block_contraction(space, mbeq, block_type='composite', indent='twice'),
+                f"        c.clear()",
                 f"        vec = dict_to_vec(sigma, northo)",
+                f"        sigma.clear()",
                 f"        vmv = tensor.T @ vec",
                 f"        diagonal.append(vmv.diagonal())",
                 f"        del vec, vmv",
@@ -456,19 +458,20 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
                     f"        c = vec_to_dict(c, c_vec)",
                     f"        c = antisymmetrize(c)",
                     generate_block_contraction(key_space, mbeq, block_type='single', indent='twice'),
+                    f"        c.clear()",
+                    f"        del c_vec",
                     f"        H_temp = dict_to_vec(sigma, shape_size)",
+                    f"        sigma.clear()",
                     f"        S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]",
                     f"        vmv += S_temp.T @ H_temp @ S_temp",
                     f"        slice_tensor += shape_size",
-                    f"        sigma.clear()",
-                    f"        c.clear()",
-                    f"        del c_vec, H_temp, S_temp",
+                    f"        del H_temp, S_temp",
                 ])
         code_block.append(f"        diagonal.append(vmv.diagonal())")
-        code_block.extend([
-            "    sigma.clear()",
-            "    c.clear()"
-        ])
+        # code_block.extend([
+        #     "    sigma.clear()",
+        #     "    c.clear()"
+        # ])
         return code_block
 
     code = [
@@ -696,14 +699,15 @@ def slice_H_core(Hbar_old, core_sym, occ_sym):
 
     return Hbar
 
+
 def normalize(input_obj):
     if type(input_obj) is dict:
         vec = dict_to_vec(input_obj, input_obj[list(input_obj.keys())[0]].shape[0])
     elif type(input_obj) is np.ndarray:
         vec = input_obj
-        
+
     out_array = np.zeros_like(vec)
-    
+
     for i in range(vec.shape[1]):
         vec_i = vec[:, i]
         norm = np.linalg.norm(vec_i)
@@ -711,13 +715,14 @@ def normalize(input_obj):
             continue
         else:
             out_array[:, i] = vec_i/np.linalg.norm(vec_i)
-            
+
     if type(input_obj) is dict:
         output_obj = vec_to_dict(input_obj, out_array)
     elif type(input_obj) is np.ndarray:
         output_obj = out_array
-        
+
     return output_obj
+
 
 def orthonormalize(vectors, num_orthonormals=1, eps=1e-6):
     ortho_normals = vectors
