@@ -516,10 +516,10 @@ def antisymmetrize_tensor_2_1(Rccav, nlow, nocc, nact, nvir, method='ee'):
         Rccav_anti = np.zeros((nlow, nocc, nocc, nact, nvir))
         Rccav_anti += np.einsum("pijab->pijab", Rccav)
         Rccav_anti -= np.einsum("pijab->pjiab", Rccav)
-    # elif method == 'ip':
-    #     Rccav_anti = np.zeros((nlow, nocc, nocc, nact))
-    #     Rccav_anti += np.einsum("pija->pija", Rccav)
-    #     Rccav_anti -= np.einsum("pija->pjia", Rccav)
+    elif method == 'ip':
+        Rccav_anti = np.zeros((nlow, nocc, nocc, nact))
+        Rccav_anti += np.einsum("pija->pija", Rccav)
+        Rccav_anti -= np.einsum("pija->pjia", Rccav)
     return Rccav_anti
 
 
@@ -550,15 +550,15 @@ def antisymmetrize(input_dict, method='ee'):
                             tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3])
                     else:
                         continue
-        # elif method == 'ip':
-        #     for key in input_dict.keys():
-        #         if len(key) == 3:
-        #             if key[0] == key[1]:
-        #                 tensor = input_dict[key]
-        #                 input_dict[key] = antisymmetrize_tensor_2_1(
-        #                     tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3], None, method = 'ip')
-        #             else:
-        #                 continue
+        elif method == 'ip':
+            for key in input_dict.keys():
+                if len(key) == 3:
+                    if key[0] == key[1]:
+                        tensor = input_dict[key]
+                        input_dict[key] = antisymmetrize_tensor_2_1(
+                            tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3], None, method='ip')
+                    else:
+                        continue
     return input_dict
 
 
