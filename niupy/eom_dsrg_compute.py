@@ -239,6 +239,7 @@ def setup_davidson(eom_dsrg):
     elif eom_dsrg.diagonal_type == "block":
         precond = eom_dsrg.compute_preconditioner_block(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
                                                         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
+    np.save('precond', precond)
     print("Time(s) for Precond: ", time.time() - start, flush=True)
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
