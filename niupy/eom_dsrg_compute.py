@@ -206,13 +206,20 @@ def setup_davidson(eom_dsrg):
 
     start = time.time()
     print("Starting S_12...", flush=True)
-    S_12 = eom_dsrg.get_S_12(
-        eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1,
-        eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.sym,
-        eom_dsrg.target_sym, eom_dsrg.act_sym, tol=eom_dsrg.tol_s
-    )
+    if eom_dsrg.diagonal_type == "load":
+        print("Loading S_12 from file")
+        S_12 = []
+        with np.load(f'{eom_dsrg.abs_file_path}/save_S_12.npz', mmap_mode='r') as data:
+            for key in data:
+                S_12.append(data[key])
+    else:
+        S_12 = eom_dsrg.get_S_12(
+            eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1,
+            eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.sym,
+            eom_dsrg.target_sym, eom_dsrg.act_sym, tol=eom_dsrg.tol_s
+        )
     print("Time(s) for S_12: ", time.time() - start, flush=True)
-    np.savez('save_S_12', *S_12)
+    np.savez(f'{eom_dsrg.abs_file_path}/save_S_12', *S_12)
 
     # Load Hbar
     eom_dsrg.Hbar = np.load(f'{eom_dsrg.abs_file_path}/save_Hbar.npz')
@@ -233,16 +240,17 @@ def setup_davidson(eom_dsrg):
         for i_tensor in S_12:
             nop += i_tensor.shape[1]
         precond = np.ones(nop+1) * eom_dsrg.diag_val
-        np.save('precond', precond)
+        np.save(f'{eom_dsrg.abs_file_path}/precond', precond)
     elif eom_dsrg.diagonal_type == "exact":
         precond = eom_dsrg.compute_preconditioner_exact(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
                                                         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
-        np.save('precond', precond)
+        np.save(f'{eom_dsrg.abs_file_path}/precond', precond)
     elif eom_dsrg.diagonal_type == "block":
         precond = eom_dsrg.compute_preconditioner_block(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
                                                         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
-        np.save('precond', precond)
+        np.save(f'{eom_dsrg.abs_file_path}/precond', precond)
     elif eom_dsrg.diagonal_type == "load":
+        print("Loading Preconditioner from file")
         precond = np.load(f'{eom_dsrg.abs_file_path}/precond.npy')
     print("Time(s) for Precond: ", time.time() - start, flush=True)
     northo = len(precond)

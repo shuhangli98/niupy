@@ -125,8 +125,8 @@ if __name__ == "__main__":
     if test == 1:
         # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
         rel_path = "niupy/H2O"
-        eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=1.0,
-                            target_sym=0, method_type='cvs-ee', diagonal_type='block')
+        eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=0.0,
+                            target_sym=0, method_type='cvs-ee', diagonal_type='load')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
             if idx == 0:
