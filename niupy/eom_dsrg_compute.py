@@ -233,13 +233,17 @@ def setup_davidson(eom_dsrg):
         for i_tensor in S_12:
             nop += i_tensor.shape[1]
         precond = np.ones(nop+1) * eom_dsrg.diag_val
+        np.save('precond', precond)
     elif eom_dsrg.diagonal_type == "exact":
         precond = eom_dsrg.compute_preconditioner_exact(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
                                                         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
+        np.save('precond', precond)
     elif eom_dsrg.diagonal_type == "block":
         precond = eom_dsrg.compute_preconditioner_block(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
                                                         eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
-    np.save('precond', precond)
+        np.save('precond', precond)
+    elif eom_dsrg.diagonal_type == "load":
+        precond = np.load(f'{eom_dsrg.abs_file_path}/save_precond.npy')
     print("Time(s) for Precond: ", time.time() - start, flush=True)
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
