@@ -206,7 +206,7 @@ def setup_davidson(eom_dsrg):
 
     start = time.time()
     print("Starting S_12...", flush=True)
-    if eom_dsrg.diagonal_type == "load":
+    if eom_dsrg.S_12_type == "load":
         print("Loading S_12 from file")
         S_12 = []
         with np.load(f'{eom_dsrg.abs_file_path}/save_S_12.npz', mmap_mode='r') as data:

@@ -12,7 +12,7 @@ class EOM_DSRG:
         tol_e=1e-8, max_space=100, max_cycle=100,
         tol_davidson=1e-5, tol_s=1e-4,
         target_sym=0, target_spin=0, nroots=6,
-        verbose=0, wfn=None, mo_spaces=None,
+        verbose=0, wfn=None, mo_spaces=None, S_12_type='compute',
         method_type='ee', diagonal_type='exact', diag_val=1.0
     ):
         script_dir = os.getcwd()
@@ -31,7 +31,7 @@ class EOM_DSRG:
         self.nvir = len(self.vir_sym)
 
         self.method_type = method_type
-        self.diagonal_type = diagonal_type  # 'exact' or 'block'
+        self.diagonal_type = diagonal_type  # 'exact', 'block' or 'load'
         self.verbose = verbose
         self.nroots = nroots                # Number of EOM-DSRG roots requested
         self.max_space = max_space          # Maximum size of the Davidson trial space
@@ -42,7 +42,11 @@ class EOM_DSRG:
         self.diag_shift = diag_shift        # Shift for the diagonal of the effective Hamiltonian
         self.target_sym = target_sym
         self.target_spin = target_spin
-        self.diag_val = diag_val  # Diagonal value for identity preconditioner
+        self.diag_val = diag_val            # Diagonal value for identity preconditioner
+        self.S_12_type = S_12_type          # 'compute' or 'load'
+
+        if self.diagonal_type == 'load':
+            self.S_12_type = 'load'
 
         # Set Hamiltonian and RDMs
         self.gamma1 = np.load(f'{self.abs_file_path}/save_gamma1.npz')
@@ -126,7 +130,7 @@ if __name__ == "__main__":
         # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
         rel_path = "niupy/H2O"
         eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=0.0,
-                            target_sym=0, method_type='cvs-ee', diagonal_type='load')
+                            target_sym=0, method_type='cvs-ee', S_12_type='load', diagonal_type='block')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
             if idx == 0:
