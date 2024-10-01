@@ -7,6 +7,7 @@ from pyscf import lib
 import time
 
 davidson = lib.linalg_helper.davidson1
+dgeev1 = lib.linalg_helper.dgeev1
 
 
 def kernel(eom_dsrg):
@@ -27,21 +28,40 @@ def kernel(eom_dsrg):
     print("Setting up Davidson algorithm...", flush=True)
 
     # Setup Davidson algorithm
-    apply_M, precond, x0, nop, S_12 = setup_davidson(eom_dsrg)
-    print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
+    if eom_dsrg.davidson_type == 'traditional':
+        apply_M, precond, x0, nop, S_12 = setup_davidson(eom_dsrg)
+        print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
+        # Davidson algorithm
+        conv, e, u = davidson(
+            lambda xs: [apply_M(x) for x in xs], x0, precond,
+            nroots=eom_dsrg.nroots, verbose=eom_dsrg.verbose,
+            max_space=eom_dsrg.max_space, max_cycle=eom_dsrg.max_cycle,
+            tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson
+        )
 
-    # Davidson algorithm
-    conv, e, u = davidson(
-        lambda xs: [apply_M(x) for x in xs], x0, precond,
-        nroots=eom_dsrg.nroots, verbose=eom_dsrg.verbose,
-        max_space=eom_dsrg.max_space, max_cycle=eom_dsrg.max_cycle,
-        tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson
-    )
+        # Get spin multiplicity and process eigenvectors
+        spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
+
+    elif eom_dsrg.davidson_type == 'generalized':
+        raise RuntimeWarning("This is not a Hermitian positive definite problem. Use traditional Davidson instead.")
+        apply_MS, precond, x0 = setup_generalized_davidson(eom_dsrg)
+        print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
+        # Generalized Davidson algorithm
+        conv, e, u = dgeev1(
+            lambda xs: zip(*map(apply_MS, xs)), x0, precond,
+            nroots=eom_dsrg.nroots, verbose=eom_dsrg.verbose,
+            max_space=eom_dsrg.max_space, max_cycle=eom_dsrg.max_cycle,
+            tol=eom_dsrg.tol_e, tol_residual=eom_dsrg.tol_davidson
+        )
+        # Get spin multiplicity and process eigenvectors
+        spin, eigvec = get_spin_multiplicity(eom_dsrg, u, None, None)
+    else:
+        raise ValueError(f"Invalid Davidson type: {eom_dsrg.davidson_type}")
 
     del eom_dsrg.Hbar
 
-    # Get spin multiplicity and process eigenvectors
-    spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
+    # # Get spin multiplicity and process eigenvectors
+    # spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
 
     # Optimize slicing by vectorizing
     eom_dsrg.Mbar = [slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar]
@@ -126,7 +146,12 @@ def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
         spin (list): List of spin classifications ("Singlet", "Triplet", or "Incorrect spin").
         eigvec (np.ndarray): Processed eigenvectors.
     """
-    eigvec = np.array([apply_S_12(S_12, nop, vec, transpose=False).flatten() for vec in u]).T
+
+    if nop is not None and S_12 is not None:
+        eigvec = np.array([apply_S_12(S_12, nop, vec, transpose=False).flatten() for vec in u]).T
+    else:
+        eigvec = np.array(u).T
+
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec))
     # eigvec_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec)
     excitation_analysis = find_top_values(eigvec_dict, 3)
@@ -261,6 +286,38 @@ def setup_davidson(eom_dsrg):
     return apply_M, precond, x0, nop, S_12
 
 
+def setup_generalized_davidson(eom_dsrg):
+    # Load Hbar
+    eom_dsrg.Hbar = np.load(f'{eom_dsrg.abs_file_path}/save_Hbar.npz')
+    if eom_dsrg.method_type == 'cvs-ee':
+        eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
+    # Finish Hbar
+
+    eom_dsrg.first_row = eom_dsrg.build_first_row(
+        eom_dsrg.full_template_c, eom_dsrg.Hbar, eom_dsrg.gamma1,
+        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3
+    )
+    eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
+    eom_dsrg.build_S = eom_dsrg.build_sigma_vector_s
+    start = time.time()
+    print("Starting Precond...", flush=True)
+
+    precond = eom_dsrg.compute_preconditioner_only_H(eom_dsrg.template_c, eom_dsrg.Hbar, eom_dsrg.gamma1,
+                                                     eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3)
+
+    apply_MS = define_apply_MS(eom_dsrg)
+
+    # x0 = compute_guess_vectors(eom_dsrg, precond)
+
+    # This is a temporary solution.
+    x0s = np.zeros((precond.shape[0], eom_dsrg.nroots))
+    np.fill_diagonal(x0s, 1.0)
+    x0 = []
+    for p in range(x0s.shape[1]):
+        x0.append(x0s[:, p])
+    return apply_MS, precond, x0
+
+
 def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
     """
     Define the effective Hamiltonian application function.
@@ -288,6 +345,22 @@ def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
         XHXt += eom_dsrg.diag_shift * x
         return XHXt
     return apply_M
+
+
+def define_apply_MS(eom_dsrg):
+    def apply_MS(x):
+        x_dict = vec_to_dict(eom_dsrg.full_template_c, x.reshape(-1, 1))
+        x_dict = antisymmetrize(x_dict)
+        Hx_dict = eom_dsrg.build_H(x_dict, eom_dsrg.Hbar, eom_dsrg.gamma1, eom_dsrg.eta1,
+                                   eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.first_row)
+        Hx_dict = antisymmetrize(Hx_dict)
+        Hx = dict_to_vec(Hx_dict, 1).flatten()
+        Sx_dict = eom_dsrg.build_S(x_dict, eom_dsrg.Hbar, eom_dsrg.gamma1, eom_dsrg.eta1,
+                                   eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.first_row)
+        Sx_dict = antisymmetrize(Sx_dict)
+        Sx = dict_to_vec(Sx_dict, 1).flatten()
+        return Hx, Sx
+    return apply_MS
 
 
 def apply_S_12(S_12, ndim, t, transpose=False):
@@ -396,5 +469,6 @@ def get_sigma_build(eom_dsrg):
     get_S_12 = sigma_module.get_S_12
     compute_preconditioner_exact = sigma_module.compute_preconditioner_exact
     compute_preconditioner_block = sigma_module.compute_preconditioner_block
+    compute_preconditioner_only_H = sigma_module.compute_preconditioner_only_H
 
-    return build_first_row, build_sigma_vector_Hbar, build_sigma_vector_s, build_transition_dipole, get_S_12, compute_preconditioner_exact, compute_preconditioner_block
+    return build_first_row, build_sigma_vector_Hbar, build_sigma_vector_s, build_transition_dipole, get_S_12, compute_preconditioner_exact, compute_preconditioner_block, compute_preconditioner_only_H

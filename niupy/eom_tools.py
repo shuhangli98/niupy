@@ -415,6 +415,24 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
             f"        del vec, vmv",
         ]
 
+    def add_code_only_H(key, i_key):
+        return [
+            f"    # {key} block",
+            f'    print("Starts {key} block precond", flush=True)',
+            f"    shape_block = template_c['{key}'].shape[1:]",
+            f"    shape_size = np.prod(shape_block)",
+            f"    c['{key}'] = np.zeros((shape_size, *shape_block))",
+            f"    sigma['{key}'] = np.zeros((shape_size, *shape_block))",
+            f"    c = vec_to_dict(c, np.identity(shape_size))",
+            f"    c = antisymmetrize(c)",
+            generate_block_contraction(key, mbeq, block_type='single', indent='once'),
+            f"    c.clear()",
+            f"    vec = dict_to_vec(sigma, shape_size)",
+            f"    sigma.clear()",
+            f"    diagonal.append(vec.diagonal())",
+            f"    del vec",
+        ]
+
     def add_composite_space_code(space, start):
         code_block = [
             f"    # {space} composite block",
@@ -474,25 +492,36 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
         # ])
         return code_block
 
-    code = [
-        f"def compute_preconditioner_{diagonal_type}(template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3):",
-        "    sigma = {}",
-        "    c = {}",
-        "    diagonal = [np.array([0.0])]",
-    ]
+    if composite_space is None:
+        code = [
+            f"def compute_preconditioner_only_H(template_c, Hbar, gamma1, eta1, lambda2, lambda3):",
+            "    sigma = {}",
+            "    c = {}",
+            "    diagonal = [np.array([0.0])]",
+        ]
+        for i_key, key in enumerate(single_space):
+            code.extend(add_code_only_H(key, i_key))
+            code.append("")  # Blank line for separation
+    else:
+        code = [
+            f"def compute_preconditioner_{diagonal_type}(template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3):",
+            "    sigma = {}",
+            "    c = {}",
+            "    diagonal = [np.array([0.0])]",
+        ]
 
-    # Add single space code blocks
-    for i_key, key in enumerate(single_space):
-        code.extend(add_single_space_code(key, i_key))
-        code.append("")  # Blank line for separation
+        # Add single space code blocks
+        for i_key, key in enumerate(single_space):
+            code.extend(add_single_space_code(key, i_key))
+            code.append("")  # Blank line for separation
 
-    start = len(single_space)
+        start = len(single_space)
 
-    # Add composite space code blocks
-    for space in composite_space:
-        code.extend(add_composite_space_code(space, start))
-        start += 1  # Update start index
-        code.append("")  # Blank line for separation
+        # Add composite space code blocks
+        for space in composite_space:
+            code.extend(add_composite_space_code(space, start))
+            start += 1  # Update start index
+            code.append("")  # Blank line for separation
 
     code.append("    full_diag = np.concatenate(diagonal)")
     code.append("    return full_diag")
