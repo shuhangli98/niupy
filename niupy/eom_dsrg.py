@@ -131,9 +131,9 @@ if __name__ == "__main__":
     test = 1
     if test == 1:
         # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
-        rel_path = "niupy/H2O"
+        rel_path = "H2O"
         eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=0.0,
-                            target_sym=0, method_type='cvs-ee', S_12_type='compute', diagonal_type='block', davidson_type='generalized')
+                            target_sym=0, method_type='cvs-ee', S_12_type='compute', diagonal_type='block')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
             if idx == 0:
@@ -141,6 +141,7 @@ if __name__ == "__main__":
             else:
                 print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
 
+# No double core excitations
 # Root 0: 0.0 Hartree, spin: Singlet
 # Root 1: 19.85801514477547 Hartree, spin: Triplet, osc_strength: 8.882149755332066e-15
 # Root 2: 19.884122785946218 Hartree, spin: Singlet, osc_strength: 0.02027260029312239

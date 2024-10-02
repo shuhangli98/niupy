@@ -24,23 +24,23 @@ for i in itertools.product(['v+', 'a+'], ['i']):
     s.append(' '.join(i))
 for i in itertools.product(['V+', 'A+'], ['I']):
     s.append(' '.join(i))
-for i in itertools.product(['v+', 'a+'], ['v+', 'a+'], ['a', 'c'], ['i']):
+for i in itertools.product(['v+', 'a+'], ['v+', 'a+'], ['a', 'c', 'i'], ['i']):
     s.append(' '.join(i))
-for i in itertools.product(['V+', 'A+'], ['V+', 'A+'], ['A', 'C'], ['I']):
+for i in itertools.product(['V+', 'A+'], ['V+', 'A+'], ['A', 'C', 'I'], ['I']):
     s.append(' '.join(i))
-for i in itertools.product(['v+', 'a+'], ['V+', 'A+'], ['a', 'c'], ['I']):
+for i in itertools.product(['v+', 'a+'], ['V+', 'A+'], ['a', 'c', 'i'], ['I']):
     s.append(' '.join(i))
-for i in itertools.product(['v+', 'a+'], ['V+', 'A+'], ['A', 'C'], ['i']):
+for i in itertools.product(['v+', 'a+'], ['V+', 'A+'], ['A', 'C', 'I'], ['i']):
     s.append(' '.join(i))
 
 T_adj = w.op("bra", s, unique=True).adjoint()
 T = w.op("c", s, unique=True)
 
 # Define subspaces
-S_half_0 = ['iv', 'IV', 'iAaV', 'aIvA', 'icvv', 'iCvV', 'cIvV', 'ICVV']
-S_half_1 = ['icva', 'iCvA', 'iCaV', 'cIvA', 'cIaV', 'ICVA']
+S_half_0 = ['iv', 'IV', 'iAaV', 'aIvA', 'icvv', 'iCvV', 'cIvV', 'ICVV', 'iivv', 'iIvV', 'IIVV']
+S_half_1 = ['icva', 'iCvA', 'iCaV', 'cIvA', 'cIaV', 'ICVA', 'iiva', 'iIvA', 'iIaV', 'IIVA']
 S_half_minus_1 = ['iavv', 'iAvV', 'aIvV', 'IAVV']
-S_half_2 = ['icaa', 'iCaA', 'cIaA', 'ICAA']
+S_half_2 = ['icaa', 'iCaA', 'cIaA', 'ICAA', 'iiaa', 'iIaA', 'IIAA']
 
 S_half_0_com_iv = ['iava', 'iAvA']
 S_half_0_com_IV = ['aIaV', 'IAVA']
