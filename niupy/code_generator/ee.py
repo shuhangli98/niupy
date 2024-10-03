@@ -29,31 +29,34 @@ for i in itertools.product(['V+', 'A+'], ['V+', 'A+'], ['A', 'C'], ['A', 'C']):
 for i in itertools.product(['v+', 'a+'], ['V+', 'A+'], ['a', 'c'], ['A', 'C']):
     s.append(' '.join(i))
 
-for i in s:
-    if i in ['a+ a+ a a', 'A+ A+ A A', 'a+ A+ a A']:
-        s.pop(s.index(i))
-
+# This is a test for single internal.
+# for i in s:
+#     if i in ['a+ a+ a a', 'A+ A+ A A', 'a+ A+ a A']:
+#         s.pop(s.index(i))
 
 T_adj = w.op("bra", s, unique=True).adjoint()
 T = w.op("c", s, unique=True)
 
 # Define subspaces
-S_half_0 = ['cv', 'CV', 'ccvv', 'CCVV', 'cCvV']
+S_half_0 = ['cv', 'CV', 'ccvv', 'CCVV', 'cCvV', 'aCvA', 'cAaV']
 S_half_1 = ['ccva', 'CCVA', 'cCvA', 'cCaV']
 S_half_minus_1 = ['cavv', 'CAVV', 'cAvV', 'aCvV']
 S_half_2 = ['ccaa', 'CCAA', 'cCaA']
 S_half_minus_2 = ['aavv', 'AAVV', 'aAvV']
 
-S_half_0_com = ['cava', 'CAVA', 'cAvA', 'cAaV', 'aCvA', 'aCaV']
-S_half_1_com = ['ca', 'CA', 'caaa', 'CAAA', 'cAaA', 'aCaA']
-S_half_minus_1_com = ['av', 'AV', 'aava', 'AAVA', 'aAvA', 'aAaV']
+S_half_0_com_cv = ['cava', 'cAvA']
+S_half_0_com_CV = ['CAVA', 'aCaV']
+S_half_1_com_c = ['ca', 'caaa', 'cAaA']
+S_half_1_com_C = ['CA', 'CAAA', 'aCaA']
+S_half_minus_1_com_v = ['av', 'aava', 'aAvA']
+S_half_minus_1_com_V = ['AV', 'AAVA', 'aAaV']
+S_half_act = ['aa', 'AA', 'aaaa', 'AAAA', 'aAaA']
 
-S_half_act = ['aa', 'AA']  # 'aaaa', 'AAAA', 'aAaA' # Single internal
-
-block_list = S_half_0 + S_half_1 + S_half_minus_1 + S_half_2 + S_half_minus_2 + \
-    S_half_0_com + S_half_1_com + S_half_minus_1_com + S_half_act
+block_list = S_half_0 + S_half_1 + S_half_minus_1 + S_half_2 + S_half_minus_2 + S_half_0_com_cv + \
+    S_half_0_com_CV + S_half_1_com_c + S_half_1_com_C + S_half_minus_1_com_v + S_half_minus_1_com_V + S_half_act
 single_space = S_half_0 + S_half_1 + S_half_minus_1 + S_half_2 + S_half_minus_2
-composite_space = [S_half_0_com, S_half_1_com, S_half_minus_1_com, S_half_act]
+composite_space = [S_half_0_com_cv, S_half_0_com_CV, S_half_1_com_c,
+                   S_half_1_com_C, S_half_minus_1_com_v, S_half_minus_1_com_V, S_half_act]
 
 # Define Hbar
 Hops = []
@@ -91,20 +94,24 @@ mbeq_s = expr_s.to_manybody_equation('sigma')
 funct = generate_sigma_build(mbeq, 'Hbar')  # HC
 funct_s = generate_sigma_build(mbeq_s, 's')  # SC
 funct_first = generate_first_row(mbeq_first)  # First row/column
+funct_dipole = generate_transition_dipole(mbeq_first)
 funct_S_12 = generate_S_12(mbeq_s, single_space, composite_space)
 funct_preconditioner_exact = generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='exact')
 funct_preconditioner_block = generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='block')
+funct_preconditioner_only_H = generate_preconditioner(mbeq, block_list, None)
 
 script_dir = os.path.dirname(__file__)
 rel_path = "../ee_eom_dsrg.py"
 abs_file_path = os.path.join(script_dir, rel_path)
 
 with open(abs_file_path, 'w') as f:
-    f.write('import numpy as np\nimport time\n\nfrom niupy.eom_tools import *\n\n')
+    f.write('import numpy as np\nimport scipy\nimport time\n\nfrom niupy.eom_tools import *\n\n')
     f.write(f'{func_template_c}\n\n')
     f.write(f'{funct_S_12}\n\n')
     f.write(f'{funct_preconditioner_exact}\n\n')
     f.write(f'{funct_preconditioner_block}\n\n')
+    f.write(f'{funct_preconditioner_only_H}\n\n')
     f.write(f'{funct}\n\n')
     f.write(f'{funct_s}\n\n')
     f.write(f'{funct_first}\n\n')
+    f.write(f'{funct_dipole}\n\n')

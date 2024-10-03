@@ -13,7 +13,7 @@ class EOM_DSRG:
         tol_davidson=1e-5, tol_s=1e-4,
         target_sym=0, target_spin=0, nroots=6,
         verbose=0, wfn=None, mo_spaces=None, S_12_type='compute',
-        method_type='ee', diagonal_type='exact', diag_val=1.0,
+        method_type='cvs-ee', diagonal_type='block', diag_val=1.0,
         davidson_type='traditional'
     ):
         script_dir = os.getcwd()
@@ -145,3 +145,8 @@ if __name__ == "__main__":
 # Root 0: 0.0 Hartree, spin: Singlet
 # Root 1: 19.85801514477547 Hartree, spin: Triplet, osc_strength: 8.882149755332066e-15
 # Root 2: 19.884122785946218 Hartree, spin: Singlet, osc_strength: 0.02027260029312239
+
+# With double core excitations
+# Root 0: 0.0 Hartree, spin: Singlet
+# Root 1: 19.854612955616954 Hartree, spin: Triplet, osc_strength: 7.248369755169807e-15
+# Root 2: 19.879440526237317 Hartree, spin: Singlet, osc_strength: 0.020285277724225313
