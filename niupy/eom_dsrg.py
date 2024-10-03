@@ -55,6 +55,10 @@ class EOM_DSRG:
         self.eta1 = np.load(f'{self.abs_file_path}/save_eta1.npz')
         self.lambda2 = np.load(f'{self.abs_file_path}/save_lambda2.npz')
         self.lambda3 = np.load(f'{self.abs_file_path}/save_lambda3.npz')
+        if method_type == 'ee':
+            self.lambda4 = np.load(f'{self.abs_file_path}/save_lambda4.npz')
+        else:
+            self.lambda4 = None
         # self.Hbar = np.load(f'{self.abs_file_path}/save_Hbar.npz')
         self.Mbar0 = np.load(f'{self.abs_file_path}/Mbar0.npy')
         Mbar1_x = np.load(f'{self.abs_file_path}/Mbar1_0.npz')
@@ -128,7 +132,7 @@ class EOM_DSRG:
 
 
 if __name__ == "__main__":
-    test = 1
+    test = 2
     if test == 1:
         # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
         rel_path = "H2O"
@@ -140,13 +144,30 @@ if __name__ == "__main__":
                 print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
             else:
                 print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
+    # No double core excitations
+    # Root 0: 0.0 Hartree, spin: Singlet
+    # Root 1: 19.85801514477547 Hartree, spin: Triplet, osc_strength: 8.882149755332066e-15
+    # Root 2: 19.884122785946218 Hartree, spin: Singlet, osc_strength: 0.02027260029312239
 
-# No double core excitations
-# Root 0: 0.0 Hartree, spin: Singlet
-# Root 1: 19.85801514477547 Hartree, spin: Triplet, osc_strength: 8.882149755332066e-15
-# Root 2: 19.884122785946218 Hartree, spin: Singlet, osc_strength: 0.02027260029312239
-
-# With double core excitations
-# Root 0: 0.0 Hartree, spin: Singlet
-# Root 1: 19.854612955616954 Hartree, spin: Triplet, osc_strength: 7.248369755169807e-15
-# Root 2: 19.879440526237317 Hartree, spin: Singlet, osc_strength: 0.020285277724225313
+    # With double core excitations
+    # Root 0: 0.0 Hartree, spin: Singlet
+    # Root 1: 19.854612955616954 Hartree, spin: Triplet, osc_strength: 7.248369755169807e-15
+    # Root 2: 19.879440526237317 Hartree, spin: Singlet, osc_strength: 0.020285277724225313
+    
+    elif test == 2:
+        rel_path = "BeH2"
+        eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=0.0,
+                            target_sym=0, method_type='ee', S_12_type='compute', diagonal_type='block')
+        conv, e, u, spin, osc_strength = eom_dsrg.kernel()
+        for idx, i_e in enumerate(e):
+            if idx == 0:
+                print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
+            else:
+                print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
+    # FCI: 
+    # Singlet: 0.09091363817
+    # Triplet: 0.21031564826
+    # EOM-DSRG
+    # Root 0: 0.0 Hartree, spin: Singlet
+    # Root 1: 0.09926654062037214 Hartree, spin: Singlet, osc_strength: 0.08834625738517309
+    # Root 2: 0.21904828106846896 Hartree, spin: Triplet, osc_strength: 7.482424078966529e-14

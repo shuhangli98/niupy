@@ -51,7 +51,7 @@ def get_template_c(nlow, ncore, nocc, nact, nvir):
         }
     return c
 
-def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, act_sym, tol=0.0001):
+def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, lambda4, sym_dict, target_sym, act_sym, tol=0.0001):
     sigma = {}
     c = {}
     S_12 = []
@@ -1252,7 +1252,7 @@ def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, sym_dict, target_sym, a
 
     return S_12
 
-def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3):
+def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):
     sigma = {}
     c = {}
     diagonal = [np.array([0.0])]
@@ -6254,7 +6254,7 @@ def compute_preconditioner_exact(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
     full_diag = np.concatenate(diagonal)
     return full_diag
 
-def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3):
+def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):
     sigma = {}
     c = {}
     diagonal = [np.array([0.0])]
@@ -9902,7 +9902,7 @@ def compute_preconditioner_block(template_c, S_12, Hbar, gamma1, eta1, lambda2, 
     full_diag = np.concatenate(diagonal)
     return full_diag
 
-def compute_preconditioner_only_H(template_c, Hbar, gamma1, eta1, lambda2, lambda3):
+def compute_preconditioner_only_H(template_c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):
     sigma = {}
     c = {}
     diagonal = [np.array([0.0])]
@@ -13378,7 +13378,7 @@ def compute_preconditioner_only_H(template_c, Hbar, gamma1, eta1, lambda2, lambd
     full_diag = np.concatenate(diagonal)
     return full_diag
 
-def build_sigma_vector_Hbar(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):
+def build_sigma_vector_Hbar(c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):
     sigma = {key: np.zeros(c[key].shape) for key in c.keys()}
     sigma['iv'] += -1.00000000 * np.einsum('cd,pde->pce',Hbar['ii'],c['iv'],optimize=True)
     sigma['ia'] += -1.00000000 * np.einsum('cd,pda,ao->pco',Hbar['ii'],c['ia'],eta1['aa'],optimize=True)
@@ -24421,7 +24421,7 @@ def build_sigma_vector_Hbar(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):
     sigma['first'] += np.einsum('ik, ij->jk', first_row_vec, c_vec[1:, :], optimize=True)
     return sigma
 
-def build_sigma_vector_s(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):
+def build_sigma_vector_s(c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):
     sigma = {key: np.zeros(c[key].shape) for key in c.keys()}
     sigma['iv'] += +1.00000000 * np.einsum('pce->pce',c['iv'],optimize=True)
     sigma['ia'] += +1.00000000 * np.einsum('pca,ao->pco',c['ia'],eta1['aa'],optimize=True)
@@ -24515,7 +24515,7 @@ def build_sigma_vector_s(c, Hbar, gamma1, eta1, lambda2, lambda3, first_row):
     sigma['first'] = c['first'].copy()
     return sigma
 
-def build_first_row(c, Hbar, gamma1, eta1, lambda2, lambda3):
+def build_first_row(c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):
     sigma = {key: np.zeros((1, *tensor.shape[1:])) for key, tensor in c.items() if key != 'first'}
     sigma['iv'] += +1.00000000 * np.einsum('ec->ce',Hbar['vi'],optimize=True)
     sigma['ia'] += +1.00000000 * np.einsum('oc,ao->ca',Hbar['ai'],eta1['aa'],optimize=True)
@@ -24608,7 +24608,7 @@ def build_first_row(c, Hbar, gamma1, eta1, lambda2, lambda3):
     sigma['IAAA'] += +0.25000000 * np.einsum('OACB,BSTOAR->CRST',Hbar['AAIA'],lambda3['AAAAAA'],optimize=True)
     return sigma
 
-def build_transition_dipole(c, Hbar, gamma1, eta1, lambda2, lambda3):
+def build_transition_dipole(c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):
     sigma = 0.0
     sigma += +1.00000000 * np.einsum('ec,ce->', Hbar["vi"],c["iv"],optimize=True)
     sigma += +1.00000000 * np.einsum('oc,ca,ao->', Hbar["ai"],c["ia"],eta1["aa"],optimize=True)

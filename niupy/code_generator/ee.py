@@ -91,14 +91,14 @@ expr_s = wt.contract(TT, 0, 0, inter_general=True)
 mbeq_s = expr_s.to_manybody_equation('sigma')
 
 # Generate wicked contraction
-funct = generate_sigma_build(mbeq, 'Hbar')  # HC
-funct_s = generate_sigma_build(mbeq_s, 's')  # SC
-funct_first = generate_first_row(mbeq_first)  # First row/column
-funct_dipole = generate_transition_dipole(mbeq_first)
-funct_S_12 = generate_S_12(mbeq_s, single_space, composite_space)
-funct_preconditioner_exact = generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='exact')
-funct_preconditioner_block = generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='block')
-funct_preconditioner_only_H = generate_preconditioner(mbeq, block_list, None)
+funct = generate_sigma_build(mbeq, 'Hbar', algo='ee')  # HC
+funct_s = generate_sigma_build(mbeq_s, 's', algo='ee')  # SC
+funct_first = generate_first_row(mbeq_first, algo='ee')  # First row/column
+funct_dipole = generate_transition_dipole(mbeq_first, algo='ee')
+funct_S_12 = generate_S_12(mbeq_s, single_space, composite_space, algo='ee')
+funct_preconditioner_exact = generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='exact', algo='ee')
+funct_preconditioner_block = generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='block', algo='ee')
+funct_preconditioner_only_H = generate_preconditioner(mbeq, block_list, None, algo='ee')
 
 script_dir = os.path.dirname(__file__)
 rel_path = "../ee_eom_dsrg.py"

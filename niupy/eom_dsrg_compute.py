@@ -98,7 +98,7 @@ def compute_dipole(eom_dsrg, current_vec):
     for i, Mbar_i in enumerate(eom_dsrg.Mbar):
         HT = eom_dsrg.build_transition_dipole(
             current_vec_dict, Mbar_i, eom_dsrg.gamma1, eom_dsrg.eta1,
-            eom_dsrg.lambda2, eom_dsrg.lambda3
+            eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4
         )
         HT_first = HT + current_vec_dict['first'][0, 0] * eom_dsrg.Mbar0[i]
         dipole_sum_squared += HT_first ** 2
@@ -240,7 +240,7 @@ def setup_davidson(eom_dsrg):
     else:
         S_12 = eom_dsrg.get_S_12(
             eom_dsrg.template_c, eom_dsrg.gamma1, eom_dsrg.eta1,
-            eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.sym,
+            eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4, eom_dsrg.sym,
             eom_dsrg.target_sym, eom_dsrg.act_sym, tol=eom_dsrg.tol_s
         )
     print("Time(s) for S_12: ", time.time() - start, flush=True)
@@ -254,7 +254,7 @@ def setup_davidson(eom_dsrg):
 
     eom_dsrg.first_row = eom_dsrg.build_first_row(
         eom_dsrg.full_template_c, eom_dsrg.Hbar, eom_dsrg.gamma1,
-        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3
+        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4
     )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
     start = time.time()
@@ -268,11 +268,11 @@ def setup_davidson(eom_dsrg):
         np.save(f'{eom_dsrg.abs_file_path}/precond', precond)
     elif eom_dsrg.diagonal_type == "exact":
         precond = eom_dsrg.compute_preconditioner_exact(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
-                                                        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
+                                                        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4) + eom_dsrg.diag_shift
         np.save(f'{eom_dsrg.abs_file_path}/precond', precond)
     elif eom_dsrg.diagonal_type == "block":
         precond = eom_dsrg.compute_preconditioner_block(eom_dsrg.template_c, S_12, eom_dsrg.Hbar, eom_dsrg.gamma1,
-                                                        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3) + eom_dsrg.diag_shift
+                                                        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4) + eom_dsrg.diag_shift
         np.save(f'{eom_dsrg.abs_file_path}/precond', precond)
     elif eom_dsrg.diagonal_type == "load":
         print("Loading Preconditioner from file")
@@ -295,7 +295,7 @@ def setup_generalized_davidson(eom_dsrg):
 
     eom_dsrg.first_row = eom_dsrg.build_first_row(
         eom_dsrg.full_template_c, eom_dsrg.Hbar, eom_dsrg.gamma1,
-        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3
+        eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4
     )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
     eom_dsrg.build_S = eom_dsrg.build_sigma_vector_s
@@ -303,7 +303,7 @@ def setup_generalized_davidson(eom_dsrg):
     print("Starting Precond...", flush=True)
 
     precond = eom_dsrg.compute_preconditioner_only_H(eom_dsrg.template_c, eom_dsrg.Hbar, eom_dsrg.gamma1,
-                                                     eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3)
+                                                     eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4)
 
     apply_MS = define_apply_MS(eom_dsrg)
 
@@ -337,7 +337,7 @@ def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
         Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
         Xt_dict = antisymmetrize(Xt_dict)
         HXt_dict = eom_dsrg.build_H(Xt_dict, eom_dsrg.Hbar, eom_dsrg.gamma1, eom_dsrg.eta1,
-                                    eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.first_row)
+                                    eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4, eom_dsrg.first_row)
         HXt_dict = antisymmetrize(HXt_dict)
         HXt = dict_to_vec(HXt_dict, 1).flatten()
         XHXt = apply_S_12(S_12, northo, HXt, transpose=True)
@@ -352,11 +352,11 @@ def define_apply_MS(eom_dsrg):
         x_dict = vec_to_dict(eom_dsrg.full_template_c, x.reshape(-1, 1))
         x_dict = antisymmetrize(x_dict)
         Hx_dict = eom_dsrg.build_H(x_dict, eom_dsrg.Hbar, eom_dsrg.gamma1, eom_dsrg.eta1,
-                                   eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.first_row)
+                                   eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4, eom_dsrg.first_row)
         Hx_dict = antisymmetrize(Hx_dict)
         Hx = dict_to_vec(Hx_dict, 1).flatten()
         Sx_dict = eom_dsrg.build_S(x_dict, eom_dsrg.Hbar, eom_dsrg.gamma1, eom_dsrg.eta1,
-                                   eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.first_row)
+                                   eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4, eom_dsrg.first_row)
         Sx_dict = antisymmetrize(Sx_dict)
         Sx = dict_to_vec(Sx_dict, 1).flatten()
         return Hx, Sx
