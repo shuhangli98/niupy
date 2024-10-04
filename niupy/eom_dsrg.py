@@ -153,7 +153,7 @@ if __name__ == "__main__":
     # Root 0: 0.0 Hartree, spin: Singlet
     # Root 1: 19.854612955616954 Hartree, spin: Triplet, osc_strength: 7.248369755169807e-15
     # Root 2: 19.879440526237317 Hartree, spin: Singlet, osc_strength: 0.020285277724225313
-    
+
     elif test == 2:
         rel_path = "BeH2"
         eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=0.0,
@@ -164,7 +164,7 @@ if __name__ == "__main__":
                 print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
             else:
                 print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
-    # FCI: 
+    # FCI:
     # Singlet: 0.09091363817
     # Triplet: 0.21031564826
     # EOM-DSRG

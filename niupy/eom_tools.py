@@ -94,7 +94,7 @@ def generate_template_c(block_list, ket_name='c'):
     return code
 
 
-def generate_first_row(mbeq, algo='normal'):                
+def generate_first_row(mbeq, algo='normal'):
     code = [f"def build_first_row(c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
             "    sigma = {key: np.zeros((1, *tensor.shape[1:])) for key, tensor in c.items() if key != 'first'}"]
     if algo == 'normal':
@@ -181,7 +181,7 @@ def generate_block_contraction(block_str, mbeq, block_type='single', indent='onc
     return func
 
 
-def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2, algo='normal'):
+def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo='normal'):
     '''
     single_space: a list of strings.
     composite_space: a list of lists of strings.
@@ -264,6 +264,95 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2, a
             f"    X = X.reshape(nocc, nvir, nvir, nact, nlow)",
             f"    X = np.transpose(X, axes=(*{reorder_back}, 4))",
             f"    X = X.reshape(-1, nlow)",
+            f"    sym_space.clear()",
+            f"    S_12.append(X)",
+            f"    del X",
+        ])
+        return code_block
+
+    def two_active_two_virtual(key): 
+        # aavv, AAVV, aAvV
+        code_block = [
+            f"    # {key} block (two active, two virtual)",
+            f'    print("Starts {key} block", flush=True)',
+            "    gv_half_dict = {}",
+        ]
+
+        if key[2] == key[3]:  # Should be antisymmetrized
+            anti = True
+            if key[0] == key[1] == 'a':
+                temp_rdm = "gamma1['aa']"
+                temp_lambda = "lambda2['aaaa']"
+            elif key[0] == key[1] == 'A':
+                temp_rdm = "gamma1['AA']"
+                temp_lambda = "lambda2['AAAA']"
+        else:
+            anti = False
+            temp_lambda = "lambda2['aAaA']"
+            
+        code_block.extend([
+            f"    anti = {anti}",
+            f"    sym_space['{key}'] = sym_dict['{key}'].transpose(2,3,0,1)",
+            f"    max_sym = np.max(sym_space['{key}'])",
+            f"    nact, nvir = template_c['{key}'].shape[1], template_c['{key}'].shape[3]",
+            ])
+        if anti:
+            code_block.extend([
+            f"    overlap = np.einsum('ar,ob->oabr', {temp_rdm}, {temp_rdm}, optimize=True)",
+            f"    overlap -= np.einsum('ab,or->oabr', {temp_rdm}, {temp_rdm}, optimize=True)",
+            ])
+        else:
+            code_block.extend([
+            f"    overlap = np.einsum('ar,ob->oabr', gamma1['AA'], gamma1['aa'], optimize=True)",
+            ])
+        code_block.extend([
+            f"    overlap += {temp_lambda}",
+            f"    overlap = overlap.reshape(nact*nact, nact*nact)",
+            f"    if anti:",
+            f"        zero_anti = np.array([u * nact + v for u in range(nact) for v in range(u, nact)])",
+            f"        overlap[zero_anti, :] = 0",
+            f"        overlap[:, zero_anti] = 0",
+            f"    tol_act_sym = (act_sym[:, None] ^ act_sym[None, :]).flatten()",
+            f"    ge, gv = np.linalg.eigh(overlap)",
+            f"    trunc_indices = np.where(ge > tol)[0]",
+            f"    gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
+            f"    rows, cols = gv_half.shape",
+            f"    for i_sym in range(max_sym+1):",
+            f"        temp = overlap.copy()",
+            f"        mask = (tol_act_sym != i_sym)",
+            f"        temp[:, mask] = 0",
+            f"        temp[mask, :] = 0",
+            f"        ge, gv = np.linalg.eigh(temp)",
+            f"        trunc_indices = np.where(ge > tol)[0]",
+            f"        gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
+            f"        gv_half_dict[i_sym] = gv_half",
+            f"    num = nvir * nvir",
+            f"    if anti:",
+            f"        zero_idx = [a * nvir + a for a in range(nvir)]",
+            f"    else:",
+            f"        zero_idx = []",
+            f"    X = np.zeros((num * rows, (num - len(zero_idx)) * cols))",
+            f"    current_shape = (nvir, nvir)",
+            f"    start_col = 0",
+            f"    for i in range(num):",
+            f"        if i in zero_idx:",
+            f"            continue",
+            f"        unravel_idx = np.unravel_index(i, current_shape)",
+            f"        possible_sym = sym_space['{key}'][unravel_idx].flatten()",
+            f"        find_target_sym = np.where(possible_sym == target_sym)[0]",
+            f"        if len(find_target_sym) == 0:",
+            f"            continue",
+            f"        else:",
+            f"            act_sym_needed = tol_act_sym[find_target_sym[0]]",
+            f"        current_col = gv_half_dict[act_sym_needed].shape[1]",
+            f"        if (unravel_idx[0] > unravel_idx[1] and anti) or (not anti):",
+            f"            X[i * rows: (i+1) * rows, start_col:(start_col + current_col)] = gv_half_dict[act_sym_needed]",
+            f"            start_col += current_col",
+            f"    X = X[:, :start_col]",
+            f"    nlow = X.shape[1]",
+            f"    X = X.reshape(nvir, nvir, nact, nact, nlow)",
+            f"    X = np.transpose(X, axes=(2,3,0,1,4))",
+            f"    X = X.reshape(nact * nact * nvir * nvir, nlow)",
             f"    sym_space.clear()",
             f"    S_12.append(X)",
             f"    del X",
@@ -389,9 +478,13 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, tol_act=1e-2, a
 
     # Add single space code blocks
     for key in single_space:
-        # One active, two virtual
-        if len(key) == 4 and key[2] in ['v', 'V'] and key[3] in ['v', 'V'] and (key[0] in ['a', 'A'] or key[1] in ['a', 'A']) and not (key[0] in ['a', 'A'] and key[1] in ['a', 'A']):
-            code.extend(one_active_two_virtual(key))
+        if len(key) == 4 and key[2] in ['v', 'V'] and key[3] in ['v', 'V'] and (key[0] in ['a', 'A'] or key[1] in ['a', 'A']):
+            if not (key[0] in ['a', 'A'] and key[1] in ['a', 'A']):
+                # One active, two virtual
+                code.extend(one_active_two_virtual(key))
+            else:
+                # Two active, two virtual
+                code.extend(two_active_two_virtual(key))
         elif 'a' not in key and 'A' not in key:
             code.extend(no_active(key))
         else:
