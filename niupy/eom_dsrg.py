@@ -155,19 +155,22 @@ if __name__ == "__main__":
     # Root 2: 19.879440526237317 Hartree, spin: Singlet, osc_strength: 0.020285277724225313
 
     elif test == 2:
+        E_dsrg = -15.519065306930223
         rel_path = "BeH2"
         eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=0.0,
                             target_sym=0, method_type='ee', S_12_type='compute', diagonal_type='block')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
             if idx == 0:
-                print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
+                print(f"Root {idx}: {E_dsrg + i_e} Hartree, spin: {spin[idx]}")
             else:
-                print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
+                print(f"Root {idx}: {E_dsrg + i_e} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
     # FCI:
-    # Singlet: 0.09091363817
+    #    1  (  0)    A1     0      -15.544622645426
+    #    1  (  0)    A1     1      -15.453709007251
+    #    3  (  0)    A1     0      -15.334306997166
     # Triplet: 0.21031564826
     # EOM-DSRG
-    # Root 0: 0.0 Hartree, spin: Singlet
-    # Root 1: 0.09926654062037214 Hartree, spin: Singlet, osc_strength: 0.08834625738517309
-    # Root 2: 0.21904828106846896 Hartree, spin: Triplet, osc_strength: 7.482424078966529e-14
+    # Root 0: -15.550422940063548 Hartree, spin: Singlet
+    # Root 1: -15.451156399443176 Hartree, spin: Singlet, osc_strength: 0.08834625738516885
+    # Root 2: -15.33137465899508 Hartree, spin: Triplet, osc_strength: 7.482424052300513e-14
