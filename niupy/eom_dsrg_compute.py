@@ -1,5 +1,10 @@
-import niupy.ee_eom_dsrg as ee_eom_dsrg
-import niupy.cvs_ee_eom_dsrg as cvs_ee_eom_dsrg
+import os
+if os.path.exists("cvs_ee_eom_dsrg.py"):
+    print("Importing cvs_ee_eom_dsrg")
+    import cvs_ee_eom_dsrg
+if os.path.exists("ee_eom_dsrg.py"):
+    print("Importing ee_eom_dsrg")
+    import ee_eom_dsrg
 import numpy as np
 import copy
 from niupy.eom_tools import dict_to_vec, vec_to_dict, antisymmetrize, slice_H_core, is_antisymmetric
@@ -248,7 +253,7 @@ def setup_davidson(eom_dsrg):
 
     # Load Hbar
     eom_dsrg.Hbar = np.load(f'{eom_dsrg.abs_file_path}/save_Hbar.npz')
-    if eom_dsrg.method_type == 'cvs-ee':
+    if eom_dsrg.method_type == 'cvs_ee':
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
     # Finish Hbar
 
@@ -289,7 +294,7 @@ def setup_davidson(eom_dsrg):
 def setup_generalized_davidson(eom_dsrg):
     # Load Hbar
     eom_dsrg.Hbar = np.load(f'{eom_dsrg.abs_file_path}/save_Hbar.npz')
-    if eom_dsrg.method_type == 'cvs-ee':
+    if eom_dsrg.method_type == 'cvs_ee':
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
     # Finish Hbar
 
@@ -426,8 +431,8 @@ def get_templates(eom_dsrg):
     """Generate the initial and full templates based on the method type."""
     # Dictionary mapping method types to the appropriate template functions
     template_funcs = {
-        "ee": ee_eom_dsrg.get_template_c,
-        "cvs-ee": cvs_ee_eom_dsrg.get_template_c
+        "ee": ee_eom_dsrg.get_template_c if os.path.exists("ee_eom_dsrg.py") else None,
+        "cvs_ee": cvs_ee_eom_dsrg.get_template_c if os.path.exists("cvs_ee_eom_dsrg.py") else None
         # Additional mappings for other methods can be added here
     }
 
@@ -451,8 +456,8 @@ def get_sigma_build(eom_dsrg):
     """Get the appropriate sigma build functions based on the method type."""
     # Dictionary mapping method types to the appropriate sigma build functions
     sigma_funcs = {
-        "ee": ee_eom_dsrg,
-        "cvs-ee": cvs_ee_eom_dsrg
+        "ee": ee_eom_dsrg if os.path.exists("ee_eom_dsrg.py") else None,
+        "cvs_ee": cvs_ee_eom_dsrg if os.path.exists("cvs_ee_eom_dsrg.py") else None
         # Additional mappings for other methods can be added here
     }
 

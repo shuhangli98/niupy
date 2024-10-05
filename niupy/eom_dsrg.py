@@ -2,22 +2,25 @@ from niupy.eom_tools import *
 import forte
 import forte.utils
 import numpy as np
-import niupy.eom_dsrg_compute as eom_dsrg_compute
 import os
+import subprocess
 
 
 class EOM_DSRG:
     def __init__(
         self, rel_path, diag_shift=0.0,
         tol_e=1e-8, max_space=100, max_cycle=100,
-        tol_davidson=1e-5, tol_s=1e-4,
+        tol_davidson=1e-5, tol_s=1e-4, ref_sym=0,
         target_sym=0, target_spin=0, nroots=6,
         verbose=0, wfn=None, mo_spaces=None, S_12_type='compute',
-        method_type='cvs-ee', diagonal_type='block', diag_val=1.0,
+        method_type='cvs_ee', diagonal_type='block', diag_val=1.0,
         davidson_type='traditional'
     ):
         script_dir = os.getcwd()
         self.abs_file_path = os.path.join(script_dir, rel_path)
+
+        # subprocess.run(["python", f"code_generator/{method_type}.py"])
+        # subprocess.run(["sed", "-i", "-e", "s/optimize=\'optimal\'/optimize=True/g", f"{method_type}_eom_dsrg.py"])
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
@@ -42,6 +45,9 @@ class EOM_DSRG:
         self.tol_s = tol_s                  # Tolerance for the orthogonalization of excitation spaces
         self.diag_shift = diag_shift        # Shift for the diagonal of the effective Hamiltonian
         self.target_sym = target_sym
+        self.ref_sym = ref_sym
+        if self.ref_sym != 0:
+            raise NotImplementedError("Reference symmetry other than 0 is not implemented.")
         self.target_spin = target_spin
         self.diag_val = diag_val            # Diagonal value for identity preconditioner
         self.S_12_type = S_12_type          # 'compute' or 'load'
@@ -73,6 +79,7 @@ class EOM_DSRG:
         self.Mbar = [Mbar_x, Mbar_y, Mbar_z]
 
         # Initialize templates and sigma vectors
+        import niupy.eom_dsrg_compute as eom_dsrg_compute
         self.template_c, self.full_template_c = eom_dsrg_compute.get_templates(self)
         self._initialize_sigma_vectors()
 
@@ -98,13 +105,18 @@ class EOM_DSRG:
             self.occ_sym = np.array([0, 0])
             self.act_sym = np.array([0, 3])
             self.vir_sym = np.array([0, 2, 3])
-        elif method_type == 'cvs-ee':
+        elif method_type == 'cvs_ee':
             print("Running H2O/6-31g since no wfn and mo_spaces are provided.")
             # 6-31g
             self.core_sym = np.array([0])
             self.occ_sym = np.array([0, 3])
             self.act_sym = np.array([0, 0, 2, 3])
             self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
+            # Test no occ
+            # self.core_sym = np.array([0, 0, 3])
+            # self.occ_sym = np.array([])
+            # self.act_sym = np.array([0, 0, 2, 3])
+            # self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
 
     def _print_symmetry_info(self):
         print("\n")
@@ -115,6 +127,7 @@ class EOM_DSRG:
         print(f"  vir_sym: {self.vir_sym}")
 
     def _initialize_sigma_vectors(self):
+        import niupy.eom_dsrg_compute as eom_dsrg_compute
         (
             self.build_first_row,
             self.build_sigma_vector_Hbar,
@@ -127,17 +140,20 @@ class EOM_DSRG:
         ) = eom_dsrg_compute.get_sigma_build(self)
 
     def kernel(self):
+        import niupy.eom_dsrg_compute as eom_dsrg_compute
         conv, e, u, spin, osc_strength = eom_dsrg_compute.kernel(self)
+        os.remove(f"{self.method_type}_eom_dsrg.py")
+        os.remove(f"{self.method_type}_eom_dsrg.py-e")
         return conv, e, u, spin, osc_strength
 
 
 if __name__ == "__main__":
-    test = 2
+    test = 1
     if test == 1:
         # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
         rel_path = "H2O"
         eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=0.0,
-                            target_sym=0, method_type='cvs-ee', S_12_type='compute', diagonal_type='block')
+                            target_sym=0, method_type='cvs_ee', S_12_type='compute', diagonal_type='block')
         conv, e, u, spin, osc_strength = eom_dsrg.kernel()
         for idx, i_e in enumerate(e):
             if idx == 0:

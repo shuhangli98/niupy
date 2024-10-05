@@ -263,14 +263,14 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo='normal'):
             f"    nlow = X.shape[1]",
             f"    X = X.reshape(nocc, nvir, nvir, nact, nlow)",
             f"    X = np.transpose(X, axes=(*{reorder_back}, 4))",
-            f"    X = X.reshape(-1, nlow)",
+            f"    X = X.reshape(nocc*nact*nvir*nvir, nlow)",
             f"    sym_space.clear()",
             f"    S_12.append(X)",
             f"    del X",
         ])
         return code_block
 
-    def two_active_two_virtual(key): 
+    def two_active_two_virtual(key):
         # aavv, AAVV, aAvV
         code_block = [
             f"    # {key} block (two active, two virtual)",
@@ -289,21 +289,21 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo='normal'):
         else:
             anti = False
             temp_lambda = "lambda2['aAaA']"
-            
+
         code_block.extend([
             f"    anti = {anti}",
             f"    sym_space['{key}'] = sym_dict['{key}'].transpose(2,3,0,1)",
             f"    max_sym = np.max(sym_space['{key}'])",
             f"    nact, nvir = template_c['{key}'].shape[1], template_c['{key}'].shape[3]",
-            ])
+        ])
         if anti:
             code_block.extend([
-            f"    overlap = np.einsum('ar,ob->oabr', {temp_rdm}, {temp_rdm}, optimize=True)",
-            f"    overlap -= np.einsum('ab,or->oabr', {temp_rdm}, {temp_rdm}, optimize=True)",
+                f"    overlap = np.einsum('ar,ob->oabr', {temp_rdm}, {temp_rdm}, optimize=True)",
+                f"    overlap -= np.einsum('ab,or->oabr', {temp_rdm}, {temp_rdm}, optimize=True)",
             ])
         else:
             code_block.extend([
-            f"    overlap = np.einsum('ar,ob->oabr', gamma1['AA'], gamma1['aa'], optimize=True)",
+                f"    overlap = np.einsum('ar,ob->oabr', gamma1['AA'], gamma1['aa'], optimize=True)",
             ])
         code_block.extend([
             f"    overlap += {temp_lambda}",
@@ -756,16 +756,29 @@ def sym_dir(c, core_sym, occ_sym, act_sym, vir_sym):
            'v': vir_sym, 'V': vir_sym, 'i': core_sym, 'I': core_sym}
     for key in c.keys():
         if len(key) == 2:
-            out_dir[key] = dir[key[0]][:, None] ^ dir[key[1]][None, :]
+            if len(dir[key[0]]) == 0 or len(dir[key[1]]) == 0:
+                out_dir[key] = np.zeros_like(c[key])
+            else:
+                out_dir[key] = dir[key[0]][:, None] ^ dir[key[1]][None, :]
         elif len(key) == 4:
-            out_dir[key] = dir[key[0]][:, None, None, None] ^ dir[key[1]][None, :, None,
-                                                                          None] ^ dir[key[2]][None, None, :, None] ^ dir[key[3]][None, None, None, :]
+            if len(dir[key[0]]) == 0 or len(dir[key[1]]) == 0 or len(dir[key[2]]) == 0 or len(dir[key[3]]) == 0:
+                out_dir[key] = np.zeros_like(c[key])
+            else:
+                out_dir[key] = dir[key[0]][:, None, None, None] ^ dir[key[1]][None, :, None,
+                                                                              None] ^ dir[key[2]][None, None, :, None] ^ dir[key[3]][None, None, None, :]
         else:
             out_dir[key] = np.array([0])  # First
     return out_dir
 
 
 def slice_H_core(Hbar_old, core_sym, occ_sym):
+    # if len(core_sym) == 0:
+    #     raise ValueError("No core orbitals found.")
+    # elif len(occ_sym) == 0:
+    #     print("No occupied orbitals. Just change 'C' to 'I' and 'c' to 'i'.")
+    #     Hbar = {key.replace("c", "i").replace("C", "I"): value for key, value in Hbar_old.items()}
+    #     return Hbar
+
     # Combine and sort all orbitals by symmetry to get the correct order
     all_orbitals = np.sort(np.concatenate((core_sym, occ_sym)))
 
