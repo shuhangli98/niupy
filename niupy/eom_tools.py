@@ -890,3 +890,13 @@ def orthonormalize(vectors, num_orthonormals=1, eps=1e-6):
         ortho_normals[:, count_orthonormals] = vector_i / np.linalg.norm(vector_i)
         count_orthonormals += 1
     return ortho_normals[:, :count_orthonormals]
+
+
+def filter_list(element_list, ncore, nocc, nact, nvir):
+    return [
+        element for element in element_list
+        if (ncore != 0 or ('i' not in element and 'I' not in element)) and
+        (nocc != 0 or ('c' not in element and 'C' not in element)) and
+        (nact != 0 or ('a' not in element and 'A' not in element)) and
+        (nvir != 0 or ('v' not in element and 'V' not in element))
+    ]

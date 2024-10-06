@@ -4,6 +4,7 @@ import forte.utils
 import numpy as np
 import os
 import subprocess
+from code_generator import cvs_ee, ee
 
 
 class EOM_DSRG:
@@ -16,11 +17,6 @@ class EOM_DSRG:
         method_type='cvs_ee', diagonal_type='block', diag_val=1.0,
         davidson_type='traditional'
     ):
-        script_dir = os.getcwd()
-        self.abs_file_path = os.path.join(script_dir, rel_path)
-
-        # subprocess.run(["python", f"code_generator/{method_type}.py"])
-        # subprocess.run(["sed", "-i", "-e", "s/optimize=\'optimal\'/optimize=True/g", f"{method_type}_eom_dsrg.py"])
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
@@ -33,6 +29,24 @@ class EOM_DSRG:
         self.nocc = len(self.occ_sym)
         self.nact = len(self.act_sym)
         self.nvir = len(self.vir_sym)
+
+        script_dir = os.getcwd()
+        self.abs_file_path = os.path.join(script_dir, rel_path)
+
+        package_dir = os.path.dirname(os.path.abspath(__file__))
+        print(f"Package directory: {package_dir}")
+        # code_generator_dir = os.path.join(package_dir, 'code_generator')
+
+        if method_type == 'cvs_ee':
+            cvs_ee.generator(self.ncore, self.nocc, self.nact, self.nvir)
+        elif method_type == 'ee':
+            ee.generator(self.ncore, self.nocc, self.nact, self.nvir)
+        else:
+            raise ValueError(f"Method type {method_type} not supported.")
+
+        # subprocess.run(["python", os.path.join(code_generator_dir, f"{method_type}.py")])
+        subprocess.run(["sed", "-i", "-e", "s/optimize=\'optimal\'/optimize=True/g",
+                       os.path.join(package_dir, f"{method_type}_eom_dsrg.py")])
 
         self.method_type = method_type
         self.diagonal_type = diagonal_type  # 'exact', 'block' or 'load'
@@ -80,7 +94,8 @@ class EOM_DSRG:
 
         # Initialize templates and sigma vectors
         import niupy.eom_dsrg_compute as eom_dsrg_compute
-        self.template_c, self.full_template_c = eom_dsrg_compute.get_templates(self)
+        self.eom_dsrg_compute = eom_dsrg_compute
+        self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(self)
         self._initialize_sigma_vectors()
 
         # Generate symmetry information
@@ -127,7 +142,6 @@ class EOM_DSRG:
         print(f"  vir_sym: {self.vir_sym}")
 
     def _initialize_sigma_vectors(self):
-        import niupy.eom_dsrg_compute as eom_dsrg_compute
         (
             self.build_first_row,
             self.build_sigma_vector_Hbar,
@@ -137,18 +151,17 @@ class EOM_DSRG:
             self.compute_preconditioner_exact,
             self.compute_preconditioner_block,
             self.compute_preconditioner_only_H
-        ) = eom_dsrg_compute.get_sigma_build(self)
+        ) = self.eom_dsrg_compute.get_sigma_build(self)
 
     def kernel(self):
-        import niupy.eom_dsrg_compute as eom_dsrg_compute
-        conv, e, u, spin, osc_strength = eom_dsrg_compute.kernel(self)
+        conv, e, u, spin, osc_strength = self.eom_dsrg_compute.kernel(self)
         os.remove(f"{self.method_type}_eom_dsrg.py")
         os.remove(f"{self.method_type}_eom_dsrg.py-e")
         return conv, e, u, spin, osc_strength
 
 
 if __name__ == "__main__":
-    test = 1
+    test = 2
     if test == 1:
         # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
         rel_path = "H2O"
