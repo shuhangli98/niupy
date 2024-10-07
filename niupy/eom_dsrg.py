@@ -4,7 +4,7 @@ import forte.utils
 import numpy as np
 import os
 import subprocess
-from code_generator import cvs_ee, ee
+from niupy.code_generator import cvs_ee, ee
 
 
 class EOM_DSRG:
