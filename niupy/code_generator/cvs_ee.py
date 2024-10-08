@@ -4,7 +4,7 @@ import os
 from niupy.eom_tools import *
 
 
-def generator(ncore, nocc, nact, nvir):
+def generator(abs_path, ncore, nocc, nact, nvir):
     w.reset_space()
     # alpha
     w.add_space('i', 'fermion', 'occupied', list('cdij'))
@@ -107,12 +107,13 @@ def generator(ncore, nocc, nact, nvir):
     funct_preconditioner_block = generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='block')
     funct_preconditioner_only_H = generate_preconditioner(mbeq, block_list, None)
 
-    script_dir = os.path.dirname(__file__)
-    rel_path = "../cvs_ee_eom_dsrg.py"
-    abs_file_path = os.path.join(script_dir, rel_path)
-    print(f"Code generator: Writing to {abs_file_path}")
+    # script_dir = os.path.dirname(__file__)
+    # rel_path = "../cvs_ee_eom_dsrg.py"
+    # abs_file_path = os.path.join(script_dir, rel_path)
+    # print(f"Code generator: Writing to {abs_file_path}")
+    print(f"Code generator: Writing to {abs_path}")
 
-    with open(abs_file_path, 'w') as f:
+    with open(os.path.join(abs_path, 'cvs_ee_eom_dsrg.py'), 'w') as f:
         f.write('import numpy as np\nimport scipy\nimport time\n\nfrom niupy.eom_tools import *\n\n')
         f.write(f'{func_template_c}\n\n')
         f.write(f'{funct_S_12}\n\n')

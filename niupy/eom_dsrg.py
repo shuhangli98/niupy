@@ -38,15 +38,15 @@ class EOM_DSRG:
         # code_generator_dir = os.path.join(package_dir, 'code_generator')
 
         if method_type == 'cvs_ee':
-            cvs_ee.generator(self.ncore, self.nocc, self.nact, self.nvir)
+            cvs_ee.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         elif method_type == 'ee':
-            ee.generator(self.ncore, self.nocc, self.nact, self.nvir)
+            ee.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         else:
             raise ValueError(f"Method type {method_type} not supported.")
 
         # subprocess.run(["python", os.path.join(code_generator_dir, f"{method_type}.py")])
         subprocess.run(["sed", "-i", "-e", "s/optimize=\'optimal\'/optimize=True/g",
-                       os.path.join(package_dir, f"{method_type}_eom_dsrg.py")])
+                       os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py")])
 
         self.method_type = method_type
         self.diagonal_type = diagonal_type  # 'exact', 'block' or 'load'
