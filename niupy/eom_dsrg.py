@@ -9,7 +9,7 @@ from niupy.code_generator import cvs_ee, ee
 
 class EOM_DSRG:
     def __init__(
-        self, rel_path, diag_shift=0.0,
+        self, diag_shift=0.0,
         tol_e=1e-8, max_space=100, max_cycle=100,
         tol_davidson=1e-5, tol_s=1e-4, ref_sym=0,
         target_sym=0, target_spin=0, nroots=6,
@@ -30,11 +30,10 @@ class EOM_DSRG:
         self.nact = len(self.act_sym)
         self.nvir = len(self.vir_sym)
 
-        script_dir = os.getcwd()
-        self.abs_file_path = os.path.join(script_dir, rel_path)
+        self.abs_file_path = os.getcwd()
 
-        package_dir = os.path.dirname(os.path.abspath(__file__))
-        print(f"Package directory: {package_dir}")
+        # package_dir = os.path.dirname(os.path.abspath(__file__))
+        # print(f"Package directory: {package_dir}")
         # code_generator_dir = os.path.join(package_dir, 'code_generator')
 
         if method_type == 'cvs_ee':
@@ -155,51 +154,13 @@ class EOM_DSRG:
 
     def kernel(self):
         conv, e, u, spin, osc_strength = self.eom_dsrg_compute.kernel(self)
-        os.remove(f"{self.method_type}_eom_dsrg.py")
-        os.remove(f"{self.method_type}_eom_dsrg.py-e")
+        if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
+            os.remove(f"{self.method_type}_eom_dsrg.py")
+        if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
+            os.remove(f"{self.method_type}_eom_dsrg.py-e")
         return conv, e, u, spin, osc_strength
 
 
-if __name__ == "__main__":
-    test = 2
-    if test == 1:
-        # Hbar, gamma1, eta1, lambda2, lambda3, Mbar, Mbar0 = load_data("H2O")
-        rel_path = "H2O"
-        eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=0.0,
-                            target_sym=0, method_type='cvs_ee', S_12_type='compute', diagonal_type='block')
-        conv, e, u, spin, osc_strength = eom_dsrg.kernel()
-        for idx, i_e in enumerate(e):
-            if idx == 0:
-                print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}")
-            else:
-                print(f"Root {idx}: {i_e - e[0]} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
-    # No double core excitations
-    # Root 0: 0.0 Hartree, spin: Singlet
-    # Root 1: 19.85801514477547 Hartree, spin: Triplet, osc_strength: 8.882149755332066e-15
-    # Root 2: 19.884122785946218 Hartree, spin: Singlet, osc_strength: 0.02027260029312239
-
-    # With double core excitations
-    # Root 0: 0.0 Hartree, spin: Singlet
-    # Root 1: 19.854612955616954 Hartree, spin: Triplet, osc_strength: 7.248369755169807e-15
-    # Root 2: 19.879440526237317 Hartree, spin: Singlet, osc_strength: 0.020285277724225313
-
-    elif test == 2:
-        E_dsrg = -15.519065306930223
-        rel_path = "BeH2"
-        eom_dsrg = EOM_DSRG(rel_path, nroots=3, verbose=5, max_cycle=100, diag_shift=0.0,
-                            target_sym=0, method_type='ee', S_12_type='compute', diagonal_type='block')
-        conv, e, u, spin, osc_strength = eom_dsrg.kernel()
-        for idx, i_e in enumerate(e):
-            if idx == 0:
-                print(f"Root {idx}: {E_dsrg + i_e} Hartree, spin: {spin[idx]}")
-            else:
-                print(f"Root {idx}: {E_dsrg + i_e} Hartree, spin: {spin[idx]}, osc_strength: {osc_strength[idx-1]}")
-    # FCI:
-    #    1  (  0)    A1     0      -15.544622645426
-    #    1  (  0)    A1     1      -15.453709007251
-    #    3  (  0)    A1     0      -15.334306997166
-    # Triplet: 0.21031564826
-    # EOM-DSRG
-    # Root 0: -15.550422940063548 Hartree, spin: Singlet
-    # Root 1: -15.451156399443176 Hartree, spin: Singlet, osc_strength: 0.08834625738516885
-    # Root 2: -15.33137465899508 Hartree, spin: Triplet, osc_strength: 7.482424052300513e-14
+# if __name__ == "__main__":
+#     test = 1
+#     if test == 1:
