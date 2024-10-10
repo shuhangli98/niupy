@@ -9,7 +9,7 @@ from niupy.code_generator import cvs_ee, ee
 
 class EOM_DSRG:
     def __init__(
-        self, diag_shift=0.0,
+        self, diag_shift=0.0, opt_einsum=True, einsum_type='greedy',
         tol_e=1e-8, max_space=100, max_cycle=100,
         tol_davidson=1e-5, tol_s=1e-4, ref_sym=0,
         target_sym=0, target_spin=0, nroots=6,
@@ -43,10 +43,16 @@ class EOM_DSRG:
         else:
             raise ValueError(f"Method type {method_type} not supported.")
 
-        # subprocess.run(["python", os.path.join(code_generator_dir, f"{method_type}.py")])
-        subprocess.run(["sed", "-i", "-e", "s/optimize=\'optimal\'/optimize=True/g",
+        subprocess.run(["sed", "-i", "-e", "s/optimize=\'optimal\'/optimize=einsum_type/g; s/np\\.einsum/einsum/g",
                        os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py")])
 
+        self.einsum_type = einsum_type
+        if opt_einsum:
+            print("Using opt_einsum...", flush=True)
+            from opt_einsum import contract
+            self.einsum = contract
+        else:
+            self.einsum = np.einsum
         self.method_type = method_type
         self.diagonal_type = diagonal_type  # 'exact', 'block' or 'load'
         self.verbose = verbose
@@ -139,6 +145,7 @@ class EOM_DSRG:
         print(f"  occ_sym: {self.occ_sym}")
         print(f"  act_sym: {self.act_sym}")
         print(f"  vir_sym: {self.vir_sym}")
+        print("\n")
 
     def _initialize_sigma_vectors(self):
         (

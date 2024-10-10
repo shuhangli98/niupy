@@ -47,7 +47,7 @@ def compile_first_row(equation, ket_name='c'):
 
 def generate_sigma_build(mbeq, matrix, first_row=True, algo='normal'):
     code = [
-        f"def build_sigma_vector_{matrix}(c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
+        f"def build_sigma_vector_{matrix}(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
         "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}"
     ]
 
@@ -95,7 +95,7 @@ def generate_template_c(block_list, ket_name='c'):
 
 
 def generate_first_row(mbeq, algo='normal'):
-    code = [f"def build_first_row(c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
+    code = [f"def build_first_row(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
             "    sigma = {key: np.zeros((1, *tensor.shape[1:])) for key, tensor in c.items() if key != 'first'}"]
     if algo == 'normal':
         for eq in mbeq['|']:
@@ -112,7 +112,7 @@ def generate_first_row(mbeq, algo='normal'):
 
 
 def generate_transition_dipole(mbeq, algo='normal'):
-    code = [f"def build_transition_dipole(c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
+    code = [f"def build_transition_dipole(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
             "    sigma = 0.0"]
     if algo == 'normal':
         for eq in mbeq['|']:
@@ -187,7 +187,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo='normal'):
     composite_space: a list of lists of strings.
     '''
     code = [
-        f"def get_S_12(template_c, gamma1, eta1, lambda2, lambda3, lambda4, sym_dict, target_sym, act_sym, tol={tol}):",
+        f"def get_S_12(einsum, einsum_type, template_c, gamma1, eta1, lambda2, lambda3, lambda4, sym_dict, target_sym, act_sym, tol={tol}):",
         "    sigma = {}",
         "    c = {}",
         "    S_12 = []",
@@ -227,7 +227,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo='normal'):
             f"    ge, gv = np.linalg.eigh({temp_rdm})",
             f"    trunc_indices = np.where(ge > tol)[0]",
             f"    gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
-            f"    rows, cols = gv_half.shape",
+            # f"    rows, cols = gv_half.shape",
             f"    for i_sym in range(max_sym+1):",
             f"        temp = {temp_rdm}.copy()",
             f"        mask = (act_sym != i_sym)",
@@ -237,6 +237,8 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo='normal'):
             f"        trunc_indices = np.where(ge > tol)[0]",
             f"        gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
             f"        gv_half_dict[i_sym] = gv_half",
+            f"    rows = gv_half.shape[0]",
+            f"    cols = max(arr.shape[1] for arr in gv_half_dict.values())",
             f"    num = nocc * nvir * nvir",
             f"    if anti:",
             f"        zero_idx = [i * nvir * nvir + a * nvir + a for i in range(nocc) for a in range(nvir)]",
@@ -316,7 +318,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo='normal'):
             f"    ge, gv = np.linalg.eigh(overlap)",
             f"    trunc_indices = np.where(ge > tol)[0]",
             f"    gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
-            f"    rows, cols = gv_half.shape",
+            # f"    rows, cols = gv_half.shape",
             f"    for i_sym in range(max_sym+1):",
             f"        temp = overlap.copy()",
             f"        mask = (tol_act_sym != i_sym)",
@@ -326,6 +328,8 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo='normal'):
             f"        trunc_indices = np.where(ge > tol)[0]",
             f"        gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
             f"        gv_half_dict[i_sym] = gv_half",
+            f"    rows = gv_half.shape[0]",
+            f"    cols = max(arr.shape[1] for arr in gv_half_dict.values())",
             f"    num = nvir * nvir",
             f"    if anti:",
             f"        zero_idx = [a * nvir + a for a in range(nvir)]",
@@ -601,7 +605,7 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
 
     if composite_space is None:
         code = [
-            f"def compute_preconditioner_only_H(template_c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
+            f"def compute_preconditioner_only_H(einsum, einsum_type, template_c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
             "    sigma = {}",
             "    c = {}",
             "    diagonal = [np.array([0.0])]",
@@ -611,7 +615,7 @@ def generate_preconditioner(mbeq, single_space, composite_space, diagonal_type='
             code.append("")  # Blank line for separation
     else:
         code = [
-            f"def compute_preconditioner_{diagonal_type}(template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
+            f"def compute_preconditioner_{diagonal_type}(einsum, einsum_type, template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
             "    sigma = {}",
             "    c = {}",
             "    diagonal = [np.array([0.0])]",
