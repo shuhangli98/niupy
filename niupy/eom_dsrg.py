@@ -17,7 +17,8 @@ class EOM_DSRG:
         max_space=100,
         max_cycle=100,
         tol_davidson=1e-5,
-        tol_s=1e-4,
+        tol_s=1e-10,
+        tol_semi=1e-6,
         ref_sym=0,
         target_sym=0,
         target_spin=0,
@@ -27,7 +28,7 @@ class EOM_DSRG:
         mo_spaces=None,
         S_12_type="compute",
         method_type="cvs_ee",
-        diagonal_type="block",
+        diagonal_type="exact",
         diag_val=1.0,
         davidson_type="traditional",
     ):
@@ -73,7 +74,7 @@ class EOM_DSRG:
 
         self.einsum_type = einsum_type
         if opt_einsum:
-            print("Using opt_einsum...", flush=True)
+            print("Using opt_einsum...")
             from opt_einsum import contract
 
             self.einsum = contract
@@ -88,6 +89,7 @@ class EOM_DSRG:
         self.tol_e = tol_e
         self.tol_davidson = tol_davidson
         self.tol_s = tol_s
+        self.tol_semi = tol_semi
         self.diag_shift = diag_shift
         self.target_sym = target_sym
         self.ref_sym = ref_sym
@@ -198,10 +200,10 @@ class EOM_DSRG:
 
     def kernel(self):
         conv, e, u, spin, osc_strength = self.eom_dsrg_compute.kernel(self)
-        if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
-            os.remove(f"{self.method_type}_eom_dsrg.py")
-        if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
-            os.remove(f"{self.method_type}_eom_dsrg.py-e")
+        # if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
+        #     os.remove(f"{self.method_type}_eom_dsrg.py")
+        # if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
+        #     os.remove(f"{self.method_type}_eom_dsrg.py-e")
         return conv, e, u, spin, osc_strength
 
 

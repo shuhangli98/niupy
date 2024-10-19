@@ -218,13 +218,18 @@ def generate_block_contraction(
     return func
 
 
-def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
+def generate_S_12(
+    mbeq, single_space, composite_space, tol=1e-10, tol_semi=1e-6, algo="normal"
+):
     """
     single_space: a list of strings.
     composite_space: a list of lists of strings.
+    tol: tolerance for truncating singular values.
+    tol_semi: tolerance for truncating singular values for semi-internals.
+    algo: normal or ee (with lambda4)
     """
     code = [
-        f"def get_S_12(einsum, einsum_type, template_c, gamma1, eta1, lambda2, lambda3, lambda4, sym_dict, target_sym, act_sym, tol={tol}):",
+        f"def get_S_12(einsum, einsum_type, template_c, gamma1, eta1, lambda2, lambda3, lambda4, sym_dict, target_sym, act_sym, tol={tol}, tol_semi={tol_semi}):",
         "    sigma = {}",
         "    c = {}",
         "    S_12 = []",
@@ -234,7 +239,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
     def one_active_two_virtual(key):
         code_block = [
             f"    # {key} block (one active, two virtual)",
-            f'    print("Starts {key} block", flush=True)',
+            f'    print("Starts {key} block")',
             "    gv_half_dict = {}",
         ]
         space_order = {}
@@ -315,7 +320,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
         # aavv, AAVV, aAvV
         code_block = [
             f"    # {key} block (two active, two virtual)",
-            f'    print("Starts {key} block", flush=True)',
+            f'    print("Starts {key} block")',
             "    gv_half_dict = {}",
         ]
 
@@ -422,7 +427,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
 
         code_block = [
             f"    # {key} block",
-            f'    print("Starts {key} block", flush=True)',
+            f'    print("Starts {key} block")',
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    shape_size = np.prod(shape_block)",
             f"    sym_space['{key}'] = sym_dict['{key}']",
@@ -446,7 +451,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
     def add_single_space_code(key):
         return [
             f"    # {key} block",
-            f'    print("Starts {key} block", flush=True)',
+            f'    print("Starts {key} block")',
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    shape_size = np.prod(shape_block)",
             f"    c['{key}'] = np.zeros((shape_size, *shape_block))",
@@ -459,7 +464,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
             f"    c = vec_to_dict(c, c_vec)",
             f"    del c_vec",
             f"    c = antisymmetrize(c)",
-            f"    print('Starts contraction', flush=True)",
+            f"    print('Starts contraction')",
             generate_block_contraction(
                 key, mbeq, block_type="single", indent="once", algo=algo
             ),
@@ -469,22 +474,23 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
             f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]",
             f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)",
             f"    vec[~mask] = 0",
-            f"    print('Starts diagonalization', flush=True)",
+            f"    print('Starts diagonalization', flush = True)",
             f"    sevals, sevecs = scipy.linalg.eigh(vec)",
             f"    del sym_vec, vec, x_index, y_index, mask",
-            f"    print('Diagonalization done', flush=True)",
+            f"    print('Diagonalization done')",
             f"    trunc_indices = np.where(sevals > tol)[0]",
             f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
             "    S_12.append(X)",
             "    del sevals, sevecs, trunc_indices, X",
         ]
 
-    def add_composite_space_code(space):
+    def add_composite_space_block(space):
         code_block = [
             f"    # {space} composite block",
-            f'    print("Starts {space} composite block", flush=True)',
+            f'    print("Starts {space} composite block")',
             f"    shape_size = 0",
         ]
+
         for key in space:
             code_block.extend(
                 [
@@ -506,7 +512,7 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
                 f"    c = vec_to_dict(c, c_vec)",
                 f"    del c_vec",
                 f"    c = antisymmetrize(c)",
-                f"    print('Starts contraction', flush=True)",
+                f"    print('Starts contraction')",
             ]
         )
         code_block.append(
@@ -522,23 +528,64 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
                 f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]",
                 f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)",
                 f"    vec[~mask] = 0",
-                f"    print('Starts diagonalization', flush=True)",
-                f"    sevals, sevecs = scipy.linalg.eigh(vec)",
-                f"    del sym_vec, vec, x_index, y_index, mask",
-                f"    print('Diagonalization done', flush=True)",
+                f"    del sym_vec, x_index, y_index, mask",
             ]
         )
-        # if space == ['aa', 'AA', 'aaaa', 'AAAA', 'aAaA']:
-        #     code_block.append(f"    trunc_indices = np.where(sevals > tol_act)[0]")
-        # else:
-        code_block.append(f"    trunc_indices = np.where(sevals > tol)[0]")
+        return code_block
+
+    def add_composite_space_code(space):
+        code_block = add_composite_space_block(space)
         code_block.extend(
             [
+                f"    print('Starts diagonalization', flush = True)",
+                f"    sevals, sevecs = scipy.linalg.eigh(vec)",
+                f"    del vec",
+                f"    print('Diagonalization done')",
+                f"    trunc_indices = np.where(sevals > tol)[0]",
                 f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
-                "    S_12.append(X)",
-                "    del sevals, sevecs, trunc_indices, X ",
+                f"    S_12.append(X)",
+                f"    del sevals, sevecs, trunc_indices, X",
             ]
         )
+        return code_block
+
+    def sequential_orthogonalization(space):
+        code_block = add_composite_space_block(space)
+        singles = []
+        for key in space:
+            if len(key) == 2:
+                singles.append(key)
+
+        code_block.extend(
+            [
+                f"    singles_size = 0",
+                f"    for key in {singles}:",
+                f"        shape_block = template_c[key].shape[1:]",
+                f"        singles_size += np.prod(shape_block)",
+                f"    S11 = vec[:singles_size, :singles_size].copy()",
+                f"    S12 = vec[:singles_size, singles_size:].copy()",
+                f"    sevals, sevecs = scipy.linalg.eigh(S11)",
+                f"    trunc_indices = np.where(sevals > tol_semi)[0]",
+                f"    S_inv_eval = 1.0/(sevals[trunc_indices])",
+                f"    sevecs = sevecs[:, trunc_indices]",
+                f"    S11inv = reduce(np.dot, (sevecs,np.diag(S_inv_eval),sevecs.T))",
+                f"    Y12 = -np.matmul(S11inv, S12)",
+                f"    Y = np.identity(vec.shape[0])",
+                f"    Y[:singles_size, singles_size:] = Y12",
+                f"    vec_proj = reduce(np.dot, (Y.T, vec, Y))",
+                f"    del vec, S11, S12, S11inv, S_inv_eval",
+                f"    print('Starts diagonalization (after projection))', flush = True)",
+                f"    sevals, sevecs = scipy.linalg.eigh(vec_proj)",
+                f"    del vec_proj",
+                f"    print('Diagonalization done')",
+                f"    trunc_indices = np.where(sevals > tol_semi)[0]",
+                f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
+                f"    X = np.matmul(Y, X)",
+                f"    S_12.append(X)",
+                f"    del sevals, sevecs, trunc_indices, X, Y, Y12",
+            ]
+        )
+
         return code_block
 
     # Add single space code blocks
@@ -563,7 +610,10 @@ def generate_S_12(mbeq, single_space, composite_space, tol=1e-4, algo="normal"):
 
     # Add composite space code blocks
     for space in composite_space:
-        code.extend(add_composite_space_code(space))
+        if any(len(key) == 2 for key in space):
+            code.extend(sequential_orthogonalization(space))
+        else:
+            code.extend(add_composite_space_code(space))
         code.append("")  # Blank line for separation
 
     code.append("    return S_12")
@@ -576,7 +626,7 @@ def generate_preconditioner(
     def add_single_space_code(key, i_key):
         return [
             f"    # {key} block",
-            f'    print("Starts {key} block precond", flush=True)',
+            f'    print("Starts {key} block precond")',
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    tensor = S_12[{i_key}]",
             f"    northo = tensor.shape[1]",
@@ -599,7 +649,7 @@ def generate_preconditioner(
     def add_code_only_H(key, i_key):
         return [
             f"    # {key} block",
-            f'    print("Starts {key} block precond", flush=True)',
+            f'    print("Starts {key} block precond")',
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    shape_size = np.prod(shape_block)",
             f"    c['{key}'] = np.zeros((shape_size, *shape_block))",
@@ -619,7 +669,7 @@ def generate_preconditioner(
     def add_composite_space_code(space, start):
         code_block = [
             f"    # {space} composite block",
-            f'    print("Starts {space} composite block precond", flush=True)',
+            f'    print("Starts {space} composite block precond")',
             f"    tensor = S_12[{start}]",
             f"    northo = tensor.shape[1]",
             f"    if northo != 0:",
@@ -642,8 +692,7 @@ def generate_preconditioner(
                     f"        vec = dict_to_vec(sigma, northo)",
                     f"        sigma.clear()",
                     f"        vmv = tensor.T @ vec",
-                    f"        diagonal.append(vmv.diagonal())",
-                    f"        del vec, vmv",
+                    f"        del vec",
                 ]
             )
         elif diagonal_type == "block":
@@ -652,7 +701,7 @@ def generate_preconditioner(
                 code_block.extend(
                     [
                         f"        # {key_space} sub-block",
-                        f'        print("Starts {key_space} sub-block precond", flush=True)',
+                        f'        print("Starts {key_space} sub-block precond")',
                         f"        shape_block = template_c['{key_space}'].shape[1:]",
                         f"        shape_size = np.prod(shape_block)",
                         f"        c['{key_space}'] = np.zeros((shape_size, *shape_block))",

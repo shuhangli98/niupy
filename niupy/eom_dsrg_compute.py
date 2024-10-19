@@ -298,6 +298,7 @@ def setup_davidson(eom_dsrg):
             eom_dsrg.target_sym,
             eom_dsrg.act_sym,
             tol=eom_dsrg.tol_s,
+            tol_semi=eom_dsrg.tol_semi,
         )
     print("Time(s) for S_12: ", time.time() - start, flush=True)
     np.savez(f"{eom_dsrg.abs_file_path}/save_S_12", *S_12)
@@ -549,6 +550,7 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
         List of initial guess vectors.
     """
     sort_ind = np.argsort(precond) if ascending else np.argsort(precond)[::-1]
+    print(f"precond:{precond[sort_ind]}")
 
     x0s = np.zeros((precond.shape[0], eom_dsrg.nroots))
     min_shape = min(precond.shape[0], eom_dsrg.nroots)
