@@ -550,7 +550,8 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
         List of initial guess vectors.
     """
     sort_ind = np.argsort(precond) if ascending else np.argsort(precond)[::-1]
-    print(f"precond:{precond[sort_ind]}")
+    # print(f"precond:{precond[sort_ind]}")
+    print(f"length of precond: {len(precond)}")
 
     x0s = np.zeros((precond.shape[0], eom_dsrg.nroots))
     min_shape = min(precond.shape[0], eom_dsrg.nroots)

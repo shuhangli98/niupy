@@ -49,7 +49,7 @@ class EOM_DSRG:
 
         # package_dir = os.path.dirname(os.path.abspath(__file__))
         # print(f"Package directory: {package_dir}")
-        # code_generator_dir = os.path.join(package_dir, 'code_generator')
+        # code_generator_dir = os.path.join(package_dir, "code_generator")
 
         if method_type == "cvs_ee":
             cvs_ee.generator(
@@ -110,10 +110,8 @@ class EOM_DSRG:
         self.eta1 = np.load(f"{self.abs_file_path}/save_eta1.npz")
         self.lambda2 = np.load(f"{self.abs_file_path}/save_lambda2.npz")
         self.lambda3 = np.load(f"{self.abs_file_path}/save_lambda3.npz")
-        if method_type == "ee":
-            self.lambda4 = np.load(f"{self.abs_file_path}/save_lambda4.npz")
-        else:
-            self.lambda4 = None
+        self.lambda4 = np.load(f"{self.abs_file_path}/save_lambda4.npz")
+
         # self.Hbar = np.load(f'{self.abs_file_path}/save_Hbar.npz')
         self.Mbar0 = np.load(f"{self.abs_file_path}/Mbar0.npy")
         Mbar1_x = np.load(f"{self.abs_file_path}/Mbar1_0.npz")

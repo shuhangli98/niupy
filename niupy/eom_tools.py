@@ -53,10 +53,11 @@ def generate_sigma_build(mbeq, matrix, first_row=True, algo="normal"):
 
     for eq in mbeq["|"]:
         if algo == "normal":
-            if not any(
-                t.label() in ["lambda4", "lambda5", "lambda6"]
-                for t in eq.rhs().tensors()
-            ):
+            # if not any(
+            #     t.label() in ["lambda4", "lambda5", "lambda6"]
+            #     for t in eq.rhs().tensors()
+            # ):
+            if True:
                 code.append(f"    {compile_sigma_vector(eq)}")
         elif algo == "ee":
             if not any(t.label() in ["lambda5", "lambda6"] for t in eq.rhs().tensors()):
@@ -66,7 +67,10 @@ def generate_sigma_build(mbeq, matrix, first_row=True, algo="normal"):
         code.extend(
             [
                 "    for key in first_row.keys():",
-                "        tmp = first_row[key] * c['first'][..., np.newaxis]",
+                "        if len(key) == 2:",
+                "            tmp = first_row[key] * c['first'][:, :, np.newaxis]",
+                "        elif len(key) == 4:",
+                "            tmp = first_row[key] * c['first'][:, :, np.newaxis, np.newaxis, np.newaxis]",
                 "        sigma[key] += tmp",
                 "    c_vec = dict_to_vec(c, c[list(c.keys())[0]].shape[0])",
                 "    first_row_vec = dict_to_vec(first_row, 1)",
@@ -112,14 +116,16 @@ def generate_first_row(mbeq, algo="normal"):
     ]
     if algo == "normal":
         for eq in mbeq["|"]:
-            if not any(
-                t.label() in ["lambda4", "lambda5", "lambda6"]
-                for t in eq.rhs().tensors()
-            ):
+            # if not any(
+            #     t.label() in ["lambda4", "lambda5", "lambda6"]
+            #     for t in eq.rhs().tensors()
+            # ):
+            if True:
                 code.append(f"    {compile_first_row(eq, ket_name='c')}")
     elif algo == "ee":
         for eq in mbeq["|"]:
-            if not any(t.label() in ["lambda5", "lambda6"] for t in eq.rhs().tensors()):
+            # if not any(t.label() in ["lambda5", "lambda6"] for t in eq.rhs().tensors()):
+            if True:
                 code.append(f"    {compile_first_row(eq, ket_name='c')}")
 
     code.append("    return sigma")
@@ -134,14 +140,16 @@ def generate_transition_dipole(mbeq, algo="normal"):
     ]
     if algo == "normal":
         for eq in mbeq["|"]:
-            if not any(
-                t.label() in ["lambda4", "lambda5", "lambda6"]
-                for t in eq.rhs().tensors()
-            ):
+            # if not any(
+            #     t.label() in ["lambda4", "lambda5", "lambda6"]
+            #     for t in eq.rhs().tensors()
+            # ):
+            if True:
                 code.append(f"    {w.compile_einsum(eq)}")
     elif algo == "ee":
         for eq in mbeq["|"]:
-            if not any(t.label() in ["lambda5", "lambda6"] for t in eq.rhs().tensors()):
+            # if not any(t.label() in ["lambda5", "lambda6"] for t in eq.rhs().tensors()):
+            if True:
                 code.append(f"    {w.compile_einsum(eq)}")
 
     code.append("    return sigma")
@@ -187,9 +195,10 @@ def generate_block_contraction(
         correct_contraction = False
         rhs = eq.rhs()
         for t in rhs.tensors():
-            if (
-                t.label() in ["lambda4", "lambda5", "lambda6"] and algo == "normal"
-            ) or (t.label() in ["lambda5", "lambda6"] and algo == "ee"):
+            # if (
+            #     t.label() in ["lambda4", "lambda5", "lambda6"] and algo == "normal"
+            # ) or (t.label() in ["lambda5", "lambda6"] and algo == "ee"):
+            if False:
                 no_print = True
                 break
             elif t.label() == bra_name:
@@ -550,6 +559,7 @@ def generate_S_12(
         return code_block
 
     def sequential_orthogonalization(space):
+        # Singles first.
         code_block = add_composite_space_block(space)
         singles = []
         for key in space:

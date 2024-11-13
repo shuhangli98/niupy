@@ -39,6 +39,16 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
 
+    s_comm = ["a+ a+ a i", "A+ A+ A I", "a+ A+ a I", "a+ A+ A i"]
+    for i in s_comm:
+        s.remove(i)
+
+    T_comm_adj = w.op("bra", s_comm, unique=True).adjoint()
+    T_comm = w.op("c", s_comm, unique=True)
+
+    T_original_adj = w.op("bra", s, unique=True).adjoint()
+    T_original = w.op("c", s, unique=True)
+
     # Define subspaces. Single first!
     S_half_0 = [
         "iv",
@@ -52,7 +62,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         "iivv",
         "iIvV",
         "IIVV",
-    ]
+    ]  #        "iv", "IV"
     S_half_1 = [
         "icva",
         "iCvA",
@@ -70,8 +80,9 @@ def generator(abs_path, ncore, nocc, nact, nvir):
 
     S_half_0_com_iv = ["iava", "iAvA"]
     S_half_0_com_IV = ["aIaV", "IAVA"]
-    S_half_1_com_i = ["ia", "iaaa", "iAaA"]
-    S_half_1_com_I = ["IA", "aIaA", "IAAA"]
+
+    S_half_1_com_i = ["ia", "iaaa", "iAaA"]  # ia
+    S_half_1_com_I = ["IA", "aIaA", "IAAA"]  # IA
 
     S_half_0 = filter_list(S_half_0, ncore, nocc, nact, nvir)
     S_half_1 = filter_list(S_half_1, ncore, nocc, nact, nvir)
@@ -129,7 +140,15 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     func_template_c = generate_template_c(block_list)
 
     # Hbar
-    THT = T_adj @ Hbar_op @ T
+    THT_comm = w.rational(1, 2) * (
+        T_comm_adj @ w.commutator(Hbar_op, T_comm)
+        + w.commutator(T_comm_adj, Hbar_op) @ T_comm
+    )
+    THT_original = T_original_adj @ Hbar_op @ T_original
+    THT_coupling = T_original_adj @ Hbar_op @ T_comm
+    THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
+    THT = THT_comm + THT_original + THT_coupling + THT_coupling_2
+    # THT = T_adj @ Hbar_op @ T
     expr = wt.contract(THT, 0, 0, inter_general=True)
     mbeq = expr.to_manybody_equation("sigma")
 
