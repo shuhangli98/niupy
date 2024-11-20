@@ -7,12 +7,10 @@ from niupy.eom_tools import *
 def generator(abs_path, ncore, nocc, nact, nvir):
     w.reset_space()
     # alpha
-    w.add_space("i", "fermion", "occupied", list("cdij"))
     w.add_space("c", "fermion", "occupied", list("klmn"))
     w.add_space("v", "fermion", "unoccupied", list("efgh"))
     w.add_space("a", "fermion", "general", list("oabrstuvwxyz"))
     # #Beta
-    w.add_space("I", "fermion", "occupied", list("CDIJ"))
     w.add_space("C", "fermion", "occupied", list("KLMN"))
     w.add_space("V", "fermion", "unoccupied", list("EFGH"))
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
@@ -21,17 +19,11 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     # Define operators
     s = []
 
-    for i in itertools.product(["v+", "a+"], ["i"]):
+    for i in itertools.product(["a", "c"]):
         s.append(" ".join(i))
-    for i in itertools.product(["V+", "A+"], ["I"]):
+    for i in itertools.product(["a+", "v+"], ["a", "c"], ["a", "c"]):
         s.append(" ".join(i))
-    for i in itertools.product(["v+", "a+"], ["v+", "a+"], ["a", "c", "i"], ["i"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["V+", "A+"], ["V+", "A+"], ["A", "C", "I"], ["I"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["v+", "a+"], ["V+", "A+"], ["a", "c", "i"], ["I"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["v+", "a+"], ["V+", "A+"], ["A", "C", "I"], ["i"]):
+    for i in itertools.product(["A+", "V+"], ["a", "c"], ["A", "C"]):
         s.append(" ".join(i))
 
     s = filter_list(s, ncore, nocc, nact, nvir)
@@ -39,7 +31,8 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
 
-    s_comm = ["a+ a+ a i", "A+ A+ A I", "a+ A+ a I", "a+ A+ A i"]
+    s_comm = ["a+ a a", "A+ a A"]
+
     for i in s_comm:
         s.remove(i)
 
@@ -51,87 +44,50 @@ def generator(abs_path, ncore, nocc, nact, nvir):
 
     # Define subspaces. Single first!
     S_half_0 = [
-        "iv",
-        "IV",
-        "iAaV",
-        "aIvA",
-        "icvv",
-        "iCvV",
-        "cIvV",
-        "ICVV",
-        "iivv",
-        "iIvV",
-        "IIVV",
-    ]  #        "iv", "IV"
-    S_half_1 = [
-        "icva",
-        "iCvA",
-        "iCaV",
-        "cIvA",
-        "cIaV",
-        "ICVA",
-        "iiva",
-        "iIvA",
-        "iIaV",
-        "IIVA",
+        "c",
+        "ccv",
+        "caa",
+        "cAA",
+        "cCV",
+        "aCA",
     ]
-    S_half_minus_1 = ["iavv", "iAvV", "aIvV", "IAVV"]
-    S_half_2 = ["icaa", "iCaA", "cIaA", "ICAA", "iiaa", "iIaA", "IIAA"]
+    S_half_1 = [
+        "cca",
+        "cCA",
+    ]
+    S_half_minus_1 = ["cav", "cAV", "aCV", "aAV"]
+    S_half_minus_2 = ["aav"]
 
-    S_half_0_com_iv = ["iava", "iAvA"]
-    S_half_0_com_IV = ["aIaV", "IAVA"]
-
-    S_half_1_com_i = ["ia", "iaaa", "iAaA"]  # ia
-    S_half_1_com_I = ["IA", "aIaA", "IAAA"]  # IA
+    S_half_minus_1_com = ["a", "aaa", "aAA"]
 
     S_half_0 = filter_list(S_half_0, ncore, nocc, nact, nvir)
     S_half_1 = filter_list(S_half_1, ncore, nocc, nact, nvir)
     S_half_minus_1 = filter_list(S_half_minus_1, ncore, nocc, nact, nvir)
-    S_half_2 = filter_list(S_half_2, ncore, nocc, nact, nvir)
-
-    S_half_0_com_iv = filter_list(S_half_0_com_iv, ncore, nocc, nact, nvir)
-    S_half_0_com_IV = filter_list(S_half_0_com_IV, ncore, nocc, nact, nvir)
-    S_half_1_com_i = filter_list(S_half_1_com_i, ncore, nocc, nact, nvir)
-    S_half_1_com_I = filter_list(S_half_1_com_I, ncore, nocc, nact, nvir)
+    S_half_minus_2 = filter_list(S_half_minus_2, ncore, nocc, nact, nvir)
+    S_half_minus_1_com = filter_list(S_half_minus_1_com, ncore, nocc, nact, nvir)
 
     block_list = (
-        S_half_0
-        + S_half_1
-        + S_half_minus_1
-        + S_half_2
-        + S_half_0_com_iv
-        + S_half_0_com_IV
-        + S_half_1_com_i
-        + S_half_1_com_I
+        S_half_0 + S_half_1 + S_half_minus_1 + S_half_minus_2 + S_half_minus_1_com
     )
-    single_space = S_half_0 + S_half_1 + S_half_minus_1 + S_half_2
-    composite_space = [S_half_0_com_iv, S_half_0_com_IV, S_half_1_com_i, S_half_1_com_I]
+    single_space = S_half_0 + S_half_1 + S_half_minus_1 + S_half_minus_2
+    composite_space = [S_half_minus_1_com]
 
     # Define Hbar
     Hops = []
-    for i in itertools.product(["v+", "a+", "c+", "i+"], ["v", "a", "c", "i"]):
+    for i in itertools.product(["v+", "a+", "c+"], ["v", "a", "c"]):
         Hops.append(" ".join(i))
-    for i in itertools.product(["V+", "A+", "C+", "I+"], ["V", "A", "C", "I"]):
+    for i in itertools.product(["V+", "A+", "C+"], ["V", "A", "C"]):
         Hops.append(" ".join(i))
     for i in itertools.product(
-        ["v+", "a+", "c+", "i+"],
-        ["v+", "a+", "c+", "i+"],
-        ["v", "a", "c", "i"],
-        ["v", "a", "c", "i"],
+        ["v+", "a+", "c+"], ["v+", "a+", "c+"], ["v", "a", "c"], ["v", "a", "c"]
     ):
         Hops.append(" ".join(i))
     for i in itertools.product(
-        ["V+", "A+", "C+", "I+"],
-        ["V+", "A+", "C+", "I+"],
-        ["V", "A", "C", "I"],
-        ["V", "A", "C", "I"],
+        ["V+", "A+", "C+"], ["V+", "A+", "C+"], ["V", "A", "C"], ["V", "A", "C"]
     ):
         Hops.append(" ".join(i))
     for i in itertools.product(
-        ["v+", "a+", "c+", "i+"],
-        ["V+", "A+", "C+", "I+"],
-        ["v", "a", "c", "i"],
-        ["V", "A", "C", "I"],
+        ["v+", "a+", "c+"], ["V+", "A+", "C+"], ["v", "a", "c"], ["V", "A", "C"]
     ):
         Hops.append(" ".join(i))
     Hbar_op = w.op("Hbar", Hops, unique=True)
@@ -167,23 +123,30 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     funct_s = generate_sigma_build(mbeq_s, "s")  # SC
     funct_first = generate_first_row(mbeq_first)  # First row/column
     funct_dipole = generate_transition_dipole(mbeq_first)
-    funct_S12 = generate_S12(mbeq_s, single_space, composite_space)
-    funct_preconditioner = generate_preconditioner(
+    funct_S_12 = generate_S_12(mbeq_s, single_space, composite_space)
+    funct_preconditioner_exact = generate_preconditioner(
         mbeq, single_space, composite_space, diagonal_type="exact"
     )
+    funct_preconditioner_block = generate_preconditioner(
+        mbeq, single_space, composite_space, diagonal_type="block"
+    )
+    funct_preconditioner_only_H = generate_preconditioner(mbeq, block_list, None)
+
     # script_dir = os.path.dirname(__file__)
     # rel_path = "../cvs_ee_eom_dsrg.py"
     # abs_file_path = os.path.join(script_dir, rel_path)
     # print(f"Code generator: Writing to {abs_file_path}")
     print(f"Code generator: Writing to {abs_path}")
 
-    with open(os.path.join(abs_path, "cvs_ee_eom_dsrg.py"), "w") as f:
+    with open(os.path.join(abs_path, "ip_eom_dsrg.py"), "w") as f:
         f.write(
             "import numpy as np\nimport scipy\nimport time\n\nfrom functools import reduce\n\nfrom niupy.eom_tools import *\n\n"
         )
         f.write(f"{func_template_c}\n\n")
-        f.write(f"{funct_S12}\n\n")
-        f.write(f"{funct_preconditioner}\n\n")
+        f.write(f"{funct_S_12}\n\n")
+        f.write(f"{funct_preconditioner_exact}\n\n")
+        f.write(f"{funct_preconditioner_block}\n\n")
+        f.write(f"{funct_preconditioner_only_H}\n\n")
         f.write(f"{funct}\n\n")
         f.write(f"{funct_s}\n\n")
         f.write(f"{funct_first}\n\n")

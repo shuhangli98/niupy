@@ -4,13 +4,12 @@ import forte.utils
 import numpy as np
 import os
 import subprocess
-from niupy.code_generator import cvs_ee, ee
+from niupy.code_generator import cvs_ee, ee, ip
 
 
 class EOM_DSRG:
     def __init__(
         self,
-        diag_shift=0.0,
         opt_einsum=True,
         einsum_type="greedy",
         tol_e=1e-8,
@@ -20,16 +19,11 @@ class EOM_DSRG:
         tol_s=1e-10,
         tol_semi=1e-6,
         ref_sym=0,
-        target_sym=0,
-        target_spin=0,
         nroots=6,
-        verbose=0,
         wfn=None,
         mo_spaces=None,
-        S_12_type="compute",
+        diagonal_type="compute",
         method_type="cvs_ee",
-        diagonal_type="exact",
-        diag_val=1.0,
         davidson_type="traditional",
     ):
 
@@ -56,11 +50,16 @@ class EOM_DSRG:
                 self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
             )
         elif method_type == "ee":
-            ee.generator(
+            raise NotImplementedError("EE-EOM-DSRG has been disabled.")
+            # ee.generator(
+            #     self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            # )
+        elif method_type == "ip":
+            ip.generator(
                 self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
             )
         else:
-            raise ValueError(f"Method type {method_type} not supported.")
+            raise ValueError(f"Method type {method_type} is not supported.")
 
         subprocess.run(
             [
@@ -80,9 +79,10 @@ class EOM_DSRG:
             self.einsum = contract
         else:
             self.einsum = np.einsum
+
         self.method_type = method_type
-        self.diagonal_type = diagonal_type  # 'exact', 'block' or 'load'
-        self.verbose = verbose
+        self.diagonal_type = diagonal_type  # "compute" or "load"
+        self.davidson_type = davidson_type  # 'traditional' or 'generalized'
         self.nroots = nroots
         self.max_space = max_space
         self.max_cycle = max_cycle
@@ -90,21 +90,15 @@ class EOM_DSRG:
         self.tol_davidson = tol_davidson
         self.tol_s = tol_s
         self.tol_semi = tol_semi
-        self.diag_shift = diag_shift
-        self.target_sym = target_sym
         self.ref_sym = ref_sym
         if self.ref_sym != 0:
             raise NotImplementedError(
                 "Reference symmetry other than 0 is not implemented."
             )
-        self.target_spin = target_spin
-        self.diag_val = diag_val  # Diagonal value for identity preconditioner
-        self.S_12_type = S_12_type  # 'compute' or 'load'
-        self.davidson_type = davidson_type  # 'traditional' or 'generalized'
 
-        if self.diagonal_type == "load":
-            self.S_12_type = "load"
+        self.S12 = lambda: None
 
+        # SL: A new function?
         # Set Hamiltonian and RDMs
         self.gamma1 = np.load(f"{self.abs_file_path}/save_gamma1.npz")
         self.eta1 = np.load(f"{self.abs_file_path}/save_eta1.npz")
@@ -190,21 +184,14 @@ class EOM_DSRG:
             self.build_sigma_vector_Hbar,
             self.build_sigma_vector_s,
             self.build_transition_dipole,
-            self.get_S_12,
-            self.compute_preconditioner_exact,
-            self.compute_preconditioner_block,
-            self.compute_preconditioner_only_H,
+            self.get_S12,
+            self.compute_preconditioner,
         ) = self.eom_dsrg_compute.get_sigma_build(self)
 
     def kernel(self):
         conv, e, u, spin, osc_strength = self.eom_dsrg_compute.kernel(self)
-        # if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
-        #     os.remove(f"{self.method_type}_eom_dsrg.py")
-        # if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
-        #     os.remove(f"{self.method_type}_eom_dsrg.py-e")
+        if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
+            os.remove(f"{self.method_type}_eom_dsrg.py")
+        if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
+            os.remove(f"{self.method_type}_eom_dsrg.py-e")
         return conv, e, u, spin, osc_strength
-
-
-# if __name__ == "__main__":
-#     test = 1
-#     if test == 1:

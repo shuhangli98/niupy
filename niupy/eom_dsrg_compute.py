@@ -6,6 +6,10 @@ if os.path.exists("cvs_ee_eom_dsrg.py"):
 if os.path.exists("ee_eom_dsrg.py"):
     print("Importing ee_eom_dsrg")
     import ee_eom_dsrg
+if os.path.exists("ip_eom_dsrg.py"):
+    print("Importing ip_eom_dsrg")
+    import ip_eom_dsrg
+
 import numpy as np
 import copy
 from niupy.eom_tools import (
@@ -13,7 +17,6 @@ from niupy.eom_tools import (
     vec_to_dict,
     antisymmetrize,
     slice_H_core,
-    is_antisymmetric,
 )
 from pyscf import lib
 import time
@@ -41,7 +44,7 @@ def kernel(eom_dsrg):
 
     # Setup Davidson algorithm
     if eom_dsrg.davidson_type == "traditional":
-        apply_M, precond, x0, nop, S_12 = setup_davidson(eom_dsrg)
+        apply_M, precond, x0, nop = setup_davidson(eom_dsrg)
         print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
         # Davidson algorithm
         conv, e, u = davidson(
@@ -59,26 +62,6 @@ def kernel(eom_dsrg):
         # Get spin multiplicity and process eigenvectors
         spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
 
-    elif eom_dsrg.davidson_type == "generalized":
-        raise RuntimeWarning(
-            "This is not a Hermitian positive definite problem. Use traditional Davidson instead."
-        )
-        apply_MS, precond, x0 = setup_generalized_davidson(eom_dsrg)
-        print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
-        # Generalized Davidson algorithm
-        conv, e, u = dgeev1(
-            lambda xs: zip(*map(apply_MS, xs)),
-            x0,
-            precond,
-            nroots=eom_dsrg.nroots,
-            verbose=eom_dsrg.verbose,
-            max_space=eom_dsrg.max_space,
-            max_cycle=eom_dsrg.max_cycle,
-            tol=eom_dsrg.tol_e,
-            tol_residual=eom_dsrg.tol_davidson,
-        )
-        # Get spin multiplicity and process eigenvectors
-        spin, eigvec = get_spin_multiplicity(eom_dsrg, u, None, None)
     else:
         raise ValueError(f"Invalid Davidson type: {eom_dsrg.davidson_type}")
 
@@ -169,6 +152,7 @@ def calculate_norms(current_vec_dict):
     return subtraction_norms, addition_norms
 
 
+# SL: NO S_12
 def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
     """
     Process vectors to classify their spin multiplicities.
@@ -261,6 +245,7 @@ def find_top_values(data, num):
     return results
 
 
+# SL: NO S_12
 def setup_davidson(eom_dsrg):
     """
     Set up parameters and functions required for the Davidson algorithm.
@@ -273,41 +258,16 @@ def setup_davidson(eom_dsrg):
         precond: Preconditioner vector.
         x0: Initial guess vectors.
         nop: Dimension size.
-        S_12: Transformation matrix/function parameter.
     """
 
     start = time.time()
-    print("Starting S_12...", flush=True)
-    if eom_dsrg.S_12_type == "load":
-        print("Loading S_12 from file")
-        S_12 = []
-        with np.load(f"{eom_dsrg.abs_file_path}/save_S_12.npz", mmap_mode="r") as data:
-            for key in data:
-                S_12.append(data[key])
-    else:
-        S_12 = eom_dsrg.get_S_12(
-            eom_dsrg.einsum,
-            eom_dsrg.einsum_type,
-            eom_dsrg.template_c,
-            eom_dsrg.gamma1,
-            eom_dsrg.eta1,
-            eom_dsrg.lambda2,
-            eom_dsrg.lambda3,
-            eom_dsrg.lambda4,
-            eom_dsrg.sym,
-            eom_dsrg.target_sym,
-            eom_dsrg.act_sym,
-            tol=eom_dsrg.tol_s,
-            tol_semi=eom_dsrg.tol_semi,
-        )
-    print("Time(s) for S_12: ", time.time() - start, flush=True)
-    np.savez(f"{eom_dsrg.abs_file_path}/save_S_12", *S_12)
+    print("Starting S12...", flush=True)
+    eom_dsrg.get_S12(eom_dsrg)
+    print("Time(s) for S12: ", time.time() - start, flush=True)
 
-    # Load Hbar
     eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
     if eom_dsrg.method_type == "cvs_ee":
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
-    # Finish Hbar
 
     eom_dsrg.first_row = eom_dsrg.build_first_row(
         eom_dsrg.einsum,
@@ -321,107 +281,24 @@ def setup_davidson(eom_dsrg):
         eom_dsrg.lambda4,
     )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
+
+    # Compute preconditioner
     start = time.time()
-    print("Starting Precond...", flush=True)
-    if eom_dsrg.diagonal_type == "identity":
-        print("Using Identity Preconditioner")
-        nop = 0
-        for i_tensor in S_12:
-            nop += i_tensor.shape[1]
-        precond = np.ones(nop + 1) * eom_dsrg.diag_val
-        np.save(f"{eom_dsrg.abs_file_path}/precond", precond)
-    elif eom_dsrg.diagonal_type == "exact":
-        precond = (
-            eom_dsrg.compute_preconditioner_exact(
-                eom_dsrg.einsum,
-                eom_dsrg.einsum_type,
-                eom_dsrg.template_c,
-                S_12,
-                eom_dsrg.Hbar,
-                eom_dsrg.gamma1,
-                eom_dsrg.eta1,
-                eom_dsrg.lambda2,
-                eom_dsrg.lambda3,
-                eom_dsrg.lambda4,
-            )
-            + eom_dsrg.diag_shift
-        )
-        np.save(f"{eom_dsrg.abs_file_path}/precond", precond)
-    elif eom_dsrg.diagonal_type == "block":
-        precond = (
-            eom_dsrg.compute_preconditioner_block(
-                eom_dsrg.einsum,
-                eom_dsrg.einsum_type,
-                eom_dsrg.template_c,
-                S_12,
-                eom_dsrg.Hbar,
-                eom_dsrg.gamma1,
-                eom_dsrg.eta1,
-                eom_dsrg.lambda2,
-                eom_dsrg.lambda3,
-                eom_dsrg.lambda4,
-            )
-            + eom_dsrg.diag_shift
-        )
+    print("Starting Preconditioner...", flush=True)
+    if eom_dsrg.diagonal_type == "compute":
+        precond = eom_dsrg.compute_preconditioner(eom_dsrg)
         np.save(f"{eom_dsrg.abs_file_path}/precond", precond)
     elif eom_dsrg.diagonal_type == "load":
         print("Loading Preconditioner from file")
         precond = np.load(f"{eom_dsrg.abs_file_path}/precond.npy")
-    print("Time(s) for Precond: ", time.time() - start, flush=True)
+    print("Time(s) for Preconditioner: ", time.time() - start, flush=True)
+
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = define_effective_hamiltonian(eom_dsrg, S_12, nop, northo)
 
     x0 = compute_guess_vectors(eom_dsrg, precond)
-    return apply_M, precond, x0, nop, S_12
-
-
-def setup_generalized_davidson(eom_dsrg):
-    # Load Hbar
-    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
-    if eom_dsrg.method_type == "cvs_ee":
-        eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
-    # Finish Hbar
-
-    eom_dsrg.first_row = eom_dsrg.build_first_row(
-        eom_dsrg.einsum,
-        eom_dsrg.einsum_type,
-        eom_dsrg.full_template_c,
-        eom_dsrg.Hbar,
-        eom_dsrg.gamma1,
-        eom_dsrg.eta1,
-        eom_dsrg.lambda2,
-        eom_dsrg.lambda3,
-        eom_dsrg.lambda4,
-    )
-    eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
-    eom_dsrg.build_S = eom_dsrg.build_sigma_vector_s
-    start = time.time()
-    print("Starting Precond...", flush=True)
-
-    precond = eom_dsrg.compute_preconditioner_only_H(
-        eom_dsrg.einsum,
-        eom_dsrg.einsum_type,
-        eom_dsrg.template_c,
-        eom_dsrg.Hbar,
-        eom_dsrg.gamma1,
-        eom_dsrg.eta1,
-        eom_dsrg.lambda2,
-        eom_dsrg.lambda3,
-        eom_dsrg.lambda4,
-    )
-
-    apply_MS = define_apply_MS(eom_dsrg)
-
-    # x0 = compute_guess_vectors(eom_dsrg, precond)
-
-    # This is a temporary solution.
-    x0s = np.zeros((precond.shape[0], eom_dsrg.nroots))
-    np.fill_diagonal(x0s, 1.0)
-    x0 = []
-    for p in range(x0s.shape[1]):
-        x0.append(x0s[:, p])
-    return apply_MS, precond, x0
+    return apply_M, precond, x0, nop
 
 
 def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
@@ -465,57 +342,8 @@ def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
     return apply_M
 
 
-def define_apply_MS(eom_dsrg):
-    def apply_MS(x):
-        x_dict = vec_to_dict(eom_dsrg.full_template_c, x.reshape(-1, 1))
-        x_dict = antisymmetrize(x_dict)
-        Hx_dict = eom_dsrg.build_H(
-            eom_dsrg.einsum,
-            eom_dsrg.einsum_type,
-            x_dict,
-            eom_dsrg.Hbar,
-            eom_dsrg.gamma1,
-            eom_dsrg.eta1,
-            eom_dsrg.lambda2,
-            eom_dsrg.lambda3,
-            eom_dsrg.lambda4,
-            eom_dsrg.first_row,
-        )
-        Hx_dict = antisymmetrize(Hx_dict)
-        Hx = dict_to_vec(Hx_dict, 1).flatten()
-        Sx_dict = eom_dsrg.build_S(
-            eom_dsrg.einsum,
-            eom_dsrg.einsum_type,
-            x_dict,
-            eom_dsrg.Hbar,
-            eom_dsrg.gamma1,
-            eom_dsrg.eta1,
-            eom_dsrg.lambda2,
-            eom_dsrg.lambda3,
-            eom_dsrg.lambda4,
-            eom_dsrg.first_row,
-        )
-        Sx_dict = antisymmetrize(Sx_dict)
-        Sx = dict_to_vec(Sx_dict, 1).flatten()
-        return Hx, Sx
-
-    return apply_MS
-
-
-def apply_S_12(S_12, ndim, t, transpose=False):
-    """
-    Apply the S_12 transformation matrix/function to a vector.
-
-    Parameters:
-        S_12: List of transformation matrices/functions.
-        ndim: Resulting vector size.
-        t: Input vector.
-        transpose (bool): Whether to apply the transpose of the transformation.
-
-    Returns:
-        Transformed vector.
-    """
-    # t is a vector. S_half is a list of ndarray. ndim is the resulting vector size.
+def apply_S_12(eom_dsrg, ndim, t, transpose=False):
+    # t is a vector. S_half is a list of ndarray. ndim is the full vector size.
     Xt = np.zeros((ndim, 1))  # With first column/row.
     i_start_xt = 1
     i_start_t = 1
@@ -617,18 +445,14 @@ def get_sigma_build(eom_dsrg):
     build_sigma_vector_Hbar = sigma_module.build_sigma_vector_Hbar
     build_sigma_vector_s = sigma_module.build_sigma_vector_s
     build_transition_dipole = sigma_module.build_transition_dipole
-    get_S_12 = sigma_module.get_S_12
-    compute_preconditioner_exact = sigma_module.compute_preconditioner_exact
-    compute_preconditioner_block = sigma_module.compute_preconditioner_block
-    compute_preconditioner_only_H = sigma_module.compute_preconditioner_only_H
+    get_S12 = sigma_module.get_S12
+    compute_preconditioner = sigma_module.compute_preconditioner
 
     return (
         build_first_row,
         build_sigma_vector_Hbar,
         build_sigma_vector_s,
         build_transition_dipole,
-        get_S_12,
-        compute_preconditioner_exact,
-        compute_preconditioner_block,
-        compute_preconditioner_only_H,
+        get_S12,
+        compute_preconditioner,
     )
