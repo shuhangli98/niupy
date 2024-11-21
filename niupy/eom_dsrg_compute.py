@@ -69,13 +69,16 @@ def kernel(eom_dsrg):
     # # Get spin multiplicity and process eigenvectors
     # spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
 
-    # Optimize slicing by vectorizing
-    eom_dsrg.Mbar = [
-        slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar
-    ]
+    if eom_dsrg.build_transition_dipole is NotImplemented:
+        osc_strength = None
+    else:
+        # Optimize slicing by vectorizing
+        eom_dsrg.Mbar = [
+            slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar
+        ]
 
-    # Compute oscillator strengths
-    osc_strength = compute_oscillator_strength(eom_dsrg, e, eigvec)
+        # Compute oscillator strengths
+        osc_strength = compute_oscillator_strength(eom_dsrg, e, eigvec)
 
     return conv, e, eigvec, spin, osc_strength
 
@@ -262,17 +265,20 @@ def setup_davidson(eom_dsrg):
     if eom_dsrg.method_type == "cvs_ee":
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
-    eom_dsrg.first_row = eom_dsrg.build_first_row(
-        eom_dsrg.einsum,
-        eom_dsrg.einsum_type,
-        eom_dsrg.full_template_c,
-        eom_dsrg.Hbar,
-        eom_dsrg.gamma1,
-        eom_dsrg.eta1,
-        eom_dsrg.lambda2,
-        eom_dsrg.lambda3,
-        eom_dsrg.lambda4,
-    )
+    if eom_dsrg.build_first_row is not NotImplemented:
+        eom_dsrg.first_row = None
+    else:
+        eom_dsrg.first_row = eom_dsrg.build_first_row(
+            eom_dsrg.einsum,
+            eom_dsrg.einsum_type,
+            eom_dsrg.full_template_c,
+            eom_dsrg.Hbar,
+            eom_dsrg.gamma1,
+            eom_dsrg.eta1,
+            eom_dsrg.lambda2,
+            eom_dsrg.lambda3,
+            eom_dsrg.lambda4,
+        )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
 
     # Compute preconditioner

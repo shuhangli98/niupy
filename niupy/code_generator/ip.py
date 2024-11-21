@@ -25,16 +25,10 @@ def generator():
     T = w.op("c", s, unique=True)
 
     # Define subspaces. Single first!
-    S_half_0 = ["c","ccv","caa","cAA","cCV","aCA"]
-    S_half_1 = ["cca","cCA"]
-    S_half_minus_1 = ["cav", "cAV", "aCV", "aAV", "a", "aaa", "aAA"]
-    S_half_minus_2 = ["aav"]
-
-    block_list = (
-        S_half_0 + S_half_1 + S_half_minus_1 + S_half_minus_2
-    )
-    single_space = S_half_0 + S_half_1 + S_half_minus_1 + S_half_minus_2
-    composite_space = []
+    single_space = ["c","ccv","caa","cAA","cCV","aCA", "cca","cCA","cav", "cAV", "aCV", "aAV","aav"]
+    active = ["a", "aaa", "aAA"]
+    composite_space = [active]
+    block_list = (single_space + active)
 
     # Define Hbar
     Hbar_op = w.gen_op_ms0('Hbar', 1, 'cav', 'cav') +  w.gen_op_ms0('Hbar', 2, 'cav', 'cav')
@@ -62,11 +56,11 @@ def generator():
     mbeq_s = expr_s.to_manybody_equation("sigma")
 
     # Generate wicked contraction
-    funct = generate_sigma_build(mbeq, "Hbar", optimize='True')  # HC
-    funct_s = generate_sigma_build(mbeq_s, "s", optimize='True')  # SC
-    funct_S_12 = generate_S_12(mbeq_s, single_space, composite_space, method='ip')
-    funct_preconditioner_exact = generate_preconditioner(
-        mbeq, single_space, composite_space, diagonal_type="exact", method='ip'
+    funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize='True')  # HC
+    funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize='True')  # SC
+    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, method='ip')
+    funct_preconditioner = generate_preconditioner(
+        mbeq, {},{}, single_space, composite_space, method='ip'
     )
 
     abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -78,13 +72,11 @@ def generator():
         )
         f.write(f"{func_template_c}\n\n")
         f.write(f"{funct_S_12}\n\n")
-        f.write(f"{funct_preconditioner_exact}\n\n")
+        f.write(f"{funct_preconditioner}\n\n")
         f.write(f"{funct}\n\n")
         f.write(f"{funct_s}\n\n")
         f.write(f"build_first_row = NotImplemented\n")
         f.write(f"build_transition_dipole = NotImplemented\n")
-        f.write(f"compute_preconditioner_block = NotImplemented\n")
-        f.write(f"compute_preconditioner_only_H = NotImplemented\n")
 
 if __name__ == "__main__":
     generator()

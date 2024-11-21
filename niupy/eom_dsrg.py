@@ -64,7 +64,13 @@ class EOM_DSRG:
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
-        subprocess.run(
+        self.einsum_type = einsum_type
+        if opt_einsum:
+            print("Using opt_einsum...")
+            from opt_einsum import contract
+            self.einsum = contract
+            
+            subprocess.run(
             [
                 "sed",
                 "-i",
@@ -73,13 +79,6 @@ class EOM_DSRG:
                 os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
             ]
         )
-
-        self.einsum_type = einsum_type
-        if opt_einsum:
-            print("Using opt_einsum...")
-            from opt_einsum import contract
-
-            self.einsum = contract
         else:
             self.einsum = np.einsum
 
