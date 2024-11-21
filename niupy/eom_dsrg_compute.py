@@ -6,6 +6,9 @@ if os.path.exists("cvs_ee_eom_dsrg.py"):
 if os.path.exists("ee_eom_dsrg.py"):
     print("Importing ee_eom_dsrg")
     import ee_eom_dsrg
+if os.path.exists("ip_eom_dsrg.py"):
+    print("Importing ip_eom_dsrg")
+    import ip_eom_dsrg
 import numpy as np
 import copy
 from niupy.eom_tools import (
@@ -399,7 +402,7 @@ def setup_generalized_davidson(eom_dsrg):
     start = time.time()
     print("Starting Precond...", flush=True)
 
-    precond = eom_dsrg.compute_preconditioner_only_H(
+    precond = eom_dsrg.compute_preconditioner_exact(
         eom_dsrg.einsum,
         eom_dsrg.einsum_type,
         eom_dsrg.template_c,
@@ -604,6 +607,7 @@ def get_sigma_build(eom_dsrg):
     sigma_funcs = {
         "ee": ee_eom_dsrg if os.path.exists("ee_eom_dsrg.py") else None,
         "cvs_ee": cvs_ee_eom_dsrg if os.path.exists("cvs_ee_eom_dsrg.py") else None,
+        "ip": ip_eom_dsrg if os.path.exists("ip_eom_dsrg.py") else None,
         # Additional mappings for other methods can be added here
     }
 

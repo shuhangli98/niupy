@@ -137,7 +137,18 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     Hbar_op = w.op("Hbar", Hops, unique=True)
 
     # Template C
-    func_template_c = generate_template_c(block_list)
+    index_dict = {
+        "c": "nocc",
+        "a": "nact",
+        "v": "nvir",
+        "C": "nocc",
+        "A": "nact",
+        "V": "nvir",
+        "i": "ncore",
+        "I": "ncore",
+    }
+    function_args = 'nlow, ncore, nocc, nact, nvir'
+    func_template_c = generate_template_c(block_list, index_dict, function_args)
 
     # Hbar
     THT_comm = w.rational(1, 2) * (

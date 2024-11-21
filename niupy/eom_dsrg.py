@@ -4,7 +4,7 @@ import forte.utils
 import numpy as np
 import os
 import subprocess
-from niupy.code_generator import cvs_ee, ee
+from niupy.code_generator import cvs_ee, ee, ip
 
 
 class EOM_DSRG:
@@ -59,6 +59,8 @@ class EOM_DSRG:
             ee.generator(
                 self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
             )
+        elif method_type == "ip":
+            ip.generator()
         else:
             raise ValueError(f"Method type {method_type} not supported.")
 

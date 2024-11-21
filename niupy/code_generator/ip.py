@@ -3,8 +3,7 @@ import itertools
 import os
 from niupy.eom_tools import *
 
-
-def generator(abs_path, ncore, nocc, nact, nvir):
+def generator():
     w.reset_space()
     # alpha
     w.add_space("c", "fermion", "occupied", list("klmn"))
@@ -15,103 +14,47 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     w.add_space("V", "fermion", "unoccupied", list("EFGH"))
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
+    wt.set_max_cumulant(4)
 
     # Define operators
-    s = []
-
-    for i in itertools.product(["a", "c"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["a+", "v+"], ["a", "c"], ["a", "c"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["A+", "V+"], ["a", "c"], ["A", "C"]):
-        s.append(" ".join(i))
-
-    s = filter_list(s, ncore, nocc, nact, nvir)
+    s = w.gen_op('bra', (0,1), 'avAV', 'caCA', only_terms=True) + w.gen_op('bra', (1,2), 'avAV', 'caCA', only_terms=True)
+    s = [_.strip() for _ in s]
+    s = filter_ops_by_ms(s, 1)
 
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
 
-    s_comm = ["a+ a a", "A+ a A"]
-
-    for i in s_comm:
-        s.remove(i)
-
-    T_comm_adj = w.op("bra", s_comm, unique=True).adjoint()
-    T_comm = w.op("c", s_comm, unique=True)
-
-    T_original_adj = w.op("bra", s, unique=True).adjoint()
-    T_original = w.op("c", s, unique=True)
-
     # Define subspaces. Single first!
-    S_half_0 = [
-        "c",
-        "ccv",
-        "caa",
-        "cAA",
-        "cCV",
-        "aCA",
-    ]
-    S_half_1 = [
-        "cca",
-        "cCA",
-    ]
-    S_half_minus_1 = ["cav", "cAV", "aCV", "aAV"]
+    S_half_0 = ["c","ccv","caa","cAA","cCV","aCA"]
+    S_half_1 = ["cca","cCA"]
+    S_half_minus_1 = ["cav", "cAV", "aCV", "aAV", "a", "aaa", "aAA"]
     S_half_minus_2 = ["aav"]
 
-    S_half_minus_1_com = ["a", "aaa", "aAA"]
-
-    S_half_0 = filter_list(S_half_0, ncore, nocc, nact, nvir)
-    S_half_1 = filter_list(S_half_1, ncore, nocc, nact, nvir)
-    S_half_minus_1 = filter_list(S_half_minus_1, ncore, nocc, nact, nvir)
-    S_half_minus_2 = filter_list(S_half_minus_2, ncore, nocc, nact, nvir)
-    S_half_minus_1_com = filter_list(S_half_minus_1_com, ncore, nocc, nact, nvir)
-
     block_list = (
-        S_half_0 + S_half_1 + S_half_minus_1 + S_half_minus_2 + S_half_minus_1_com
+        S_half_0 + S_half_1 + S_half_minus_1 + S_half_minus_2
     )
     single_space = S_half_0 + S_half_1 + S_half_minus_1 + S_half_minus_2
-    composite_space = [S_half_minus_1_com]
+    composite_space = []
 
     # Define Hbar
-    Hops = []
-    for i in itertools.product(["v+", "a+", "c+"], ["v", "a", "c"]):
-        Hops.append(" ".join(i))
-    for i in itertools.product(["V+", "A+", "C+"], ["V", "A", "C"]):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["v+", "a+", "c+"], ["v+", "a+", "c+"], ["v", "a", "c"], ["v", "a", "c"]
-    ):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["V+", "A+", "C+"], ["V+", "A+", "C+"], ["V", "A", "C"], ["V", "A", "C"]
-    ):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["v+", "a+", "c+"], ["V+", "A+", "C+"], ["v", "a", "c"], ["V", "A", "C"]
-    ):
-        Hops.append(" ".join(i))
-    Hbar_op = w.op("Hbar", Hops, unique=True)
+    Hbar_op = w.gen_op_ms0('Hbar', 1, 'cav', 'cav') +  w.gen_op_ms0('Hbar', 2, 'cav', 'cav')
 
     # Template C
-    func_template_c = generate_template_c(block_list)
+    index_dict = {
+        "c": "ncore",
+        "a": "nact",
+        "v": "nvir",
+        "C": "ncore",
+        "A": "nact",
+        "V": "nvir",
+    }
 
-    # Hbar
-    THT_comm = w.rational(1, 2) * (
-        T_comm_adj @ w.commutator(Hbar_op, T_comm)
-        + w.commutator(T_comm_adj, Hbar_op) @ T_comm
-    )
-    THT_original = T_original_adj @ Hbar_op @ T_original
-    THT_coupling = T_original_adj @ Hbar_op @ T_comm
-    THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
-    THT = THT_comm + THT_original + THT_coupling + THT_coupling_2
-    # THT = T_adj @ Hbar_op @ T
+    function_args = 'nlow, ncore, nact, nvir'
+    func_template_c = generate_template_c(block_list, index_dict, function_args)
+
+    THT = T_adj @ Hbar_op @ T
     expr = wt.contract(THT, 0, 0, inter_general=True)
     mbeq = expr.to_manybody_equation("sigma")
-
-    # First row/column
-    HT = Hbar_op @ T
-    expr_first = wt.contract(HT, 0, 0, inter_general=True)
-    mbeq_first = expr_first.to_manybody_equation("sigma")
 
     # S
     TT = T_adj @ T
@@ -119,23 +62,14 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     mbeq_s = expr_s.to_manybody_equation("sigma")
 
     # Generate wicked contraction
-    funct = generate_sigma_build(mbeq, "Hbar")  # HC
-    funct_s = generate_sigma_build(mbeq_s, "s")  # SC
-    funct_first = generate_first_row(mbeq_first)  # First row/column
-    funct_dipole = generate_transition_dipole(mbeq_first)
-    funct_S_12 = generate_S_12(mbeq_s, single_space, composite_space)
+    funct = generate_sigma_build(mbeq, "Hbar", optimize='True')  # HC
+    funct_s = generate_sigma_build(mbeq_s, "s", optimize='True')  # SC
+    funct_S_12 = generate_S_12(mbeq_s, single_space, composite_space, method='ip')
     funct_preconditioner_exact = generate_preconditioner(
-        mbeq, single_space, composite_space, diagonal_type="exact"
+        mbeq, single_space, composite_space, diagonal_type="exact", method='ip'
     )
-    funct_preconditioner_block = generate_preconditioner(
-        mbeq, single_space, composite_space, diagonal_type="block"
-    )
-    funct_preconditioner_only_H = generate_preconditioner(mbeq, block_list, None)
 
-    # script_dir = os.path.dirname(__file__)
-    # rel_path = "../cvs_ee_eom_dsrg.py"
-    # abs_file_path = os.path.join(script_dir, rel_path)
-    # print(f"Code generator: Writing to {abs_file_path}")
+    abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     print(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "ip_eom_dsrg.py"), "w") as f:
@@ -145,9 +79,12 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         f.write(f"{func_template_c}\n\n")
         f.write(f"{funct_S_12}\n\n")
         f.write(f"{funct_preconditioner_exact}\n\n")
-        f.write(f"{funct_preconditioner_block}\n\n")
-        f.write(f"{funct_preconditioner_only_H}\n\n")
         f.write(f"{funct}\n\n")
         f.write(f"{funct_s}\n\n")
-        f.write(f"{funct_first}\n\n")
-        f.write(f"{funct_dipole}\n\n")
+        f.write(f"build_first_row = NotImplemented\n")
+        f.write(f"build_transition_dipole = NotImplemented\n")
+        f.write(f"compute_preconditioner_block = NotImplemented\n")
+        f.write(f"compute_preconditioner_only_H = NotImplemented\n")
+
+if __name__ == "__main__":
+    generator()

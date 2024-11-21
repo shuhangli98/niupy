@@ -2,9 +2,9 @@ import wicked as w
 import numpy as np
 import copy
 import itertools
+import os
 
-
-def compile_sigma_vector(equation, bra_name="bra", ket_name="c"):
+def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize='True'):
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
     for idx, t in enumerate(d["rhs"]):
         if t[0] == bra_name:
@@ -20,7 +20,7 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c"):
     bra[2] = "p" + bra[2][nbody:] + bra[2][:nbody]
     bra[1] = bra[1][nbody:] + bra[1][:nbody]
     d["lhs"] = [bra]
-    return w.dict_to_einsum(d)
+    return w.dict_to_einsum(d, optimize=optimize)
 
 
 def compile_first_row_safe(equation, ket_name="c"):
@@ -45,7 +45,7 @@ def compile_first_row(equation, ket_name="c"):
     return w.dict_to_einsum(d)
 
 
-def generate_sigma_build(mbeq, matrix, first_row=True, algo="normal"):
+def generate_sigma_build(mbeq, matrix, first_row=True, algo="normal", optimize='True'):
     code = [
         f"def build_sigma_vector_{matrix}(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
         "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}",
@@ -58,10 +58,10 @@ def generate_sigma_build(mbeq, matrix, first_row=True, algo="normal"):
             #     for t in eq.rhs().tensors()
             # ):
             if True:
-                code.append(f"    {compile_sigma_vector(eq)}")
+                code.append(f"    {compile_sigma_vector(eq, optimize=optimize)}")
         elif algo == "ee":
             if not any(t.label() in ["lambda5", "lambda6"] for t in eq.rhs().tensors()):
-                code.append(f"    {compile_sigma_vector(eq)}")
+                code.append(f"    {compile_sigma_vector(eq, optimize=optimize)}")
 
     if matrix == "Hbar" and first_row:
         code.extend(
@@ -84,19 +84,8 @@ def generate_sigma_build(mbeq, matrix, first_row=True, algo="normal"):
     return "\n".join(code)
 
 
-def generate_template_c(block_list, ket_name="c"):
-    index_dict = {
-        "c": "nocc",
-        "a": "nact",
-        "v": "nvir",
-        "C": "nocc",
-        "A": "nact",
-        "V": "nvir",
-        "i": "ncore",
-        "I": "ncore",
-    }
-
-    code = [f"def get_template_c(nlow, ncore, nocc, nact, nvir):", "    c = {"]
+def generate_template_c(block_list, index_dict, function_args):
+    code = [f"def get_template_c({function_args}):", "    c = {"]
 
     for i in block_list:
         shape_strings = ["nlow"] + [f"{index_dict[item]}" for item in i]
@@ -107,7 +96,6 @@ def generate_template_c(block_list, ket_name="c"):
     code.append("    return c")
     code = "\n".join(code)
     return code
-
 
 def generate_first_row(mbeq, algo="normal"):
     code = [
@@ -185,6 +173,7 @@ def generate_block_contraction(
     bra_name="bra",
     ket_name="c",
     algo="normal",
+    method="ee",
 ):
     indent_spaces = {"once": "    ", "twice": "        "}
     space = indent_spaces.get(indent, "    ")
@@ -221,14 +210,14 @@ def generate_block_contraction(
                     f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name)}"
                 )
 
-    code.append(f"{space}sigma = antisymmetrize(sigma)")
+    code.append(f"{space}sigma = antisymmetrize(sigma, method='{method}')")
 
     func = "\n".join(code)
     return func
 
 
 def generate_S_12(
-    mbeq, single_space, composite_space, tol=1e-10, tol_semi=1e-6, algo="normal"
+    mbeq, single_space, composite_space, tol=1e-10, tol_semi=1e-6, algo="normal", method="ee",
 ):
     """
     single_space: a list of strings.
@@ -472,10 +461,10 @@ def generate_S_12(
             f"    np.fill_diagonal(c_vec, 1)",
             f"    c = vec_to_dict(c, c_vec)",
             f"    del c_vec",
-            f"    c = antisymmetrize(c)",
+            f"    c = antisymmetrize(c, method='{method}')",
             f"    print('Starts contraction')",
             generate_block_contraction(
-                key, mbeq, block_type="single", indent="once", algo=algo
+                key, mbeq, block_type="single", indent="once", algo=algo, method=method,
             ),
             f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
@@ -520,13 +509,13 @@ def generate_S_12(
                 f"    np.fill_diagonal(c_vec, 1)",
                 f"    c = vec_to_dict(c, c_vec)",
                 f"    del c_vec",
-                f"    c = antisymmetrize(c)",
+                f"    c = antisymmetrize(c, method='{method}')",
                 f"    print('Starts contraction')",
             ]
         )
         code_block.append(
             generate_block_contraction(
-                space, mbeq, block_type="composite", indent="once", algo=algo
+                space, mbeq, block_type="composite", indent="once", algo=algo, method=method,
             )
         )
         code_block.extend(
@@ -631,7 +620,7 @@ def generate_S_12(
 
 
 def generate_preconditioner(
-    mbeq, single_space, composite_space, diagonal_type="exact", algo="normal"
+    mbeq, single_space, composite_space, diagonal_type="exact", algo="normal", method='ee'
 ):
     def add_single_space_code(key, i_key):
         return [
@@ -644,9 +633,9 @@ def generate_preconditioner(
             f"        c['{key}'] = np.zeros((northo, *shape_block))",
             f"        sigma['{key}'] = np.zeros((northo, *shape_block))",
             f"        c = vec_to_dict(c, tensor)",
-            f"        c = antisymmetrize(c)",
+            f"        c = antisymmetrize(c, method='{method}')",
             generate_block_contraction(
-                key, mbeq, block_type="single", indent="twice", algo=algo
+                key, mbeq, block_type="single", indent="twice", algo=algo, method=method,
             ),
             f"        c.clear()",
             f"        vec = dict_to_vec(sigma, northo)",
@@ -665,9 +654,9 @@ def generate_preconditioner(
             f"    c['{key}'] = np.zeros((shape_size, *shape_block))",
             f"    sigma['{key}'] = np.zeros((shape_size, *shape_block))",
             f"    c = vec_to_dict(c, np.identity(shape_size))",
-            f"    c = antisymmetrize(c)",
+            f"    c = antisymmetrize(c, method='{method}')",
             generate_block_contraction(
-                key, mbeq, block_type="single", indent="once", algo=algo
+                key, mbeq, block_type="single", indent="once", algo=algo, method=method,
             ),
             f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
@@ -694,9 +683,9 @@ def generate_preconditioner(
                     f"            c[key] = np.zeros((northo, *shape_block))",
                     f"            sigma[key] = np.zeros((northo, *shape_block))",
                     f"        c = vec_to_dict(c, tensor)",
-                    f"        c = antisymmetrize(c)",
+                    f"        c = antisymmetrize(c, method='{method}')",
                     generate_block_contraction(
-                        space, mbeq, block_type="composite", indent="twice", algo=algo
+                        space, mbeq, block_type="composite", indent="twice", algo=algo, method=method,
                     ),
                     f"        c.clear()",
                     f"        vec = dict_to_vec(sigma, northo)",
@@ -719,13 +708,14 @@ def generate_preconditioner(
                         f"        c_vec = dict_to_vec(c, shape_size)",
                         f"        np.fill_diagonal(c_vec, 1)",
                         f"        c = vec_to_dict(c, c_vec)",
-                        f"        c = antisymmetrize(c)",
+                        f"        c = antisymmetrize(c, method='{method}')",
                         generate_block_contraction(
                             key_space,
                             mbeq,
                             block_type="single",
                             indent="twice",
                             algo=algo,
+                            method=method,
                         ),
                         f"        c.clear()",
                         f"        del c_vec",
@@ -1103,3 +1093,15 @@ def filter_list(element_list, ncore, nocc, nact, nvir):
         and (nact != 0 or ("a" not in element and "A" not in element))
         and (nvir != 0 or ("v" not in element and "V" not in element))
     ]
+
+def op_to_ms(op):
+    ms2 = 0
+    for i in op.split(' '):
+        ms2 += ((i.islower())*2-1) * (('+' in i)*2-1)
+    return int(ms2)
+
+def filter_ops_by_ms(ops, ms2):
+    """
+    Filter operators by Ms*2 (safe integer comparison)
+    """
+    return [op for op in ops if op_to_ms(op) == ms2]
