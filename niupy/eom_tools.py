@@ -2,6 +2,24 @@ import wicked as w
 import numpy as np
 import copy
 import itertools
+import re
+
+
+def op_to_tensor_label(op):
+    wop = w.op("o", [op])
+    op_canon = wop.__str__().split(" {")[1].split(" }")[0]
+    indices = op_canon.split(" ")
+    if len(indices) == 1:
+        return op if "+" not in op else op.replace("+", "")
+    cre = []
+    ann = []
+    for i in indices:
+        if "+" in i:
+            cre.append(i.replace("+", ""))
+        else:
+            ann.append(i)
+
+    return "".join(ann[::-1]) + "".join(cre)
 import os
 
 def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize='True'):
@@ -45,23 +63,131 @@ def compile_first_row(equation, ket_name="c"):
     return w.dict_to_einsum(d)
 
 
-def generate_sigma_build(mbeq, matrix, first_row=True, algo="normal", optimize='True'):
+def increment_index(index):
+    """
+    increment a sting like 'a128' to 'a129' using regex
+    """
+    return re.sub(r"(\d+)", lambda x: str(int(x.group(0)) + 1), index)
+
+
+def get_matrix_elements(bra, op, ket, inter_general=False, double_comm=False):
+    """
+    This function calculates the matrix elements of an operator
+    between two internally contracted configurations.
+
+    This is achieved by taking the second derivative of the fully
+    contracted expression with respect to the fictitious bra and
+    ket tensor elements.
+    """
+    wt = w.WickTheorem()  # Temporary fix
+    if op is None:
+        if double_comm:
+            expr = w.commutator(bra.adjoint(), ket)
+        else:
+            expr = bra.adjoint() @ ket
+    else:
+        # This option will not be used in two virtual cases.
+        if double_comm:
+            expr = w.commutator(bra.adjoint() @ w.commutator(op, ket)) + w.commutator(
+                w.commutator(bra.adjoint(), op) @ ket
+            )
+        else:
+            expr = bra.adjoint() @ op @ ket
+    label = "S" if op is None else "H"
+    try:
+        mbeq = wt.contract(
+            expr, 0, 0, inter_general=inter_general
+        ).to_manybody_equations(label)["|"]
+    except KeyError:
+        return
+    mbeq_new = []
+    for i in mbeq:
+        eqdict = w.equation_to_dict(i)
+        newdict = {"factor": eqdict["factor"], "lhs": [label, [], []], "rhs": []}
+        lhs_indices = set()
+        rhs_indices = set()
+        for j in eqdict["rhs"]:
+            # The fictitious tensor elements are
+            # {p+ q+ s r} bra^{pq}_{rs}
+            if j[0] == "bra":
+                bra_indices = j[2][::1] + j[1]
+                lhs_indices.update(bra_indices)
+            elif j[0] == "ket":
+                ket_indices = j[1] + j[2][::1]
+                lhs_indices.update(ket_indices)
+            else:
+                newdict["rhs"].append(j)
+                rhs_indices.update(j[1] + j[2])
+
+        if len(bra_indices + ket_indices) > len(lhs_indices):
+            lhs = bra_indices + ket_indices
+            index_pool = lhs_indices | rhs_indices
+            for i in lhs_indices:
+                if lhs.count(i) == 2:
+                    test_index = increment_index(i)
+                    while True:
+                        if test_index not in index_pool:
+                            ket_indices[ket_indices.index(i)] = test_index
+                            index_pool.update([test_index])
+                            newdict["rhs"].append(["delta", [i], [test_index]])
+                            break
+                        test_index = increment_index(test_index)
+
+        newdict["lhs"][1] = ket_indices
+        newdict["lhs"][2] = bra_indices
+        mbeq_new.append(w.dict_to_equation(newdict))
+    return mbeq_new
+
+
+def matrix_elements_to_diag(mbeq, indent="once"):
+    indent_spaces = {"once": "    ", "twice": "        "}
+    space = indent_spaces.get(indent, "    ")
+    einsums = []
+    for eq in mbeq:
+        eqdict = w.equation_to_dict(eq)
+        eqdict_new = {
+            "factor": eqdict["factor"],
+            "lhs": [eqdict["lhs"][0], [], []],
+            "rhs": [],
+        }
+        deltas = {}
+        for l, u in zip(eqdict["lhs"][1], eqdict["lhs"][2]):
+            if not ("a" in l or "A" in l):
+                deltas[l] = u
+                eqdict_new["lhs"][2].append(u)
+            else:
+                eqdict_new["lhs"][1].append(u)
+                eqdict_new["lhs"][1].append(l)
+        eqdict_new["lhs"][2] = eqdict_new["lhs"][2][2:] + eqdict_new["lhs"][2][:2]
+        eqdict_new["lhs"][2] += eqdict_new["lhs"][1]
+        eqdict_new["lhs"][1] = []
+
+        for t in eqdict["rhs"]:
+            for i, l in enumerate(t[1]):
+                if l in deltas:
+                    t[1][i] = deltas[l]
+            for i, l in enumerate(t[2]):
+                if l in deltas:
+                    t[2][i] = deltas[l]
+            eqdict_new["rhs"].append(t)
+
+        einsum = w.dict_to_equation(eqdict_new).compile("einsum")
+        lhs = einsum.split(" +=")[0]
+        einsum = einsum.replace(lhs, lhs[0])
+        einsums.append(f"{space}{einsum}")
+
+    func = "\n".join(einsums)
+    return func
+
+
+def generate_sigma_build(mbeq, matrix, first_row=True, optimize='True'):
     code = [
         f"def build_sigma_vector_{matrix}(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
         "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}",
     ]
 
     for eq in mbeq["|"]:
-        if algo == "normal":
-            # if not any(
-            #     t.label() in ["lambda4", "lambda5", "lambda6"]
-            #     for t in eq.rhs().tensors()
-            # ):
-            if True:
-                code.append(f"    {compile_sigma_vector(eq, optimize=optimize)}")
-        elif algo == "ee":
-            if not any(t.label() in ["lambda5", "lambda6"] for t in eq.rhs().tensors()):
-                code.append(f"    {compile_sigma_vector(eq, optimize=optimize)}")
+        code.append(f"    {compile_sigma_vector(eq, optimize=optimize)}")
 
     if matrix == "Hbar" and first_row:
         code.extend(
@@ -97,48 +223,27 @@ def generate_template_c(block_list, index_dict, function_args):
     code = "\n".join(code)
     return code
 
-def generate_first_row(mbeq, algo="normal"):
+
+def generate_first_row(mbeq):
     code = [
         f"def build_first_row(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = {key: np.zeros((1, *tensor.shape[1:])) for key, tensor in c.items() if key != 'first'}",
     ]
-    if algo == "normal":
-        for eq in mbeq["|"]:
-            # if not any(
-            #     t.label() in ["lambda4", "lambda5", "lambda6"]
-            #     for t in eq.rhs().tensors()
-            # ):
-            if True:
-                code.append(f"    {compile_first_row(eq, ket_name='c')}")
-    elif algo == "ee":
-        for eq in mbeq["|"]:
-            # if not any(t.label() in ["lambda5", "lambda6"] for t in eq.rhs().tensors()):
-            if True:
-                code.append(f"    {compile_first_row(eq, ket_name='c')}")
+    for eq in mbeq["|"]:
+        code.append(f"    {compile_first_row(eq, ket_name='c')}")
 
     code.append("    return sigma")
     funct = "\n".join(code)
     return funct
 
 
-def generate_transition_dipole(mbeq, algo="normal"):
+def generate_transition_dipole(mbeq):  # redundant
     code = [
         f"def build_transition_dipole(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = 0.0",
     ]
-    if algo == "normal":
-        for eq in mbeq["|"]:
-            # if not any(
-            #     t.label() in ["lambda4", "lambda5", "lambda6"]
-            #     for t in eq.rhs().tensors()
-            # ):
-            if True:
-                code.append(f"    {w.compile_einsum(eq)}")
-    elif algo == "ee":
-        for eq in mbeq["|"]:
-            # if not any(t.label() in ["lambda5", "lambda6"] for t in eq.rhs().tensors()):
-            if True:
-                code.append(f"    {w.compile_einsum(eq)}")
+    for eq in mbeq["|"]:
+        code.append(f"    {w.compile_einsum(eq)}")
 
     code.append("    return sigma")
     funct = "\n".join(code)
@@ -172,7 +277,6 @@ def generate_block_contraction(
     indent="once",
     bra_name="bra",
     ket_name="c",
-    algo="normal",
     method="ee",
 ):
     indent_spaces = {"once": "    ", "twice": "        "}
@@ -180,17 +284,10 @@ def generate_block_contraction(
     code = []
 
     for eq in mbeq["|"]:
-        no_print = False
         correct_contraction = False
         rhs = eq.rhs()
         for t in rhs.tensors():
-            # if (
-            #     t.label() in ["lambda4", "lambda5", "lambda6"] and algo == "normal"
-            # ) or (t.label() in ["lambda5", "lambda6"] and algo == "ee"):
-            if False:
-                no_print = True
-                break
-            elif t.label() == bra_name:
+            if t.label() == bra_name:
                 bra_label = "".join([str(_)[0] for _ in t.lower()]) + "".join(
                     [str(_)[0] for _ in t.upper()]
                 )
@@ -199,16 +296,15 @@ def generate_block_contraction(
                     [str(_)[0] for _ in t.lower()]
                 )
 
-        if not no_print:
-            if block_type == "single":
-                correct_contraction = bra_label == ket_label == block_str
-            elif block_type == "composite":
-                correct_contraction = bra_label in block_str and ket_label in block_str
+        if block_type == "single":
+            correct_contraction = bra_label == ket_label == block_str
+        elif block_type == "composite":
+            correct_contraction = bra_label in block_str and ket_label in block_str
 
-            if correct_contraction:
-                code.append(
-                    f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name)}"
-                )
+        if correct_contraction:
+            code.append(
+                f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name)}"
+            )
 
     code.append(f"{space}sigma = antisymmetrize(sigma, method='{method}')")
 
@@ -216,29 +312,35 @@ def generate_block_contraction(
     return func
 
 
-def generate_S_12(
-    mbeq, single_space, composite_space, tol=1e-10, tol_semi=1e-6, algo="normal", method="ee",
-):
+def generate_S12(mbeq, single_space, composite_space, method="ee"):
     """
     single_space: a list of strings.
     composite_space: a list of lists of strings.
     tol: tolerance for truncating singular values.
     tol_semi: tolerance for truncating singular values for semi-internals.
-    algo: normal or ee (with lambda4)
+    einsum, einsum_type, template_c, gamma1, eta1, lambda2, lambda3, lambda4, tol={tol}, tol_semi={tol_semi}
     """
     code = [
-        f"def get_S_12(einsum, einsum_type, template_c, gamma1, eta1, lambda2, lambda3, lambda4, sym_dict, target_sym, act_sym, tol={tol}, tol_semi={tol_semi}):",
+        f"def get_S12(eom_dsrg):",
+        "    einsum = eom_dsrg.einsum",
+        "    einsum_type = eom_dsrg.einsum_type",
+        "    template_c = eom_dsrg.template_c",
+        "    gamma1 = eom_dsrg.gamma1",
+        "    eta1 = eom_dsrg.eta1",
+        "    lambda2 = eom_dsrg.lambda2",
+        "    lambda3 = eom_dsrg.lambda3",
+        "    lambda4 = eom_dsrg.lambda4",
+        "    tol = eom_dsrg.tol_s",
+        "    tol_semi = eom_dsrg.tol_semi",
+        "    num_ortho = 0",
         "    sigma = {}",
         "    c = {}",
-        "    S_12 = []",
-        "    sym_space = {}",
     ]
 
     def one_active_two_virtual(key):
         code_block = [
             f"    # {key} block (one active, two virtual)",
             f'    print("Starts {key} block")',
-            "    gv_half_dict = {}",
         ]
         space_order = {}
         for i_space in range(2):
@@ -246,8 +348,6 @@ def generate_S_12(
                 space_order["noact"] = i_space
             else:
                 space_order["act"] = i_space
-        reorder_temp = (space_order["noact"], 2, 3, space_order["act"])
-        reorder_back = np.argsort(reorder_temp).tolist()
 
         if key[space_order["act"]] == "A":
             temp_rdm = "gamma1['AA']"
@@ -262,189 +362,56 @@ def generate_S_12(
         code_block.extend(
             [
                 f"    anti = {anti}",
-                f"    sym_space['{key}'] = sym_dict['{key}'].transpose(*{reorder_temp})",
-                f"    max_sym = np.max(sym_space['{key}'])",
-                f"    nocc, nact, nvir = template_c['{key}'].shape[{space_order['noact']+1}], template_c['{key}'].shape[{space_order['act']+1}], template_c['{key}'].shape[3]",
                 f"    ge, gv = np.linalg.eigh({temp_rdm})",
                 f"    trunc_indices = np.where(ge > tol)[0]",
-                f"    gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
-                # f"    rows, cols = gv_half.shape",
-                f"    for i_sym in range(max_sym+1):",
-                f"        temp = {temp_rdm}.copy()",
-                f"        mask = (act_sym != i_sym)",
-                f"        temp[:, mask] = 0",
-                f"        temp[mask, :] = 0",
-                f"        ge, gv = np.linalg.eigh(temp)",
-                f"        trunc_indices = np.where(ge > tol)[0]",
-                f"        gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
-                f"        gv_half_dict[i_sym] = gv_half",
-                f"    rows = gv_half.shape[0]",
-                f"    cols = max(arr.shape[1] for arr in gv_half_dict.values())",
-                f"    num = nocc * nvir * nvir",
+                f"    eom_dsrg.S12.{key} = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
+                f"    nocc, nact, nvir = template_c['{key}'].shape[{space_order['noact']+1}], template_c['{key}'].shape[{space_order['act']+1}], template_c['{key}'].shape[3]",
                 f"    if anti:",
                 f"        zero_idx = [i * nvir * nvir + a * nvir + a for i in range(nocc) for a in range(nvir)]",
                 f"    else:",
                 f"        zero_idx = []",
-                f"    X = np.zeros((num * rows, (num - len(zero_idx)) * cols))",
+                f"    eom_dsrg.S12.position_{key} = np.ones(nocc * nvir * nvir)",
                 f"    current_shape = (nocc, nvir, nvir)",
-                f"    start_col = 0",
-                f"    for i in range(num):",
+                f"    for i in range(len(eom_dsrg.S12.position_{key})):",
                 f"        if i in zero_idx:",
-                f"            continue",
-                f"        unravel_idx = np.unravel_index(i, current_shape)",
-                f"        possible_sym = sym_space['{key}'][unravel_idx]",
-                f"        find_target_sym = np.where(possible_sym == target_sym)[0]",
-                f"        if len(find_target_sym) == 0:",
-                f"            continue",
+                f"            eom_dsrg.S12.position_{key}[i] = 0",
                 f"        else:",
-                f"            act_sym_needed = act_sym[find_target_sym[0]]",
-                f"        current_col = gv_half_dict[act_sym_needed].shape[1]",
-                f"        if (unravel_idx[1] > unravel_idx[2] and anti) or (not anti):",
-                f"            X[i * rows: (i+1) * rows, start_col:(start_col + current_col)] = gv_half_dict[act_sym_needed]",
-                f"            start_col += current_col",
-                f"    X = X[:, :start_col]",
-                f"    nlow = X.shape[1]",
-                f"    X = X.reshape(nocc, nvir, nvir, nact, nlow)",
-                f"    X = np.transpose(X, axes=(*{reorder_back}, 4))",
-                f"    X = X.reshape(nocc*nact*nvir*nvir, nlow)",
-                f"    sym_space.clear()",
-                f"    S_12.append(X)",
-                f"    del X",
+                f"            unravel_idx = np.unravel_index(i, current_shape)",
+                f"            if (unravel_idx[1] > unravel_idx[2] and anti) or (not anti):",
+                f"                continue",
+                f"            else:",
+                f"                eom_dsrg.S12.position_{key}[i] = 0",
+                f"    num_ortho += np.sum(eom_dsrg.S12.position_{key} == 1)",
             ]
         )
         return code_block
 
-    def two_active_two_virtual(key):
-        # aavv, AAVV, aAvV
-        code_block = [
-            f"    # {key} block (two active, two virtual)",
-            f'    print("Starts {key} block")',
-            "    gv_half_dict = {}",
-        ]
+    # SL: Two_active_two_virtual has been removed from the code. EE is disabled.
 
-        if key[2] == key[3]:  # Should be antisymmetrized
-            anti = True
-            if key[0] == key[1] == "a":
-                temp_rdm = "gamma1['aa']"
-                temp_lambda = "lambda2['aaaa']"
-            elif key[0] == key[1] == "A":
-                temp_rdm = "gamma1['AA']"
-                temp_lambda = "lambda2['AAAA']"
-        else:
-            anti = False
-            temp_lambda = "lambda2['aAaA']"
-
-        code_block.extend(
-            [
-                f"    anti = {anti}",
-                f"    sym_space['{key}'] = sym_dict['{key}'].transpose(2,3,0,1)",
-                f"    max_sym = np.max(sym_space['{key}'])",
-                f"    nact, nvir = template_c['{key}'].shape[1], template_c['{key}'].shape[3]",
-            ]
-        )
-        if anti:
-            code_block.extend(
-                [
-                    f"    overlap = np.einsum('ar,ob->oabr', {temp_rdm}, {temp_rdm}, optimize=True)",
-                    f"    overlap -= np.einsum('ab,or->oabr', {temp_rdm}, {temp_rdm}, optimize=True)",
-                ]
-            )
-        else:
-            code_block.extend(
-                [
-                    f"    overlap = np.einsum('ar,ob->oabr', gamma1['AA'], gamma1['aa'], optimize=True)",
-                ]
-            )
-        code_block.extend(
-            [
-                f"    overlap += {temp_lambda}",
-                f"    overlap = overlap.reshape(nact*nact, nact*nact)",
-                f"    if anti:",
-                f"        zero_anti = np.array([u * nact + v for u in range(nact) for v in range(u, nact)])",
-                f"        overlap[zero_anti, :] = 0",
-                f"        overlap[:, zero_anti] = 0",
-                f"    tol_act_sym = (act_sym[:, None] ^ act_sym[None, :]).flatten()",
-                f"    ge, gv = np.linalg.eigh(overlap)",
-                f"    trunc_indices = np.where(ge > tol)[0]",
-                f"    gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
-                # f"    rows, cols = gv_half.shape",
-                f"    for i_sym in range(max_sym+1):",
-                f"        temp = overlap.copy()",
-                f"        mask = (tol_act_sym != i_sym)",
-                f"        temp[:, mask] = 0",
-                f"        temp[mask, :] = 0",
-                f"        ge, gv = np.linalg.eigh(temp)",
-                f"        trunc_indices = np.where(ge > tol)[0]",
-                f"        gv_half = gv[:, trunc_indices] / np.sqrt(ge[trunc_indices])",
-                f"        gv_half_dict[i_sym] = gv_half",
-                f"    rows = gv_half.shape[0]",
-                f"    cols = max(arr.shape[1] for arr in gv_half_dict.values())",
-                f"    num = nvir * nvir",
-                f"    if anti:",
-                f"        zero_idx = [a * nvir + a for a in range(nvir)]",
-                f"    else:",
-                f"        zero_idx = []",
-                f"    X = np.zeros((num * rows, (num - len(zero_idx)) * cols))",
-                f"    current_shape = (nvir, nvir)",
-                f"    start_col = 0",
-                f"    for i in range(num):",
-                f"        if i in zero_idx:",
-                f"            continue",
-                f"        unravel_idx = np.unravel_index(i, current_shape)",
-                f"        possible_sym = sym_space['{key}'][unravel_idx].flatten()",
-                f"        find_target_sym = np.where(possible_sym == target_sym)[0]",
-                f"        if len(find_target_sym) == 0:",
-                f"            continue",
-                f"        else:",
-                f"            act_sym_needed = tol_act_sym[find_target_sym[0]]",
-                f"        current_col = gv_half_dict[act_sym_needed].shape[1]",
-                f"        if (unravel_idx[0] > unravel_idx[1] and anti) or (not anti):",
-                f"            X[i * rows: (i+1) * rows, start_col:(start_col + current_col)] = gv_half_dict[act_sym_needed]",
-                f"            start_col += current_col",
-                f"    X = X[:, :start_col]",
-                f"    nlow = X.shape[1]",
-                f"    X = X.reshape(nvir, nvir, nact, nact, nlow)",
-                f"    X = np.transpose(X, axes=(2,3,0,1,4))",
-                f"    X = X.reshape(nact * nact * nvir * nvir, nlow)",
-                f"    sym_space.clear()",
-                f"    S_12.append(X)",
-                f"    del X",
-            ]
-        )
-        return code_block
-
+    # I think single excitation operators are too small to be considered here.
     def no_active(key):
         anti_up, anti_down = False, False
-        if len(key) == 4:
-            if key[0] == key[1] and key[2] == key[3]:
-                anti_up, anti_down = True, True
-            elif key[0] == key[1] and key[2] != key[3]:
-                anti_up, anti_down = True, False
-            elif key[0] != key[1] and key[2] == key[3]:
-                anti_up, anti_down = False, True
-
-        code_block = [
-            f"    # {key} block",
-            f'    print("Starts {key} block")',
+        if key[0] == key[1] and key[2] == key[3]:
+            anti_up, anti_down = True, True
+        elif key[0] == key[1] and key[2] != key[3]:
+            anti_up, anti_down = True, False
+        elif key[0] != key[1] and key[2] == key[3]:
+            anti_up, anti_down = False, True
+        return [
+            f"    # {key} block (no active)",
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    shape_size = np.prod(shape_block)",
-            f"    sym_space['{key}'] = sym_dict['{key}']",
-            f"    sym_vec = dict_to_vec(sym_space, 1).flatten()",
-            f"    sym_space.clear()",
+            f"    eom_dsrg.S12.{key} = np.ones(shape_size)",
             f"    zero_up, zero_down = [], []",
             f"    if {anti_down}:",
             f"        zero_down = [i * shape_block[1] * shape_block[2] * shape_block[3] + j * shape_block[2] * shape_block[3] + a * shape_block[3] + b for i in range(shape_block[0]) for j in range(shape_block[1]) for a in range(shape_block[2]) for b in range(a, shape_block[3])]",
             f"    if {anti_up}:",
             f"        zero_up = [i * shape_block[1] * shape_block[2] * shape_block[3] + j * shape_block[2] * shape_block[3] + a * shape_block[3] + b for i in range(shape_block[0]) for j in range (i, shape_block[1]) for a in range(shape_block[2]) for b in range(shape_block[3])]",
-            f"    mask = np.where(sym_vec != target_sym)[0]",
-            f"    tol_mask = list(set(zero_down) | set(zero_up) | set(mask))",
-            f"    X = np.identity(shape_size) ",
-            f"    X = np.delete(X, tol_mask, axis=1)",
-            f"    S_12.append(X)",
-            f"    del tol_mask, sym_vec, zero_down, zero_up, X",
+            f"    mask = list(set(zero_down) | set(zero_up))",
+            f"    eom_dsrg.S12.{key}[mask] = 0",
+            f"    num_ortho += np.sum(eom_dsrg.S12.{key} == 1)",
+            f"    del mask, zero_down, zero_up",
         ]
-
-        return code_block
 
     def add_single_space_code(key):
         return [
@@ -454,32 +421,24 @@ def generate_S_12(
             f"    shape_size = np.prod(shape_block)",
             f"    c['{key}'] = np.zeros((shape_size, *shape_block))",
             f"    sigma['{key}'] = np.zeros((shape_size, *shape_block))",
-            f"    sym_space['{key}'] = sym_dict['{key}']",
-            f"    sym_vec = dict_to_vec(sym_space, 1).flatten()",
-            f"    sym_space.clear()",
             f"    c_vec = dict_to_vec(c, shape_size)",
             f"    np.fill_diagonal(c_vec, 1)",
             f"    c = vec_to_dict(c, c_vec)",
             f"    del c_vec",
             f"    c = antisymmetrize(c, method='{method}')",
             f"    print('Starts contraction')",
-            generate_block_contraction(
-                key, mbeq, block_type="single", indent="once", algo=algo, method=method,
-            ),
+            generate_block_contraction(key, mbeq, block_type="single", indent="once", method=method),
             f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
             f"    sigma.clear()",
-            f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]",
-            f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)",
-            f"    vec[~mask] = 0",
             f"    print('Starts diagonalization', flush = True)",
             f"    sevals, sevecs = scipy.linalg.eigh(vec)",
-            f"    del sym_vec, vec, x_index, y_index, mask",
+            f"    del vec",
             f"    print('Diagonalization done')",
             f"    trunc_indices = np.where(sevals > tol)[0]",
-            f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
-            "    S_12.append(X)",
-            "    del sevals, sevecs, trunc_indices, X",
+            f"    eom_dsrg.S12.{key} = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
+            f"    num_ortho += eom_dsrg.S12.{key}.shape[1]",
+            "    del sevals, sevecs, trunc_indices",
         ]
 
     def add_composite_space_block(space):
@@ -494,7 +453,6 @@ def generate_S_12(
                 [
                     f"    shape_block = template_c['{key}'].shape[1:]",
                     f"    shape_size += np.prod(shape_block)",
-                    f"    sym_space['{key}'] = sym_dict['{key}']",
                 ]
             )
         code_block.extend(
@@ -503,8 +461,6 @@ def generate_S_12(
                 f"        shape_block = template_c[key].shape[1:]",
                 f"        c[key] = np.zeros((shape_size, *shape_block))",
                 f"        sigma[key] = np.zeros((shape_size, *shape_block))",
-                f"    sym_vec = dict_to_vec(sym_space, 1).flatten()",
-                f"    sym_space.clear()",
                 f"    c_vec = dict_to_vec(c, shape_size)",
                 f"    np.fill_diagonal(c_vec, 1)",
                 f"    c = vec_to_dict(c, c_vec)",
@@ -515,7 +471,7 @@ def generate_S_12(
         )
         code_block.append(
             generate_block_contraction(
-                space, mbeq, block_type="composite", indent="once", algo=algo, method=method,
+                space, mbeq, block_type="composite", indent="once", method=method,
             )
         )
         code_block.extend(
@@ -523,10 +479,6 @@ def generate_S_12(
                 f"    c.clear()",
                 f"    vec = dict_to_vec(sigma, shape_size)",
                 f"    sigma.clear()",
-                f"    x_index, y_index = np.ogrid[:vec.shape[0], :vec.shape[1]]",
-                f"    mask = (sym_vec[x_index] == target_sym) & (sym_vec[y_index] == target_sym)",
-                f"    vec[~mask] = 0",
-                f"    del sym_vec, x_index, y_index, mask",
             ]
         )
         return code_block
@@ -540,15 +492,15 @@ def generate_S_12(
                 f"    del vec",
                 f"    print('Diagonalization done')",
                 f"    trunc_indices = np.where(sevals > tol)[0]",
-                f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
-                f"    S_12.append(X)",
-                f"    del sevals, sevecs, trunc_indices, X",
+                f"    eom_dsrg.S12.{space[0]} = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
+                f"    num_ortho += eom_dsrg.S12.{space[0]}.shape[1]",
+                f"    del sevals, sevecs, trunc_indices",
             ]
         )
         return code_block
 
     def sequential_orthogonalization(space):
-        # Singles first.
+        # Singles first!!
         code_block = add_composite_space_block(space)
         singles = []
         for key in space:
@@ -579,8 +531,8 @@ def generate_S_12(
                 f"    print('Diagonalization done')",
                 f"    trunc_indices = np.where(sevals > tol_semi)[0]",
                 f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
-                f"    X = np.matmul(Y, X)",
-                f"    S_12.append(X)",
+                f"    eom_dsrg.S12.{space[0]} = np.matmul(Y, X)",
+                f"    num_ortho += eom_dsrg.S12.{space[0]}.shape[1]",
                 f"    del sevals, sevecs, trunc_indices, X, Y, Y12",
             ]
         )
@@ -598,10 +550,10 @@ def generate_S_12(
             if not (key[0] in ["a", "A"] and key[1] in ["a", "A"]):
                 # One active, two virtual
                 code.extend(one_active_two_virtual(key))
-            else:
-                # Two active, two virtual
-                code.extend(two_active_two_virtual(key))
-        elif "a" not in key and "A" not in key:
+            # else:
+            #     # Two active, two virtual
+            #     code.extend(two_active_two_virtual(key))
+        elif "a" not in key and "A" not in key and len(key) == 4:
             code.extend(no_active(key))
         else:
             code.extend(add_single_space_code(key))
@@ -615,160 +567,267 @@ def generate_S_12(
             code.extend(add_composite_space_code(space))
         code.append("")  # Blank line for separation
 
-    code.append("    return S_12")
+    code.append("    print(f'Number of orthogonalized operators: {num_ortho}')")
+
     return "\n".join(code)
 
 
 def generate_preconditioner(
-    mbeq, single_space, composite_space, diagonal_type="exact", algo="normal", method='ee'
+    mbeq, mbeqs_one_active, mbeqs_no_active, single_space, composite_space, method="ee",
 ):
-    def add_single_space_code(key, i_key):
+    """
+    mbeqs_one_active and mbeqs_no_active are dictionaries.
+    einsum, einsum_type, template_c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4
+    """
+    code = [
+        f"def compute_preconditioner(eom_dsrg):",
+        "    einsum = eom_dsrg.einsum",
+        "    einsum_type = eom_dsrg.einsum_type",
+        "    template_c = eom_dsrg.template_c",
+        "    Hbar = eom_dsrg.Hbar",
+        "    gamma1 = eom_dsrg.gamma1",
+        "    eta1 = eom_dsrg.eta1",
+        "    lambda2 = eom_dsrg.lambda2",
+        "    lambda3 = eom_dsrg.lambda3",
+        "    lambda4 = eom_dsrg.lambda4",
+        "    sigma = {}",
+        "    c = {}",
+        "    delta = {'ii': np.identity(eom_dsrg.ncore), 'II': np.identity(eom_dsrg.ncore), 'cc': np.identity(eom_dsrg.nocc), 'CC': np.identity(eom_dsrg.nocc), 'aa': np.identity(eom_dsrg.nact), 'AA': np.identity(eom_dsrg.nact), 'vv': np.identity(eom_dsrg.nvir), 'VV': np.identity(eom_dsrg.nvir)}",
+        "    diagonal = [np.array([0.0])]",
+    ]
+
+    def add_single_space_code(key):
         return [
             f"    # {key} block",
             f'    print("Starts {key} block precond")',
             f"    shape_block = template_c['{key}'].shape[1:]",
-            f"    tensor = S_12[{i_key}]",
-            f"    northo = tensor.shape[1]",
+            f"    northo = eom_dsrg.S12.{key}.shape[1]",
             f"    if northo != 0:",
             f"        c['{key}'] = np.zeros((northo, *shape_block))",
             f"        sigma['{key}'] = np.zeros((northo, *shape_block))",
-            f"        c = vec_to_dict(c, tensor)",
-            f"        c = antisymmetrize(c, method='{method}')",
-            generate_block_contraction(
-                key, mbeq, block_type="single", indent="twice", algo=algo, method=method,
-            ),
+            f"        c = vec_to_dict(c, eom_dsrg.S12.{key})",
+            f"        c = antisymmetrize(c)",
+            generate_block_contraction(key, mbeq, block_type="single", indent="twice", method=method),
             f"        c.clear()",
             f"        vec = dict_to_vec(sigma, northo)",
             f"        sigma.clear()",
-            f"        vmv = tensor.T @ vec",
+            f"        vmv = eom_dsrg.S12.{key}.T @ vec",
             f"        diagonal.append(vmv.diagonal())",
             f"        del vec, vmv",
         ]
 
-    def add_code_only_H(key, i_key):
-        return [
-            f"    # {key} block",
-            f'    print("Starts {key} block precond")',
-            f"    shape_block = template_c['{key}'].shape[1:]",
-            f"    shape_size = np.prod(shape_block)",
-            f"    c['{key}'] = np.zeros((shape_size, *shape_block))",
-            f"    sigma['{key}'] = np.zeros((shape_size, *shape_block))",
-            f"    c = vec_to_dict(c, np.identity(shape_size))",
-            f"    c = antisymmetrize(c, method='{method}')",
-            generate_block_contraction(
-                key, mbeq, block_type="single", indent="once", algo=algo, method=method,
-            ),
-            f"    c.clear()",
-            f"    vec = dict_to_vec(sigma, shape_size)",
-            f"    sigma.clear()",
-            f"    diagonal.append(vec.diagonal())",
-            f"    del vec",
-        ]
-
-    def add_composite_space_code(space, start):
+    def add_composite_space_code(space):
         code_block = [
             f"    # {space} composite block",
             f'    print("Starts {space} composite block precond")',
-            f"    tensor = S_12[{start}]",
-            f"    northo = tensor.shape[1]",
+            f"    northo = eom_dsrg.S12.{space[0]}.shape[1]",
             f"    if northo != 0:",
             f"        vmv = np.zeros((northo, northo))",
         ]
 
-        if diagonal_type == "exact":
-            code_block.extend(
-                [
-                    f"        for key in {space}:",
-                    f"            shape_block = template_c[key].shape[1:]",
-                    f"            c[key] = np.zeros((northo, *shape_block))",
-                    f"            sigma[key] = np.zeros((northo, *shape_block))",
-                    f"        c = vec_to_dict(c, tensor)",
-                    f"        c = antisymmetrize(c, method='{method}')",
-                    generate_block_contraction(
-                        space, mbeq, block_type="composite", indent="twice", algo=algo, method=method,
-                    ),
-                    f"        c.clear()",
-                    f"        vec = dict_to_vec(sigma, northo)",
-                    f"        sigma.clear()",
-                    f"        vmv = tensor.T @ vec",
-                    f"        del vec",
-                ]
-            )
-        elif diagonal_type == "block":
-            code_block.extend([f"        slice_tensor = 0"])
-            for key_space in space:
-                code_block.extend(
-                    [
-                        f"        # {key_space} sub-block",
-                        f'        print("Starts {key_space} sub-block precond")',
-                        f"        shape_block = template_c['{key_space}'].shape[1:]",
-                        f"        shape_size = np.prod(shape_block)",
-                        f"        c['{key_space}'] = np.zeros((shape_size, *shape_block))",
-                        f"        sigma['{key_space}'] = np.zeros((shape_size, *shape_block))",
-                        f"        c_vec = dict_to_vec(c, shape_size)",
-                        f"        np.fill_diagonal(c_vec, 1)",
-                        f"        c = vec_to_dict(c, c_vec)",
-                        f"        c = antisymmetrize(c, method='{method}')",
-                        generate_block_contraction(
-                            key_space,
-                            mbeq,
-                            block_type="single",
-                            indent="twice",
-                            algo=algo,
-                            method=method,
-                        ),
-                        f"        c.clear()",
-                        f"        del c_vec",
-                        f"        H_temp = dict_to_vec(sigma, shape_size)",
-                        f"        sigma.clear()",
-                        f"        S_temp = tensor[slice_tensor:slice_tensor+shape_size, :]",
-                        f"        vmv += S_temp.T @ H_temp @ S_temp",
-                        f"        slice_tensor += shape_size",
-                        f"        del H_temp, S_temp",
-                    ]
-                )
-        code_block.append(f"        diagonal.append(vmv.diagonal())")
-        # code_block.extend([
-        #     "    sigma.clear()",
-        #     "    c.clear()"
-        # ])
+        code_block.extend(
+            [
+                f"        for key in {space}:",
+                f"            shape_block = template_c[key].shape[1:]",
+                f"            c[key] = np.zeros((northo, *shape_block))",
+                f"            sigma[key] = np.zeros((northo, *shape_block))",
+                f"        c = vec_to_dict(c, eom_dsrg.S12.{space[0]})",
+                f"        c = antisymmetrize(c)",
+                generate_block_contraction(
+                    space, mbeq, block_type="composite", indent="twice", method=method,
+                ),
+                f"        c.clear()",
+                f"        vec = dict_to_vec(sigma, northo)",
+                f"        sigma.clear()",
+                f"        vmv = eom_dsrg.S12.{space[0]}.T @ vec",
+                f"        del vec",
+                f"        diagonal.append(vmv.diagonal())",
+            ]
+        )
+
         return code_block
 
-    if composite_space is None:
-        code = [
-            f"def compute_preconditioner_only_H(einsum, einsum_type, template_c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
-            "    sigma = {}",
-            "    c = {}",
-            "    diagonal = [np.array([0.0])]",
-        ]
-        for i_key, key in enumerate(single_space):
-            code.extend(add_code_only_H(key, i_key))
-            code.append("")  # Blank line for separation
-    else:
-        code = [
-            f"def compute_preconditioner_{diagonal_type}(einsum, einsum_type, template_c, S_12, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
-            "    sigma = {}",
-            "    c = {}",
-            "    diagonal = [np.array([0.0])]",
+    def one_active_two_virtual(key):
+        code_block = [
+            f"    # {key} block (one active, two virtual)",
+            f'    print("Starts {key} block precond")',
         ]
 
-        # Add single space code blocks
-        for i_key, key in enumerate(single_space):
-            code.extend(add_single_space_code(key, i_key))
-            code.append("")  # Blank line for separation
+        space_order = {}
+        for i_space in range(2):
+            if key[i_space] not in ["a", "A"]:
+                space_order["noact"] = i_space
+            else:
+                space_order["act"] = i_space
 
-        start = len(single_space)
+        code_block.extend(
+            [
+                f"    nocc, nact, nvir = template_c['{key}'].shape[{space_order['noact']+1}], template_c['{key}'].shape[{space_order['act']+1}], template_c['{key}'].shape[3]",
+                "    H = np.zeros((nocc, nvir, nvir, nact, nact))",
+                matrix_elements_to_diag(mbeqs_one_active[key]),
+            ]
+        )
 
-        # Add composite space code blocks
-        for space in composite_space:
-            code.extend(add_composite_space_code(space, start))
-            start += 1  # Update start index
-            code.append("")  # Blank line for separation
+        code_block.extend(
+            [
+                f"    H = np.einsum('xu, MeFxy, yu -> MeFu', eom_dsrg.S12.{key}, H, eom_dsrg.S12.{key}, optimize=True)",
+                f"    H = H.reshape(-1, eom_dsrg.S12.{key}.shape[1])",
+                f"    zero_mask = eom_dsrg.S12.position_{key} == 0",
+                f"    H = np.delete(H, zero_mask, axis=0)",
+                f"    diagonal.append(H.flatten())",
+            ]
+        )
+
+        return code_block
+
+    def no_active(key):
+        code_block = [
+            f"    # {key} block (no active)",
+            f'    print("Starts {key} block precond")',
+        ]
+        code_block.extend(
+            [
+                f"    shape_block = template_c['{key}'].shape[1:]",
+                "    H = np.zeros(shape_block)",
+                matrix_elements_to_diag(mbeqs_no_active[key]),
+            ]
+        )
+
+        code_block.extend(
+            [
+                f"    H = H.flatten()",
+                f"    temp = H[eom_dsrg.S12.{key}==1]",
+                f"    diagonal.append(temp)",
+            ]
+        )
+
+        return code_block
+
+    # Add single space code blocks
+    for key in single_space:
+        if (
+            len(key) == 4
+            and key[2] in ["v", "V"]
+            and key[3] in ["v", "V"]
+            and (key[0] in ["a", "A"] or key[1] in ["a", "A"])
+            and not (key[0] in ["a", "A"] and key[1] in ["a", "A"])
+        ):
+            # One active, two virtual
+            # code.append(
+            #     f"    temp = np.ones(np.sum(eom_dsrg.S12.position_{key} == 1) * eom_dsrg.S12.{key}.shape[1])"
+            # )
+            # code.append(f"    diagonal.append(temp)")
+            code.extend(one_active_two_virtual(key))
+        elif "a" not in key and "A" not in key and len(key) == 4:
+            # code.append(f"    temp = np.ones(np.sum(eom_dsrg.S12.{key} == 1))")
+            # code.append(f"    diagonal.append(temp)")
+            code.extend(no_active(key))
+        else:
+            code.extend(add_single_space_code(key))
+        code.append("")  # Blank line for separation
+
+    # Add composite space code blocks
+    for space in composite_space:
+        code.extend(add_composite_space_code(space))
+        code.append("")  # Blank line for separation
 
     code.append("    full_diag = np.concatenate(diagonal)")
     code.append("    return full_diag")
 
     return "\n".join(code)
+
+
+def generate_apply_S12(single_space, composite_space):
+    code_block = [
+        f"def apply_S12(eom_dsrg, ndim, t, transpose=False):",
+        f"    Xt = np.zeros((ndim, 1))",
+        f"    i_start_xt = 1",
+        f"    i_start_t = 1",
+        f"    Xt[0, 0] = t[0]",
+        f"    template = eom_dsrg.template_c",
+    ]
+    for key in single_space:
+        # No active, double excitation
+        if "a" not in key and "A" not in key and len(key) == 4:
+            code_block.extend(
+                [
+                    f"    num_op, num_ortho = len(eom_dsrg.S12.{key}), np.sum(eom_dsrg.S12.{key}==1)",
+                    f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
+                    f"    if not transpose:",
+                    f"        temp = eom_dsrg.S12.{key}.copy()",
+                    f"        temp[eom_dsrg.S12.{key} == 1] = t[i_start_t:i_end_t]",
+                    f"        Xt[i_start_xt:i_end_xt, :] = temp.reshape(-1, 1).copy()",
+                    f"    else:",
+                    f"        temp = t[i_start_t:i_end_t][eom_dsrg.S12.{key}==1]",
+                    f"        Xt[i_start_xt:i_end_xt, :] = temp.reshape(-1, 1).copy()",
+                    f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
+                ]
+            )
+        # One active, two virtuals
+        elif (
+            len(key) == 4
+            and key[2] in ["v", "V"]
+            and key[3] in ["v", "V"]
+            and (key[0] in ["a", "A"] or key[1] in ["a", "A"])
+            and not (key[0] in ["a", "A"] and key[1] in ["a", "A"])
+        ):
+            space_order = {}
+            for i_space in range(2):
+                if key[i_space] not in ["a", "A"]:
+                    space_order["noact"] = i_space
+                else:
+                    space_order["act"] = i_space
+            reorder_temp = (space_order["noact"], 2, 3, space_order["act"])
+            reorder_back = np.argsort(reorder_temp).tolist()
+            code_block.extend(
+                [
+                    f"    nocc, nact, nvir = template['{key}'].shape[{space_order['noact']+1}], template['{key}'].shape[{space_order['act']+1}], template['{key}'].shape[3]",
+                    f"    row, col = eom_dsrg.S12.{key}.shape[0], eom_dsrg.S12.{key}.shape[1]",
+                    f"    num_positions = len(eom_dsrg.S12.position_{key})",
+                    f"    num_op, num_ortho = row * num_positions, col * np.sum(eom_dsrg.S12.position_{key}==1)",
+                    f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
+                    f"    temp_t = t[i_start_t:i_end_t].copy()",
+                    f"    temp_xt = np.zeros((num_positions, row)) if not transpose else np.zeros((np.sum(eom_dsrg.S12.position_{key}==1), col))",
+                    # f"    temp_t = temp_t.reshape(np.sum(eom_dsrg.S12.position_{key}==1), col) if not transpose else temp_t.reshape(num_positions, row)",
+                    f"    if not transpose:",
+                    f"        temp_t = temp_t.reshape(np.sum(eom_dsrg.S12.position_{key}==1), col)",
+                    f"        non_zero_mask = eom_dsrg.S12.position_{key} != 0",
+                    f"        temp_xt[non_zero_mask] = np.dot(eom_dsrg.S12.{key}, temp_t.T).T",
+                    f"        temp_xt = temp_xt.flatten()",
+                    f"        temp_xt = temp_xt.reshape(nocc, nvir, nvir, nact, 1)",
+                    f"        temp_xt = np.transpose(temp_xt, axes=(*{reorder_back}, 4))",
+                    f"        temp_xt = temp_xt.reshape(-1, 1)",
+                    f"    else:",
+                    f"        zero_mask = eom_dsrg.S12.position_{key} == 0",
+                    f"        temp_t = temp_t.reshape(*template['{key}'].shape[1:])",
+                    f"        temp_t = temp_t.transpose(*{reorder_temp})",
+                    f"        temp_t = temp_t.reshape(-1, row)",
+                    f"        temp_t = np.delete(temp_t, zero_mask, axis=0)",
+                    f"        temp_xt = np.dot(eom_dsrg.S12.{key}.T, temp_t.T).T",
+                    f"    Xt[i_start_xt:i_end_xt, :] = temp_xt.reshape(-1, 1).copy()",
+                    f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
+                ]
+            )
+        else:
+            code_block.extend(
+                [
+                    f"    num_op, num_ortho = eom_dsrg.S12.{key}.shape",
+                    f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
+                    f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{key} @ t[i_start_t:i_end_t].reshape(-1, 1) if not transpose else eom_dsrg.S12.{key}.T @ t[i_start_t:i_end_t].reshape(-1, 1))",
+                    f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
+                ]
+            )
+    for space in composite_space:
+        code_block.extend(
+            [
+                f"    num_op, num_ortho = eom_dsrg.S12.{space[0]}.shape",
+                f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
+                f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{space[0]} @ t[i_start_t:i_end_t].reshape(-1, 1) if not transpose else eom_dsrg.S12.{space[0]}.T @ t[i_start_t:i_end_t].reshape(-1, 1))",
+                f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
+            ]
+        )
+    code_block.append("    return Xt")
+    return "\n".join(code_block)
 
 
 def antisymmetrize_tensor_2_2(Roovv, nlow, nocc, nvir):
