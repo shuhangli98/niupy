@@ -22,6 +22,7 @@ class EOM_DSRG:
         nroots=6,
         wfn=None,
         mo_spaces=None,
+        verbose=5,
         diagonal_type="compute",
         method_type="cvs_ee",
         davidson_type="traditional",
@@ -80,6 +81,7 @@ class EOM_DSRG:
         else:
             self.einsum = np.einsum
 
+        self.verbose = verbose
         self.method_type = method_type
         self.diagonal_type = diagonal_type  # "compute" or "load"
         self.davidson_type = davidson_type  # 'traditional' or 'generalized'
@@ -185,6 +187,7 @@ class EOM_DSRG:
             self.build_sigma_vector_s,
             self.build_transition_dipole,
             self.get_S12,
+            self.apply_S12,
             self.compute_preconditioner,
         ) = self.eom_dsrg_compute.get_sigma_build(self)
 

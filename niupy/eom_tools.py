@@ -2,6 +2,7 @@ import wicked as w
 import numpy as np
 import copy
 import itertools
+import re
 
 
 def compile_sigma_vector(equation, bra_name="bra", ket_name="c"):
@@ -43,6 +44,98 @@ def compile_first_row(equation, ket_name="c"):
     ket[0] = "sigma"
     d["lhs"] = [ket]
     return w.dict_to_einsum(d)
+
+
+def increment_index(index):
+    """
+    increment a sting like 'a128' to 'a129' using regex
+    """
+    return re.sub(r"(\d+)", lambda x: str(int(x.group(0)) + 1), index)
+
+
+# TODO: creating a function to add deltas to equations directly.
+def get_matrix_elements(bra, op, ket, inter_general=False, double_comm=False):
+    """
+    This function calculates the matrix elements of an operator
+    between two internally contracted configurations.
+
+    This is achieved by taking the second derivative of the fully
+    contracted expression with respect to the fictitious bra and
+    ket tensor elements.
+    """
+    wt = w.WickTheorem()  # Temporary fix
+    if op is None:
+        if double_comm:
+            expr = w.commutator(bra.adjoint(), ket)
+        else:
+            expr = bra.adjoint() @ ket
+    else:
+        if double_comm:
+            expr = w.commutator(bra.adjoint() @ w.commutator(op, ket)) + w.commutator(
+                w.commutator(bra.adjoint(), op) @ ket
+            )
+        else:
+            expr = bra.adjoint() @ op @ ket
+    label = "S" if op is None else "H"
+    try:
+        mbeq = wt.contract(
+            expr, 0, 0, inter_general=inter_general
+        ).to_manybody_equations(label)["|"]
+    except KeyError:
+        return
+    mbeq_new = []
+    for i in mbeq:
+        eqdict = w.equation_to_dict(i)
+        newdict = {"factor": eqdict["factor"], "lhs": [label, [], []], "rhs": []}
+        lhs_indices = set()
+        rhs_indices = set()
+        for j in eqdict["rhs"]:
+            # The fictitious tensor elements are
+            # {p+ q+ s r} bra^{pq}_{rs}
+            if j[0] == "bra":
+                bra_indices = j[2][::1] + j[1]
+                lhs_indices.update(bra_indices)
+            elif j[0] == "ket":
+                ket_indices = j[1] + j[2][::1]
+                lhs_indices.update(ket_indices)
+            else:
+                newdict["rhs"].append(j)
+                rhs_indices.update(j[1] + j[2])
+
+        if len(bra_indices + ket_indices) > len(lhs_indices):
+            lhs = bra_indices + ket_indices
+            index_pool = lhs_indices | rhs_indices
+            for i in lhs_indices:
+                if lhs.count(i) == 2:
+                    test_index = increment_index(i)
+                    while True:
+                        if test_index not in index_pool:
+                            ket_indices[ket_indices.index(i)] = test_index
+                            index_pool.update([test_index])
+                            newdict["rhs"].append(["delta", [i], [test_index]])
+                            break
+                        test_index = increment_index(test_index)
+
+        newdict["lhs"][1] = ket_indices
+        newdict["lhs"][2] = bra_indices
+        mbeq_new.append(w.dict_to_equation(newdict))
+    return mbeq_new
+
+
+def matrix_elements_to_diag(eq, algo="noact"):
+    eqdict = w.equation_to_dict(eq)
+    deltas = {eqdict["lhs"][1][i]: eqdict["lhs"][2][i] for i in range(3)}
+    if algo != "noact":
+        eqdict["lhs"][2].append(eqdict["lhs"][1][-1])
+    eqdict["lhs"][1] = []
+    for t in eqdict["rhs"]:
+        for i, l in enumerate(t[1]):
+            if l in deltas:
+                t[1][i] = deltas[l]
+        for i, l in enumerate(t[2]):
+            if l in deltas:
+                t[2][i] = deltas[l]
+    return w.dict_to_equation(eqdict).compile("einsum")
 
 
 def generate_sigma_build(mbeq, matrix, first_row=True):
@@ -252,15 +345,15 @@ def generate_S12(mbeq, single_space, composite_space):
 
     # SL: Two_active_two_virtual has been removed from the code. EE is disabled.
 
+    # I think single excitation operators are too small to be considered here.
     def no_active(key):
         anti_up, anti_down = False, False
-        if len(key) == 4:
-            if key[0] == key[1] and key[2] == key[3]:
-                anti_up, anti_down = True, True
-            elif key[0] == key[1] and key[2] != key[3]:
-                anti_up, anti_down = True, False
-            elif key[0] != key[1] and key[2] == key[3]:
-                anti_up, anti_down = False, True
+        if key[0] == key[1] and key[2] == key[3]:
+            anti_up, anti_down = True, True
+        elif key[0] == key[1] and key[2] != key[3]:
+            anti_up, anti_down = True, False
+        elif key[0] != key[1] and key[2] == key[3]:
+            anti_up, anti_down = False, True
         return [
             f"    # {key} block (no active)",
             f"    shape_block = template_c['{key}'].shape[1:]",
@@ -413,7 +506,7 @@ def generate_S12(mbeq, single_space, composite_space):
             # else:
             #     # Two active, two virtual
             #     code.extend(two_active_two_virtual(key))
-        elif "a" not in key and "A" not in key:
+        elif "a" not in key and "A" not in key and len(key) == 4:
             code.extend(no_active(key))
         else:
             code.extend(add_single_space_code(key))
@@ -474,7 +567,7 @@ def generate_preconditioner(mbeq, single_space, composite_space):
         code_block = [
             f"    # {space} composite block",
             f'    print("Starts {space} composite block precond")',
-            f"    northo = eom_dsrg.S12.{key}.shape[1]",
+            f"    northo = eom_dsrg.S12.{space[0]}.shape[1]",
             f"    if northo != 0:",
             f"        vmv = np.zeros((northo, northo))",
         ]
@@ -485,7 +578,7 @@ def generate_preconditioner(mbeq, single_space, composite_space):
                 f"            shape_block = template_c[key].shape[1:]",
                 f"            c[key] = np.zeros((northo, *shape_block))",
                 f"            sigma[key] = np.zeros((northo, *shape_block))",
-                f"        c = vec_to_dict(c, eom_dsrg.S12.{key})",
+                f"        c = vec_to_dict(c, eom_dsrg.S12.{space[0]})",
                 f"        c = antisymmetrize(c)",
                 generate_block_contraction(
                     space, mbeq, block_type="composite", indent="twice"
@@ -493,7 +586,7 @@ def generate_preconditioner(mbeq, single_space, composite_space):
                 f"        c.clear()",
                 f"        vec = dict_to_vec(sigma, northo)",
                 f"        sigma.clear()",
-                f"        vmv = eom_dsrg.S12.{key}.T @ vec",
+                f"        vmv = eom_dsrg.S12.{space[0]}.T @ vec",
                 f"        del vec",
                 f"        diagonal.append(vmv.diagonal())",
             ]
@@ -503,7 +596,23 @@ def generate_preconditioner(mbeq, single_space, composite_space):
 
     # Add single space code blocks
     for key in single_space:
-        code.extend(add_single_space_code(key))
+        if (
+            len(key) == 4
+            and key[2] in ["v", "V"]
+            and key[3] in ["v", "V"]
+            and (key[0] in ["a", "A"] or key[1] in ["a", "A"])
+        ):
+            if not (key[0] in ["a", "A"] and key[1] in ["a", "A"]):
+                # One active, two virtual
+                code.append(
+                    f"    temp = np.ones(np.sum(eom_dsrg.S12.position_{key} == 1))"
+                )
+                code.append(f"    diagonal.append(temp)")
+        elif "a" not in key and "A" not in key and len(key) == 4:
+            code.append(f"    temp = np.ones(np.sum(eom_dsrg.S12.{key} == 1))")
+            code.append(f"    diagonal.append(temp)")
+        else:
+            code.extend(add_single_space_code(key))
         code.append("")  # Blank line for separation
 
     # Add composite space code blocks
@@ -527,8 +636,8 @@ def generate_apply_S12(single_space, composite_space):
         f"    template = eom_dsrg.template_c",
     ]
     for key in single_space:
-        # No active
-        if "a" not in key and "A" not in key:
+        # No active, double excitation
+        if "a" not in key and "A" not in key and len(key) == 4:
             code_block.extend(
                 [
                     f"    num_op, num_ortho = len(eom_dsrg.S12.{key}), np.sum(eom_dsrg.S12.{key}==1)",
@@ -536,10 +645,10 @@ def generate_apply_S12(single_space, composite_space):
                     f"    if not transpose:",
                     f"        temp = eom_dsrg.S12.{key}.copy()",
                     f"        temp[eom_dsrg.S12.{key} == 1] = t[i_start_t:i_end_t]",
-                    f"        Xt[i_start_xt:i_end_xt, :] = temp.copy()",
+                    f"        Xt[i_start_xt:i_end_xt, :] = temp.reshape(-1, 1).copy()",
                     f"    else:",
                     f"        temp = t[i_start_t:i_end_t][eom_dsrg.S12.{key}==1]",
-                    f"        Xt[i_start_xt:i_end_xt, :] = temp.copy()",
+                    f"        Xt[i_start_xt:i_end_xt, :] = temp.reshape(-1, 1).copy()",
                     f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
                 ]
             )
@@ -567,15 +676,15 @@ def generate_apply_S12(single_space, composite_space):
                     f"    num_op, num_ortho = row * num_positions, col * np.sum(eom_dsrg.S12.position_{key}==1)",
                     f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
                     f"    temp_t = t[i_start_t:i_end_t].copy()",
-                    f"    temp_xt = np.zeros((num_positions, rows)) if not transpose else np.zeros(np.sum(eom_dsrg.S12.position_{key}==1), col)",
+                    f"    temp_xt = np.zeros((num_positions, row)) if not transpose else np.zeros(np.sum(eom_dsrg.S12.position_{key}==1), col)",
                     # f"    temp_t = temp_t.reshape(np.sum(eom_dsrg.S12.position_{key}==1), col) if not transpose else temp_t.reshape(num_positions, row)",
-                    f"    if not transpose:"
-                    f"        temp_t = temp_t.reshape(np.sum(eom_dsrg.S12.position_{key}==1), col) "
+                    f"    if not transpose:",
+                    f"        temp_t = temp_t.reshape(np.sum(eom_dsrg.S12.position_{key}==1), col)",
                     f"        non_zero_mask = eom_dsrg.S12.position_{key} != 0",
                     f"        temp_xt[non_zero_mask] = np.dot(eom_dsrg.S12.{key}, temp_t.T).T",
                     f"        temp_xt = temp_xt.flatten()",
                     f"        temp_xt = temp_xt.reshape(nocc, nvir, nvir, nact, 1)",
-                    f"        temp_xt = np.transpose(temp_xt, axes=(*{reorder_back}, 4)",
+                    f"        temp_xt = np.transpose(temp_xt, axes=(*{reorder_back}, 4))",
                     f"        temp_xt = temp_xt.reshape(-1, 1)",
                     f"    else:",
                     f"        zero_mask = eom_dsrg.S12.position_{key} == 0",
@@ -584,7 +693,17 @@ def generate_apply_S12(single_space, composite_space):
                     f"        temp_t = temp_t.reshape(-1, row)",
                     f"        temp_t = np.delete(temp_t, zero_mask, axis=0)",
                     f"        temp_xt = np.dot(eom_dsrg.S12.{key}.T, temp_t.T).T",
-                    f"    Xt[i_start_xt:i_end_xt, :] = temp_xt.copy()",
+                    f"    Xt[i_start_xt:i_end_xt, :] = temp_xt.reshape(-1, 1).copy()",
+                    f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
+                ]
+            )
+        else:
+            code_block.extend(
+                [
+                    f"    num_op, num_ortho = eom_dsrg.S12.{key}.shape",
+                    f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
+                    f"    print(i_start_t, i_end_t)",
+                    f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{key} @ t[i_start_t:i_end_t].reshape(-1, 1) if not transpose else eom_dsrg.S12.{key}.T @ t[i_start_t:i_end_t].reshape(-1, 1))",
                     f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
                 ]
             )
@@ -593,10 +712,13 @@ def generate_apply_S12(single_space, composite_space):
             [
                 f"    num_op, num_ortho = eom_dsrg.S12.{space[0]}.shape",
                 f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
+                f"    print(i_start_t, i_end_t)",
                 f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{space[0]} @ t[i_start_t:i_end_t].reshape(-1, 1) if not transpose else eom_dsrg.S12.{space[0]}.T @ t[i_start_t:i_end_t].reshape(-1, 1))",
                 f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
             ]
         )
+    code_block.append("    return Xt")
+    return "\n".join(code_block)
 
 
 def antisymmetrize_tensor_2_2(Roovv, nlow, nocc, nvir):

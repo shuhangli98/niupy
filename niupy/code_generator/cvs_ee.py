@@ -39,6 +39,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
 
+    # These blocks are computed with the commutator trick.
     s_comm = ["a+ a+ a i", "A+ A+ A I", "a+ A+ a I", "a+ A+ A i"]
     for i in s_comm:
         s.remove(i)
@@ -168,9 +169,8 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     funct_first = generate_first_row(mbeq_first)  # First row/column
     funct_dipole = generate_transition_dipole(mbeq_first)
     funct_S12 = generate_S12(mbeq_s, single_space, composite_space)
-    funct_preconditioner = generate_preconditioner(
-        mbeq, single_space, composite_space, diagonal_type="exact"
-    )
+    funct_preconditioner = generate_preconditioner(mbeq, single_space, composite_space)
+    funct_apply_S12 = generate_apply_S12(single_space, composite_space)
     # script_dir = os.path.dirname(__file__)
     # rel_path = "../cvs_ee_eom_dsrg.py"
     # abs_file_path = os.path.join(script_dir, rel_path)
@@ -184,6 +184,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         f.write(f"{func_template_c}\n\n")
         f.write(f"{funct_S12}\n\n")
         f.write(f"{funct_preconditioner}\n\n")
+        f.write(f"{funct_apply_S12}\n\n")
         f.write(f"{funct}\n\n")
         f.write(f"{funct_s}\n\n")
         f.write(f"{funct_first}\n\n")

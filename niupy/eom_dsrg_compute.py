@@ -60,7 +60,7 @@ def kernel(eom_dsrg):
         )
 
         # Get spin multiplicity and process eigenvectors
-        spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
+        spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop)
 
     else:
         raise ValueError(f"Invalid Davidson type: {eom_dsrg.davidson_type}")
@@ -152,8 +152,7 @@ def calculate_norms(current_vec_dict):
     return subtraction_norms, addition_norms
 
 
-# SL: NO S_12
-def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
+def get_spin_multiplicity(eom_dsrg, u, nop):
     """
     Process vectors to classify their spin multiplicities.
 
@@ -161,19 +160,15 @@ def get_spin_multiplicity(eom_dsrg, u, nop, S_12):
         eom_dsrg: Object with a full_template_c attribute, used for vector processing.
         u: List of eigenvectors.
         nop: Operation parameter.
-        S_12: Transformation matrix/function parameter.
 
     Returns:
         spin (list): List of spin classifications ("Singlet", "Triplet", or "Incorrect spin").
         eigvec (np.ndarray): Processed eigenvectors.
     """
 
-    if nop is not None and S_12 is not None:
-        eigvec = np.array(
-            [apply_S_12(S_12, nop, vec, transpose=False).flatten() for vec in u]
-        ).T
-    else:
-        eigvec = np.array(u).T
+    eigvec = np.array(
+        [eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]
+    ).T
 
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec))
     # eigvec_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec)
@@ -295,19 +290,18 @@ def setup_davidson(eom_dsrg):
 
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
-    apply_M = define_effective_hamiltonian(eom_dsrg, S_12, nop, northo)
+    apply_M = define_effective_hamiltonian(eom_dsrg, nop, northo)
 
     x0 = compute_guess_vectors(eom_dsrg, precond)
     return apply_M, precond, x0, nop
 
 
-def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
+def define_effective_hamiltonian(eom_dsrg, nop, northo):
     """
     Define the effective Hamiltonian application function.
 
     Parameters:
         eom_dsrg: Object with method-specific parameters.
-        S_12: Transformation matrix/function parameter.
         nop: Dimension size of operators.
         northo: Dimension size of orthogonal components.
 
@@ -317,7 +311,7 @@ def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
 
     # nop and northo include the first row/column
     def apply_M(x):
-        Xt = apply_S_12(S_12, nop, x, transpose=False)
+        Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
         Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
         Xt_dict = antisymmetrize(Xt_dict)
         HXt_dict = eom_dsrg.build_H(
@@ -334,35 +328,11 @@ def define_effective_hamiltonian(eom_dsrg, S_12, nop, northo):
         )
         HXt_dict = antisymmetrize(HXt_dict)
         HXt = dict_to_vec(HXt_dict, 1).flatten()
-        XHXt = apply_S_12(S_12, northo, HXt, transpose=True)
+        XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
         XHXt = XHXt.flatten()
-        XHXt += eom_dsrg.diag_shift * x
         return XHXt
 
     return apply_M
-
-
-def apply_S_12(eom_dsrg, ndim, t, transpose=False):
-    # t is a vector. S_half is a list of ndarray. ndim is the full vector size.
-    Xt = np.zeros((ndim, 1))  # With first column/row.
-    i_start_xt = 1
-    i_start_t = 1
-    Xt[0, 0] = t[0]
-
-    for i_tensor in S_12:
-        num_op, num_ortho = i_tensor.shape
-        i_end_xt, i_end_t = i_start_xt + (
-            num_op if not transpose else num_ortho
-        ), i_start_t + (num_ortho if not transpose else num_op)
-        # (nop * northo) @ (northo * 1) if not transpose else (northo * nop) @ (nop * 1)
-        Xt[i_start_xt:i_end_xt, :] += (
-            i_tensor @ t[i_start_t:i_end_t].reshape(-1, 1)
-            if not transpose
-            else i_tensor.T @ t[i_start_t:i_end_t].reshape(-1, 1)
-        )
-        i_start_xt, i_start_t = i_end_xt, i_end_t
-
-    return Xt
 
 
 def compute_guess_vectors(eom_dsrg, precond, ascending=True):
@@ -446,6 +416,7 @@ def get_sigma_build(eom_dsrg):
     build_sigma_vector_s = sigma_module.build_sigma_vector_s
     build_transition_dipole = sigma_module.build_transition_dipole
     get_S12 = sigma_module.get_S12
+    apply_S12 = sigma_module.apply_S12
     compute_preconditioner = sigma_module.compute_preconditioner
 
     return (
@@ -454,5 +425,6 @@ def get_sigma_build(eom_dsrg):
         build_sigma_vector_s,
         build_transition_dipole,
         get_S12,
+        apply_S12,
         compute_preconditioner,
     )
