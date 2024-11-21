@@ -60,7 +60,7 @@ def kernel(eom_dsrg):
         )
 
         # Get spin multiplicity and process eigenvectors
-        spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop)
+        spin, eigvec, symmetry = get_information(eom_dsrg, u, nop)
 
     else:
         raise ValueError(f"Invalid Davidson type: {eom_dsrg.davidson_type}")
@@ -78,7 +78,7 @@ def kernel(eom_dsrg):
     # Compute oscillator strengths
     osc_strength = compute_oscillator_strength(eom_dsrg, e, eigvec)
 
-    return conv, e, eigvec, spin, osc_strength
+    return conv, e, eigvec, spin, symmetry, osc_strength
 
 
 def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
@@ -152,7 +152,7 @@ def calculate_norms(current_vec_dict):
     return subtraction_norms, addition_norms
 
 
-def get_spin_multiplicity(eom_dsrg, u, nop):
+def get_information(eom_dsrg, u, nop):
     """
     Process vectors to classify their spin multiplicities.
 
@@ -169,9 +169,8 @@ def get_spin_multiplicity(eom_dsrg, u, nop):
     eigvec = np.array(
         [eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]
     ).T
-
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec))
-    # eigvec_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec)
+
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
         print(f"Root {key}: {values}")
@@ -179,6 +178,7 @@ def get_spin_multiplicity(eom_dsrg, u, nop):
     eigvec = dict_to_vec(eigvec_dict, len(u))
 
     spin = []
+    symmetry = []
 
     for i_idx in range(len(u)):
         current_vec = eigvec[:, i_idx]
@@ -187,13 +187,14 @@ def get_spin_multiplicity(eom_dsrg, u, nop):
         )
 
         subtraction_norms, addition_norms = calculate_norms(current_vec_dict)
+        print(f"Norms {key}: {subtraction_norms}, {addition_norms}")
 
         # Check spin classification based on calculated norms
         singlet = all(
-            norm < 1e-3 for norm in subtraction_norms
+            norm < 1e-2 for norm in subtraction_norms
         )  # The parent state is assumed to be singlet.
-        triplet = all(norm < 1e-3 for norm in addition_norms) and not all(
-            norm < 1e-3 for norm in subtraction_norms
+        triplet = all(norm < 1e-2 for norm in addition_norms) and not all(
+            norm < 1e-2 for norm in subtraction_norms
         )
 
         if triplet:
@@ -203,7 +204,14 @@ def get_spin_multiplicity(eom_dsrg, u, nop):
         else:
             spin.append("Incorrect spin")
 
-    return spin, eigvec
+        large_indices = np.where(abs(current_vec) > 1e-2)[0]
+        first_value = eom_dsrg.sym_vec[large_indices[0]]
+        if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
+            symmetry.append(first_value)
+        else:
+            symmetry.append("Spin contamination.")
+
+    return spin, eigvec, symmetry
 
 
 def find_top_values(data, num):
