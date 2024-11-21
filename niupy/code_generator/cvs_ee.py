@@ -50,6 +50,75 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     T_original_adj = w.op("bra", s, unique=True).adjoint()
     T_original = w.op("c", s, unique=True)
 
+    # Define Hbar
+    Hops = []
+    for i in itertools.product(["v+", "a+", "c+", "i+"], ["v", "a", "c", "i"]):
+        Hops.append(" ".join(i))
+    for i in itertools.product(["V+", "A+", "C+", "I+"], ["V", "A", "C", "I"]):
+        Hops.append(" ".join(i))
+    for i in itertools.product(
+        ["v+", "a+", "c+", "i+"],
+        ["v+", "a+", "c+", "i+"],
+        ["v", "a", "c", "i"],
+        ["v", "a", "c", "i"],
+    ):
+        Hops.append(" ".join(i))
+    for i in itertools.product(
+        ["V+", "A+", "C+", "I+"],
+        ["V+", "A+", "C+", "I+"],
+        ["V", "A", "C", "I"],
+        ["V", "A", "C", "I"],
+    ):
+        Hops.append(" ".join(i))
+    for i in itertools.product(
+        ["v+", "a+", "c+", "i+"],
+        ["V+", "A+", "C+", "I+"],
+        ["v", "a", "c", "i"],
+        ["V", "A", "C", "I"],
+    ):
+        Hops.append(" ".join(i))
+    Hbar_op = w.op("Hbar", Hops, unique=True)
+
+    # ============================================================================
+
+    one_active_two_virtual = []
+    no_active = []
+
+    for i in s:
+        test_s = i.lower()
+        num_v = test_s.count("v")
+        num_a = test_s.count("a")
+        if num_a == 1 and num_v == 2:
+            one_active_two_virtual.append(i)
+        elif num_a == 0 and num_v == 2:
+            no_active.append(i)
+        else:
+            continue
+
+    mbeqs_one_active_two_virtual = {}
+    mbeqs_no_active = {}
+
+    for i in one_active_two_virtual:
+        bra = w.op("bra", [i])
+        ket = w.op("ket", [i])
+        inter_general = any(char.isupper() for char in i) and any(
+            char.islower() for char in i
+        )
+        label = op_to_tensor_label(i)
+        mbeqs_one_active_two_virtual[label] = get_matrix_elements(
+            bra, Hbar_op, ket, inter_general=inter_general, double_comm=False
+        )
+    for i in no_active:
+        bra = w.op("bra", [i])
+        ket = w.op("ket", [i])
+        inter_general = any(char.isupper() for char in i) and any(
+            char.islower() for char in i
+        )
+        label = op_to_tensor_label(i)
+        mbeqs_no_active[label] = get_matrix_elements(
+            bra, Hbar_op, ket, inter_general=inter_general, double_comm=False
+        )
+
     # Define subspaces. Single first!
     S_half_0 = [
         "iv",
@@ -108,35 +177,6 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     single_space = S_half_0 + S_half_1 + S_half_minus_1 + S_half_2
     composite_space = [S_half_0_com_iv, S_half_0_com_IV, S_half_1_com_i, S_half_1_com_I]
 
-    # Define Hbar
-    Hops = []
-    for i in itertools.product(["v+", "a+", "c+", "i+"], ["v", "a", "c", "i"]):
-        Hops.append(" ".join(i))
-    for i in itertools.product(["V+", "A+", "C+", "I+"], ["V", "A", "C", "I"]):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["v+", "a+", "c+", "i+"],
-        ["v+", "a+", "c+", "i+"],
-        ["v", "a", "c", "i"],
-        ["v", "a", "c", "i"],
-    ):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["V+", "A+", "C+", "I+"],
-        ["V+", "A+", "C+", "I+"],
-        ["V", "A", "C", "I"],
-        ["V", "A", "C", "I"],
-    ):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["v+", "a+", "c+", "i+"],
-        ["V+", "A+", "C+", "I+"],
-        ["v", "a", "c", "i"],
-        ["V", "A", "C", "I"],
-    ):
-        Hops.append(" ".join(i))
-    Hbar_op = w.op("Hbar", Hops, unique=True)
-
     # Template C
     func_template_c = generate_template_c(block_list)
 
@@ -169,7 +209,13 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     funct_first = generate_first_row(mbeq_first)  # First row/column
     funct_dipole = generate_transition_dipole(mbeq_first)
     funct_S12 = generate_S12(mbeq_s, single_space, composite_space)
-    funct_preconditioner = generate_preconditioner(mbeq, single_space, composite_space)
+    funct_preconditioner = generate_preconditioner(
+        mbeq,
+        mbeqs_one_active_two_virtual,
+        mbeqs_no_active,
+        single_space,
+        composite_space,
+    )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space)
     # script_dir = os.path.dirname(__file__)
     # rel_path = "../cvs_ee_eom_dsrg.py"

@@ -5,6 +5,23 @@ import itertools
 import re
 
 
+def op_to_tensor_label(op):
+    wop = w.op("o", [op])
+    op_canon = wop.__str__().split(" {")[1].split(" }")[0]
+    indices = op_canon.split(" ")
+    if len(indices) == 1:
+        return op if "+" not in op else op.replace("+", "")
+    cre = []
+    ann = []
+    for i in indices:
+        if "+" in i:
+            cre.append(i.replace("+", ""))
+        else:
+            ann.append(i)
+
+    return "".join(ann[::-1]) + "".join(cre)
+
+
 def compile_sigma_vector(equation, bra_name="bra", ket_name="c"):
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
     for idx, t in enumerate(d["rhs"]):
@@ -53,7 +70,6 @@ def increment_index(index):
     return re.sub(r"(\d+)", lambda x: str(int(x.group(0)) + 1), index)
 
 
-# TODO: creating a function to add deltas to equations directly.
 def get_matrix_elements(bra, op, ket, inter_general=False, double_comm=False):
     """
     This function calculates the matrix elements of an operator
@@ -70,6 +86,7 @@ def get_matrix_elements(bra, op, ket, inter_general=False, double_comm=False):
         else:
             expr = bra.adjoint() @ ket
     else:
+        # This option will not be used in two virtual cases.
         if double_comm:
             expr = w.commutator(bra.adjoint() @ w.commutator(op, ket)) + w.commutator(
                 w.commutator(bra.adjoint(), op) @ ket
@@ -122,20 +139,45 @@ def get_matrix_elements(bra, op, ket, inter_general=False, double_comm=False):
     return mbeq_new
 
 
-def matrix_elements_to_diag(eq, algo="noact"):
-    eqdict = w.equation_to_dict(eq)
-    deltas = {eqdict["lhs"][1][i]: eqdict["lhs"][2][i] for i in range(3)}
-    if algo != "noact":
-        eqdict["lhs"][2].append(eqdict["lhs"][1][-1])
-    eqdict["lhs"][1] = []
-    for t in eqdict["rhs"]:
-        for i, l in enumerate(t[1]):
-            if l in deltas:
-                t[1][i] = deltas[l]
-        for i, l in enumerate(t[2]):
-            if l in deltas:
-                t[2][i] = deltas[l]
-    return w.dict_to_equation(eqdict).compile("einsum")
+def matrix_elements_to_diag(mbeq, indent="once"):
+    indent_spaces = {"once": "    ", "twice": "        "}
+    space = indent_spaces.get(indent, "    ")
+    einsums = []
+    for eq in mbeq:
+        eqdict = w.equation_to_dict(eq)
+        eqdict_new = {
+            "factor": eqdict["factor"],
+            "lhs": [eqdict["lhs"][0], [], []],
+            "rhs": [],
+        }
+        deltas = {}
+        for l, u in zip(eqdict["lhs"][1], eqdict["lhs"][2]):
+            if not ("a" in l or "A" in l):
+                deltas[l] = u
+                eqdict_new["lhs"][2].append(u)
+            else:
+                eqdict_new["lhs"][1].append(u)
+                eqdict_new["lhs"][1].append(l)
+        eqdict_new["lhs"][2] = eqdict_new["lhs"][2][2:] + eqdict_new["lhs"][2][:2]
+        eqdict_new["lhs"][2] += eqdict_new["lhs"][1]
+        eqdict_new["lhs"][1] = []
+
+        for t in eqdict["rhs"]:
+            for i, l in enumerate(t[1]):
+                if l in deltas:
+                    t[1][i] = deltas[l]
+            for i, l in enumerate(t[2]):
+                if l in deltas:
+                    t[2][i] = deltas[l]
+            eqdict_new["rhs"].append(t)
+
+        einsum = w.dict_to_equation(eqdict_new).compile("einsum")
+        lhs = einsum.split(" +=")[0]
+        einsum = einsum.replace(lhs, lhs[0])
+        einsums.append(f"{space}{einsum}")
+
+    func = "\n".join(einsums)
+    return func
 
 
 def generate_sigma_build(mbeq, matrix, first_row=True):
@@ -540,8 +582,11 @@ def generate_S12(mbeq, single_space, composite_space):
     return "\n".join(code)
 
 
-def generate_preconditioner(mbeq, single_space, composite_space):
+def generate_preconditioner(
+    mbeq, mbeqs_one_active, mbeqs_no_active, single_space, composite_space
+):
     """
+    mbeqs_one_active and mbeqs_no_active are dictionaries.
     einsum, einsum_type, template_c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4
     """
     code = [
@@ -557,6 +602,7 @@ def generate_preconditioner(mbeq, single_space, composite_space):
         "    lambda4 = eom_dsrg.lambda4",
         "    sigma = {}",
         "    c = {}",
+        "    delta = {'ii': np.identity(eom_dsrg.ncore), 'II': np.identity(eom_dsrg.ncore), 'cc': np.identity(eom_dsrg.nocc), 'CC': np.identity(eom_dsrg.nocc), 'aa': np.identity(eom_dsrg.nact), 'AA': np.identity(eom_dsrg.nact), 'vv': np.identity(eom_dsrg.nvir), 'VV': np.identity(eom_dsrg.nvir)}",
         "    diagonal = [np.array([0.0])]",
     ]
 
@@ -611,6 +657,62 @@ def generate_preconditioner(mbeq, single_space, composite_space):
 
         return code_block
 
+    def one_active_two_virtual(key):
+        code_block = [
+            f"    # {key} block (one active, two virtual)",
+            f'    print("Starts {key} block precond")',
+        ]
+
+        space_order = {}
+        for i_space in range(2):
+            if key[i_space] not in ["a", "A"]:
+                space_order["noact"] = i_space
+            else:
+                space_order["act"] = i_space
+
+        code_block.extend(
+            [
+                f"    nocc, nact, nvir = template_c['{key}'].shape[{space_order['noact']+1}], template_c['{key}'].shape[{space_order['act']+1}], template_c['{key}'].shape[3]",
+                "    H = np.zeros((nocc, nvir, nvir, nact, nact))",
+                matrix_elements_to_diag(mbeqs_one_active[key]),
+            ]
+        )
+
+        code_block.extend(
+            [
+                f"    H = np.einsum('xu, MeFxy, yu -> MeFu', eom_dsrg.S12.{key}, H, eom_dsrg.S12.{key}, optimize=True)",
+                f"    H = H.reshape(-1, eom_dsrg.S12.{key}.shape[1])",
+                f"    zero_mask = eom_dsrg.S12.position_{key} == 0",
+                f"    H = np.delete(H, zero_mask, axis=0)",
+                f"    diagonal.append(H.flatten())",
+            ]
+        )
+
+        return code_block
+
+    def no_active(key):
+        code_block = [
+            f"    # {key} block (no active)",
+            f'    print("Starts {key} block precond")',
+        ]
+        code_block.extend(
+            [
+                f"    shape_block = template_c['{key}'].shape[1:]",
+                "    H = np.zeros(shape_block)",
+                matrix_elements_to_diag(mbeqs_no_active[key]),
+            ]
+        )
+
+        code_block.extend(
+            [
+                f"    H = H.flatten()",
+                f"    temp = H[eom_dsrg.S12.{key}==1]",
+                f"    diagonal.append(temp)",
+            ]
+        )
+
+        return code_block
+
     # Add single space code blocks
     for key in single_space:
         if (
@@ -621,13 +723,15 @@ def generate_preconditioner(mbeq, single_space, composite_space):
             and not (key[0] in ["a", "A"] and key[1] in ["a", "A"])
         ):
             # One active, two virtual
-            code.append(
-                f"    temp = np.ones(np.sum(eom_dsrg.S12.position_{key} == 1) * eom_dsrg.S12.{key}.shape[1])"
-            )
-            code.append(f"    diagonal.append(temp)")
+            # code.append(
+            #     f"    temp = np.ones(np.sum(eom_dsrg.S12.position_{key} == 1) * eom_dsrg.S12.{key}.shape[1])"
+            # )
+            # code.append(f"    diagonal.append(temp)")
+            code.extend(one_active_two_virtual(key))
         elif "a" not in key and "A" not in key and len(key) == 4:
-            code.append(f"    temp = np.ones(np.sum(eom_dsrg.S12.{key} == 1))")
-            code.append(f"    diagonal.append(temp)")
+            # code.append(f"    temp = np.ones(np.sum(eom_dsrg.S12.{key} == 1))")
+            # code.append(f"    diagonal.append(temp)")
+            code.extend(no_active(key))
         else:
             code.extend(add_single_space_code(key))
         code.append("")  # Blank line for separation

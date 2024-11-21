@@ -190,10 +190,10 @@ def get_spin_multiplicity(eom_dsrg, u, nop):
 
         # Check spin classification based on calculated norms
         singlet = all(
-            norm < 1e-4 for norm in subtraction_norms
+            norm < 1e-3 for norm in subtraction_norms
         )  # The parent state is assumed to be singlet.
-        triplet = all(norm < 1e-4 for norm in addition_norms) and not all(
-            norm < 1e-4 for norm in subtraction_norms
+        triplet = all(norm < 1e-3 for norm in addition_norms) and not all(
+            norm < 1e-3 for norm in subtraction_norms
         )
 
         if triplet:
@@ -240,7 +240,6 @@ def find_top_values(data, num):
     return results
 
 
-# SL: NO S_12
 def setup_davidson(eom_dsrg):
     """
     Set up parameters and functions required for the Davidson algorithm.
@@ -293,6 +292,16 @@ def setup_davidson(eom_dsrg):
     apply_M = define_effective_hamiltonian(eom_dsrg, nop, northo)
 
     x0 = compute_guess_vectors(eom_dsrg, precond)
+
+    # Symmetry check
+    # test = np.zeros((len(x0), len(x0)))
+    # for i_x, x in enumerate(x0):
+    #     for i_y, y in enumerate(x0):
+    #         Mx = apply_M(x)
+    #         test[i_x, i_y] = np.dot(y.T, Mx)
+
+    # print(f"Test matrix: {np.allclose(test, test.T)}")
+
     return apply_M, precond, x0, nop
 
 
