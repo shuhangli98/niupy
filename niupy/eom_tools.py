@@ -300,6 +300,7 @@ def generate_S12(mbeq, single_space, composite_space):
         "    lambda4 = eom_dsrg.lambda4",
         "    tol = eom_dsrg.tol_s",
         "    tol_semi = eom_dsrg.tol_semi",
+        "    num_ortho = 0",
         "    sigma = {}",
         "    c = {}",
     ]
@@ -338,7 +339,17 @@ def generate_S12(mbeq, single_space, composite_space):
                 f"    else:",
                 f"        zero_idx = []",
                 f"    eom_dsrg.S12.position_{key} = np.ones(nocc * nvir * nvir)",
-                f"    eom_dsrg.S12.position_{key}[zero_idx] = 0",
+                f"    current_shape = (nocc, nvir, nvir)",
+                f"    for i in range(len(eom_dsrg.S12.position_{key})):",
+                f"        if i in zero_idx:",
+                f"            eom_dsrg.S12.position_{key}[i] = 0",
+                f"        else:",
+                f"            unravel_idx = np.unravel_index(i, current_shape)",
+                f"            if (unravel_idx[1] > unravel_idx[2] and anti) or (not anti):",
+                f"                continue",
+                f"            else:",
+                f"                eom_dsrg.S12.position_{key}[i] = 0",
+                f"    num_ortho += np.sum(eom_dsrg.S12.position_{key} == 1)",
             ]
         )
         return code_block
@@ -366,6 +377,7 @@ def generate_S12(mbeq, single_space, composite_space):
             f"        zero_up = [i * shape_block[1] * shape_block[2] * shape_block[3] + j * shape_block[2] * shape_block[3] + a * shape_block[3] + b for i in range(shape_block[0]) for j in range (i, shape_block[1]) for a in range(shape_block[2]) for b in range(shape_block[3])]",
             f"    mask = list(set(zero_down) | set(zero_up))",
             f"    eom_dsrg.S12.{key}[mask] = 0",
+            f"    num_ortho += np.sum(eom_dsrg.S12.{key} == 1)",
             f"    del mask, zero_down, zero_up",
         ]
 
@@ -393,6 +405,7 @@ def generate_S12(mbeq, single_space, composite_space):
             f"    print('Diagonalization done')",
             f"    trunc_indices = np.where(sevals > tol)[0]",
             f"    eom_dsrg.S12.{key} = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
+            f"    num_ortho += eom_dsrg.S12.{key}.shape[1]",
             "    del sevals, sevecs, trunc_indices",
         ]
 
@@ -448,6 +461,7 @@ def generate_S12(mbeq, single_space, composite_space):
                 f"    print('Diagonalization done')",
                 f"    trunc_indices = np.where(sevals > tol)[0]",
                 f"    eom_dsrg.S12.{space[0]} = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
+                f"    num_ortho += eom_dsrg.S12.{space[0]}.shape[1]",
                 f"    del sevals, sevecs, trunc_indices",
             ]
         )
@@ -486,6 +500,7 @@ def generate_S12(mbeq, single_space, composite_space):
                 f"    trunc_indices = np.where(sevals > tol_semi)[0]",
                 f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
                 f"    eom_dsrg.S12.{space[0]} = np.matmul(Y, X)",
+                f"    num_ortho += eom_dsrg.S12.{space[0]}.shape[1]",
                 f"    del sevals, sevecs, trunc_indices, X, Y, Y12",
             ]
         )
@@ -519,6 +534,8 @@ def generate_S12(mbeq, single_space, composite_space):
         else:
             code.extend(add_composite_space_code(space))
         code.append("")  # Blank line for separation
+
+    code.append("    print(f'Number of orthogonalized operators: {num_ortho}')")
 
     return "\n".join(code)
 
@@ -601,13 +618,13 @@ def generate_preconditioner(mbeq, single_space, composite_space):
             and key[2] in ["v", "V"]
             and key[3] in ["v", "V"]
             and (key[0] in ["a", "A"] or key[1] in ["a", "A"])
+            and not (key[0] in ["a", "A"] and key[1] in ["a", "A"])
         ):
-            if not (key[0] in ["a", "A"] and key[1] in ["a", "A"]):
-                # One active, two virtual
-                code.append(
-                    f"    temp = np.ones(np.sum(eom_dsrg.S12.position_{key} == 1))"
-                )
-                code.append(f"    diagonal.append(temp)")
+            # One active, two virtual
+            code.append(
+                f"    temp = np.ones(np.sum(eom_dsrg.S12.position_{key} == 1) * eom_dsrg.S12.{key}.shape[1])"
+            )
+            code.append(f"    diagonal.append(temp)")
         elif "a" not in key and "A" not in key and len(key) == 4:
             code.append(f"    temp = np.ones(np.sum(eom_dsrg.S12.{key} == 1))")
             code.append(f"    diagonal.append(temp)")
@@ -676,7 +693,7 @@ def generate_apply_S12(single_space, composite_space):
                     f"    num_op, num_ortho = row * num_positions, col * np.sum(eom_dsrg.S12.position_{key}==1)",
                     f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
                     f"    temp_t = t[i_start_t:i_end_t].copy()",
-                    f"    temp_xt = np.zeros((num_positions, row)) if not transpose else np.zeros(np.sum(eom_dsrg.S12.position_{key}==1), col)",
+                    f"    temp_xt = np.zeros((num_positions, row)) if not transpose else np.zeros((np.sum(eom_dsrg.S12.position_{key}==1), col))",
                     # f"    temp_t = temp_t.reshape(np.sum(eom_dsrg.S12.position_{key}==1), col) if not transpose else temp_t.reshape(num_positions, row)",
                     f"    if not transpose:",
                     f"        temp_t = temp_t.reshape(np.sum(eom_dsrg.S12.position_{key}==1), col)",
@@ -702,7 +719,6 @@ def generate_apply_S12(single_space, composite_space):
                 [
                     f"    num_op, num_ortho = eom_dsrg.S12.{key}.shape",
                     f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
-                    f"    print(i_start_t, i_end_t)",
                     f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{key} @ t[i_start_t:i_end_t].reshape(-1, 1) if not transpose else eom_dsrg.S12.{key}.T @ t[i_start_t:i_end_t].reshape(-1, 1))",
                     f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
                 ]
@@ -712,7 +728,6 @@ def generate_apply_S12(single_space, composite_space):
             [
                 f"    num_op, num_ortho = eom_dsrg.S12.{space[0]}.shape",
                 f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
-                f"    print(i_start_t, i_end_t)",
                 f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{space[0]} @ t[i_start_t:i_end_t].reshape(-1, 1) if not transpose else eom_dsrg.S12.{space[0]}.T @ t[i_start_t:i_end_t].reshape(-1, 1))",
                 f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
             ]
