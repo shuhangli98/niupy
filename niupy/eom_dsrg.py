@@ -51,9 +51,6 @@ class EOM_DSRG:
             )
         elif method_type == "ee":
             raise NotImplementedError("EE-EOM-DSRG has been disabled.")
-            # ee.generator(
-            #     self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-            # )
         elif method_type == "ip":
             ip.generator(self.abs_file_path)
         else:

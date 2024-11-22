@@ -409,8 +409,9 @@ def get_templates(eom_dsrg):
 
     # Create a deep copy of the template and adjust its structure
     full_template = copy.deepcopy(template)
-    full_template["first"] = np.zeros(1).reshape(1, 1)
-    full_template = {"first": full_template.pop("first"), **full_template}
+    if (eom_dsrg.method_type == "cvs-ee"):
+        full_template["first"] = np.zeros(1).reshape(1, 1)
+        full_template = {"first": full_template.pop("first"), **full_template}
 
     return template, full_template
 

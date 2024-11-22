@@ -22,7 +22,7 @@ def op_to_tensor_label(op):
     return "".join(ann[::-1]) + "".join(cre)
 import os
 
-def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize='True'):
+def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"):
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
     for idx, t in enumerate(d["rhs"]):
         if t[0] == bra_name:
@@ -30,7 +30,13 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize='True'
         if t[0] == ket_name:
             ket_idx = idx
 
-    d["factor"] = float(d["factor"])
+    # this is for the edge case of scaling a single operator in spin integrated IP theory
+    factor = 1.0
+    if d["rhs"][bra_idx][1] == 'aaA':
+        factor *= np.sqrt(2)
+    if d["rhs"][ket_idx][1] == 'aAa':
+        factor *= np.sqrt(2)
+    d["factor"] = float(d["factor"]) * factor
     d["rhs"][ket_idx][2] = "p" + d["rhs"][ket_idx][2]
     bra = d["rhs"].pop(bra_idx)
     nbody = len(bra[2]) // 2
@@ -203,7 +209,7 @@ def generate_sigma_build(mbeq, matrix, first_row=True, optimize='True'):
                 "    sigma['first'] += np.einsum('ik, ij->jk', first_row_vec, c_vec[1:, :], optimize=True)",
             ]
         )
-    elif matrix == "s":
+    elif matrix == "s" and first_row:
         code.append("    sigma['first'] = c['first'].copy()")
 
     code.append("    return sigma")
@@ -573,7 +579,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
 
 
 def generate_preconditioner(
-    mbeq, mbeqs_one_active, mbeqs_no_active, single_space, composite_space, method="ee",
+    mbeq, mbeqs_one_active, mbeqs_no_active, single_space, composite_space, method="ee", first_row=True
 ):
     """
     mbeqs_one_active and mbeqs_no_active are dictionaries.
@@ -593,7 +599,7 @@ def generate_preconditioner(
         "    sigma = {}",
         "    c = {}",
         "    delta = {'ii': np.identity(eom_dsrg.ncore), 'II': np.identity(eom_dsrg.ncore), 'cc': np.identity(eom_dsrg.nocc), 'CC': np.identity(eom_dsrg.nocc), 'aa': np.identity(eom_dsrg.nact), 'AA': np.identity(eom_dsrg.nact), 'vv': np.identity(eom_dsrg.nvir), 'VV': np.identity(eom_dsrg.nvir)}",
-        "    diagonal = [np.array([0.0])]",
+        f"    diagonal = [{'np.array([0.0])' if first_row else ''}]",
     ]
 
     def add_single_space_code(key):
@@ -737,13 +743,13 @@ def generate_preconditioner(
     return "\n".join(code)
 
 
-def generate_apply_S12(single_space, composite_space):
+def generate_apply_S12(single_space, composite_space, first_row=True):
     code_block = [
         f"def apply_S12(eom_dsrg, ndim, t, transpose=False):",
         f"    Xt = np.zeros((ndim, 1))",
-        f"    i_start_xt = 1",
-        f"    i_start_t = 1",
-        f"    Xt[0, 0] = t[0]",
+        f"    i_start_xt = {'1' if first_row else '0'}",
+        f"    i_start_t = {'1' if first_row else '0'}",
+        f"{'    Xt[0, 0] = t[0]' if first_row else ''}",
         f"    template = eom_dsrg.template_c",
     ]
     for key in single_space:
