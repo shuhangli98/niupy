@@ -273,7 +273,7 @@ def setup_davidson(eom_dsrg):
     if eom_dsrg.method_type == "cvs_ee":
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
-    if eom_dsrg.build_first_row is not NotImplemented:
+    if eom_dsrg.build_first_row is NotImplemented:
         eom_dsrg.first_row = None
     else:
         eom_dsrg.first_row = eom_dsrg.build_first_row(
@@ -392,11 +392,8 @@ def get_templates(eom_dsrg):
     # Dictionary mapping method types to the appropriate template functions
     template_funcs = {
         "ee": ee_eom_dsrg.get_template_c if os.path.exists("ee_eom_dsrg.py") else None,
-        "cvs_ee": (
-            cvs_ee_eom_dsrg.get_template_c
-            if os.path.exists("cvs_ee_eom_dsrg.py")
-            else None
-        ),
+        "cvs_ee": cvs_ee_eom_dsrg.get_template_c if os.path.exists("cvs_ee_eom_dsrg.py") else None,
+        "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
         # Additional mappings for other methods can be added here
     }
 
