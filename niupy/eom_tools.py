@@ -650,8 +650,8 @@ def generate_preconditioner(
                 f"        vec = dict_to_vec(sigma, northo)",
                 f"        sigma.clear()",
                 f"        vmv = eom_dsrg.S12.{space[0]}.T @ vec",
-                f"        del vec",
                 f"        diagonal.append(vmv.diagonal())",
+                f"        del vec, vmv",
             ]
         )
 
@@ -723,14 +723,8 @@ def generate_preconditioner(
             and not (key[0] in ["a", "A"] and key[1] in ["a", "A"])
         ):
             # One active, two virtual
-            # code.append(
-            #     f"    temp = np.ones(np.sum(eom_dsrg.S12.position_{key} == 1) * eom_dsrg.S12.{key}.shape[1])"
-            # )
-            # code.append(f"    diagonal.append(temp)")
             code.extend(one_active_two_virtual(key))
         elif "a" not in key and "A" not in key and len(key) == 4:
-            # code.append(f"    temp = np.ones(np.sum(eom_dsrg.S12.{key} == 1))")
-            # code.append(f"    diagonal.append(temp)")
             code.extend(no_active(key))
         else:
             code.extend(add_single_space_code(key))
