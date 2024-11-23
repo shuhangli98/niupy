@@ -47,31 +47,31 @@ class EOM_DSRG:
         # print(f"Package directory: {package_dir}")
         # code_generator_dir = os.path.join(package_dir, "code_generator")
 
-        # if method_type == "cvs_ee":
-        #     cvs_ee.generator(
-        #         self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-        #     )
-        # elif method_type == "ee":
-        #     raise NotImplementedError("EE-EOM-DSRG has been disabled.")
-        #     # ee.generator(
-        #     #     self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-        #     # )
-        # elif method_type == "ip":
-        #     ip.generator(
-        #         self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-        #     )
-        # else:
-        #     raise ValueError(f"Method type {method_type} is not supported.")
+        if method_type == "cvs_ee":
+            cvs_ee.generator(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
+        elif method_type == "ee":
+            raise NotImplementedError("EE-EOM-DSRG has been disabled.")
+            # ee.generator(
+            #     self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            # )
+        elif method_type == "ip":
+            ip.generator(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
+        else:
+            raise ValueError(f"Method type {method_type} is not supported.")
 
-        # subprocess.run(
-        #     [
-        #         "sed",
-        #         "-i",
-        #         "-e",
-        #         "s/optimize='optimal'/optimize=einsum_type/g; s/np\\.einsum/einsum/g",
-        #         os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
-        #     ]
-        # )
+        subprocess.run(
+            [
+                "sed",
+                "-i",
+                "-e",
+                "s/optimize='optimal'/optimize=einsum_type/g; s/np\\.einsum/einsum/g",
+                os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
+            ]
+        )
 
         self.einsum_type = einsum_type
         if opt_einsum:
