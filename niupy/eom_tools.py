@@ -20,7 +20,7 @@ def op_to_tensor_label(op):
             ann.append(i)
 
     return "".join(ann[::-1]) + "".join(cre)
-import os
+
 
 def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"):
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
@@ -30,12 +30,13 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
         if t[0] == ket_name:
             ket_idx = idx
 
-    # this is for the edge case of scaling a single operator in spin integrated IP theory
+    # this is for the edge case of scaling the 'aAa' operator in spin integrated IP theory
     factor = 1.0
     if d["rhs"][bra_idx][1] == 'aaA':
         factor *= np.sqrt(2)
     if d["rhs"][ket_idx][1] == 'aAa':
         factor *= np.sqrt(2)
+
     d["factor"] = float(d["factor"]) * factor
     d["rhs"][ket_idx][2] = "p" + d["rhs"][ket_idx][2]
     bra = d["rhs"].pop(bra_idx)
@@ -47,16 +48,16 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
     return w.dict_to_einsum(d, optimize=optimize)
 
 
-def compile_first_row_safe(equation, ket_name="c"):
-    eq, d = w.compile_einsum(equation, return_eq_dict=True)
-    for idx, t in enumerate(d["rhs"]):
-        if t[0] == ket_name:
-            ket_idx = idx
+# BZ: Remove if deprecated
+# def compile_first_row_safe(equation, ket_name="c"):
+#     eq, d = w.compile_einsum(equation, return_eq_dict=True)
+#     for idx, t in enumerate(d["rhs"]):
+#         if t[0] == ket_name:
+#             ket_idx = idx
 
-    d["rhs"][ket_idx][2] = "p" + d["rhs"][ket_idx][2]
-    d["lhs"][0][2] = "p"
-    return w.dict_to_einsum(d)
-
+#     d["rhs"][ket_idx][2] = "p" + d["rhs"][ket_idx][2]
+#     d["lhs"][0][2] = "p"
+#     return w.dict_to_einsum(d)
 
 def compile_first_row(equation, ket_name="c"):
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
@@ -67,7 +68,6 @@ def compile_first_row(equation, ket_name="c"):
     ket[0] = "sigma"
     d["lhs"] = [ket]
     return w.dict_to_einsum(d)
-
 
 def increment_index(index):
     """
@@ -346,7 +346,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
     def one_active_two_virtual(key):
         code_block = [
             f"    # {key} block (one active, two virtual)",
-            f'    print("Starts {key} block")',
+            f'    if eom_dsrg.verbose: print("Starts {key} block")',
         ]
         space_order = {}
         for i_space in range(2):
@@ -422,7 +422,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
     def add_single_space_code(key):
         return [
             f"    # {key} block",
-            f'    print("Starts {key} block")',
+            f'    if eom_dsrg.verbose: print("Starts {key} block")',
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    shape_size = np.prod(shape_block)",
             f"    c['{key}'] = np.zeros((shape_size, *shape_block))",
@@ -432,15 +432,15 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
             f"    c = vec_to_dict(c, c_vec)",
             f"    del c_vec",
             f"    c = antisymmetrize(c, method='{method}')",
-            f"    print('Starts contraction')",
+            f"    if eom_dsrg.verbose: print('Starts contraction')",
             generate_block_contraction(key, mbeq, block_type="single", indent="once", method=method),
             f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
             f"    sigma.clear()",
-            f"    print('Starts diagonalization', flush = True)",
+            f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
             f"    sevals, sevecs = scipy.linalg.eigh(vec)",
             f"    del vec",
-            f"    print('Diagonalization done')",
+            f"    if eom_dsrg.verbose: print('Diagonalization done')",
             f"    trunc_indices = np.where(sevals > tol)[0]",
             f"    eom_dsrg.S12.{key} = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
             f"    num_ortho += eom_dsrg.S12.{key}.shape[1]",
@@ -450,7 +450,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
     def add_composite_space_block(space):
         code_block = [
             f"    # {space} composite block",
-            f'    print("Starts {space} composite block")',
+            f'    if eom_dsrg.verbose: print("Starts {space} composite block")',
             f"    shape_size = 0",
         ]
 
@@ -472,7 +472,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
                 f"    c = vec_to_dict(c, c_vec)",
                 f"    del c_vec",
                 f"    c = antisymmetrize(c, method='{method}')",
-                f"    print('Starts contraction')",
+                f"    if eom_dsrg.verbose: print('Starts contraction')",
             ]
         )
         code_block.append(
@@ -493,10 +493,10 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
         code_block = add_composite_space_block(space)
         code_block.extend(
             [
-                f"    print('Starts diagonalization', flush = True)",
+                f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
                 f"    sevals, sevecs = scipy.linalg.eigh(vec)",
                 f"    del vec",
-                f"    print('Diagonalization done')",
+                f"    if eom_dsrg.verbose: print('Diagonalization done')",
                 f"    trunc_indices = np.where(sevals > tol)[0]",
                 f"    eom_dsrg.S12.{space[0]} = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
                 f"    num_ortho += eom_dsrg.S12.{space[0]}.shape[1]",
@@ -531,10 +531,10 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
                 f"    Y[:singles_size, singles_size:] = Y12",
                 f"    vec_proj = reduce(np.dot, (Y.T, vec, Y))",
                 f"    del vec, S11, S12, S11inv, S_inv_eval",
-                f"    print('Starts diagonalization (after projection))', flush = True)",
+                f"    if eom_dsrg.verbose: print('Starts diagonalization (after projection))', flush = True)",
                 f"    sevals, sevecs = scipy.linalg.eigh(vec_proj)",
                 f"    del vec_proj",
-                f"    print('Diagonalization done')",
+                f"    if eom_dsrg.verbose: print('Diagonalization done')",
                 f"    trunc_indices = np.where(sevals > tol_semi)[0]",
                 f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
                 f"    eom_dsrg.S12.{space[0]} = np.matmul(Y, X)",
@@ -573,7 +573,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
             code.extend(add_composite_space_code(space))
         code.append("")  # Blank line for separation
 
-    code.append("    print(f'Number of orthogonalized operators: {num_ortho}')")
+    code.append("    if eom_dsrg.verbose: print(f'Number of orthogonalized operators: {num_ortho}')")
 
     return "\n".join(code)
 
@@ -605,7 +605,7 @@ def generate_preconditioner(
     def add_single_space_code(key):
         return [
             f"    # {key} block",
-            f'    print("Starts {key} block precond")',
+            f'    if eom_dsrg.verbose: print("Starts {key} block precond")',
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    northo = eom_dsrg.S12.{key}.shape[1]",
             f"    if northo != 0:",
@@ -625,7 +625,7 @@ def generate_preconditioner(
     def add_composite_space_code(space):
         code_block = [
             f"    # {space} composite block",
-            f'    print("Starts {space} composite block precond")',
+            f'    if eom_dsrg.verbose: print("Starts {space} composite block precond")',
             f"    northo = eom_dsrg.S12.{space[0]}.shape[1]",
             f"    if northo != 0:",
             f"        vmv = np.zeros((northo, northo))",
@@ -656,7 +656,7 @@ def generate_preconditioner(
     def one_active_two_virtual(key):
         code_block = [
             f"    # {key} block (one active, two virtual)",
-            f'    print("Starts {key} block precond")',
+            f'    if eom_dsrg.verbose: print("Starts {key} block precond")',
         ]
 
         space_order = {}
@@ -689,7 +689,7 @@ def generate_preconditioner(
     def no_active(key):
         code_block = [
             f"    # {key} block (no active)",
-            f'    print("Starts {key} block precond")',
+            f'    if eom_dsrg.verbose: print("Starts {key} block precond")',
         ]
         code_block.extend(
             [

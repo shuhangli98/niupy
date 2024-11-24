@@ -28,7 +28,7 @@ def generator(abs_path):
     active = ["A", "AAA", "aAa"]
     aac = ["aCa", "CAA"]
     composite_space = [active, aac]
-    block_list = (single_space + active+ aac)
+    block_list = (single_space + active + aac)
 
     # Define Hbar
     Hbar_op = w.gen_op_ms0('Hbar', 1, 'cav', 'cav') +  w.gen_op_ms0('Hbar', 2, 'cav', 'cav')

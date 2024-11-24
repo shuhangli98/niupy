@@ -139,6 +139,17 @@ def calculate_norms(current_vec_dict):
     addition_norms = []
 
     for key in current_vec_dict.keys():
+        if len(key) == 1 and key.islower():
+            upper_key = key.upper()
+            if upper_key in current_vec_dict:
+                sub_norm = np.linalg.norm(
+                    current_vec_dict[key] - current_vec_dict[upper_key]
+                )
+                add_norm = np.linalg.norm(
+                    current_vec_dict[key] + current_vec_dict[upper_key]
+                )
+                subtraction_norms.append(sub_norm)
+                addition_norms.append(add_norm)
         if len(key) == 2 and key.islower():
             upper_key = key.upper()
             if upper_key in current_vec_dict:
@@ -192,17 +203,23 @@ def get_information(eom_dsrg, u, nop):
         print(f"Norms {key}: {subtraction_norms}, {addition_norms}")
 
         # Check spin classification based on calculated norms
-        singlet = all(
+        minus = all(
             norm < 1e-2 for norm in subtraction_norms
         )  # The parent state is assumed to be singlet.
-        triplet = all(norm < 1e-2 for norm in addition_norms) and not all(
+        plus = all(norm < 1e-2 for norm in addition_norms) and not all(
             norm < 1e-2 for norm in subtraction_norms
         )
 
-        if triplet:
-            spin.append("Triplet")
-        elif singlet:
-            spin.append("Singlet")
+        if plus:
+            if eom_dsrg.method_type == "cvs_ee":
+                spin.append("Triplet")
+            elif eom_dsrg.method_type == "ip":
+                spin.append("Quartet")
+        elif minus:
+            if eom_dsrg.method_type == "cvs_ee":
+                spin.append("Singlet")
+            elif eom_dsrg.method_type == "ip":
+                spin.append("Doublet")
         else:
             spin.append("Incorrect spin")
 
