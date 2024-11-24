@@ -303,7 +303,7 @@ def setup_davidson(eom_dsrg):
 
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
-    apply_M = define_effective_hamiltonian(eom_dsrg, nop, northo)
+    apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
 
     # Update Preconditioner
     temp = np.ones(northo)
@@ -326,7 +326,7 @@ def setup_davidson(eom_dsrg):
     return apply_M, precond, x0, nop
 
 
-def define_effective_hamiltonian(eom_dsrg, nop, northo):
+def define_effective_hamiltonian(x, eom_dsrg, nop, northo):
     """
     Define the effective Hamiltonian application function.
 
@@ -340,48 +340,44 @@ def define_effective_hamiltonian(eom_dsrg, nop, northo):
     """
 
     # nop and northo include the first row/column
-    def apply_M(x):
-        Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
-        Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
-        Xt_dict = antisymmetrize(Xt_dict)
-        HXt_dict = eom_dsrg.build_H(
-            eom_dsrg.einsum,
-            eom_dsrg.einsum_type,
-            Xt_dict,
-            eom_dsrg.Hbar,
-            eom_dsrg.gamma1,
-            eom_dsrg.eta1,
-            eom_dsrg.lambda2,
-            eom_dsrg.lambda3,
-            eom_dsrg.lambda4,
-            eom_dsrg.first_row,
-        )
-        HXt_dict = antisymmetrize(HXt_dict)
-        HXt = dict_to_vec(HXt_dict, 1).flatten()
-        # Shift incorrect symmetry components.
-        SXt_dict = eom_dsrg.build_S(
-            eom_dsrg.einsum,
-            eom_dsrg.einsum_type,
-            Xt_dict,
-            eom_dsrg.Hbar,
-            eom_dsrg.gamma1,
-            eom_dsrg.eta1,
-            eom_dsrg.lambda2,
-            eom_dsrg.lambda3,
-            eom_dsrg.lambda4,
-            eom_dsrg.first_row,
-        )
-        SXt_dict = antisymmetrize(SXt_dict)
-        SXt = dict_to_vec(SXt_dict, 1).flatten()
-        HXt[eom_dsrg.sym_vec != eom_dsrg.target_sym] = (
-            50 * SXt[eom_dsrg.sym_vec != eom_dsrg.target_sym]
-        )
-        XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
-        XHXt = XHXt.flatten()
-        return XHXt
-
-    return apply_M
-
+    Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
+    Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
+    Xt_dict = antisymmetrize(Xt_dict)
+    HXt_dict = eom_dsrg.build_H(
+        eom_dsrg.einsum,
+        eom_dsrg.einsum_type,
+        Xt_dict,
+        eom_dsrg.Hbar,
+        eom_dsrg.gamma1,
+        eom_dsrg.eta1,
+        eom_dsrg.lambda2,
+        eom_dsrg.lambda3,
+        eom_dsrg.lambda4,
+        eom_dsrg.first_row,
+    )
+    HXt_dict = antisymmetrize(HXt_dict)
+    HXt = dict_to_vec(HXt_dict, 1).flatten()
+    # Shift incorrect symmetry components.
+    SXt_dict = eom_dsrg.build_S(
+        eom_dsrg.einsum,
+        eom_dsrg.einsum_type,
+        Xt_dict,
+        eom_dsrg.Hbar,
+        eom_dsrg.gamma1,
+        eom_dsrg.eta1,
+        eom_dsrg.lambda2,
+        eom_dsrg.lambda3,
+        eom_dsrg.lambda4,
+        eom_dsrg.first_row,
+    )
+    SXt_dict = antisymmetrize(SXt_dict)
+    SXt = dict_to_vec(SXt_dict, 1).flatten()
+    HXt[eom_dsrg.sym_vec != eom_dsrg.target_sym] = (
+        50 * SXt[eom_dsrg.sym_vec != eom_dsrg.target_sym]
+    )
+    XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
+    XHXt = XHXt.flatten()
+    return XHXt
 
 def compute_guess_vectors(eom_dsrg, precond, nop, ascending=True):
     """

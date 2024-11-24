@@ -970,6 +970,9 @@ def is_antisymmetric(tensor_dict):
 
 
 def sym_dir(c, core_sym, occ_sym, act_sym, vir_sym):
+    """
+    Generate the symmetry of the direct product of two spaces.    
+    """
     out_dir = {}
     dir = {
         "c": occ_sym,
@@ -982,28 +985,28 @@ def sym_dir(c, core_sym, occ_sym, act_sym, vir_sym):
         "I": core_sym,
     }
     for key in c.keys():
-        if len(key) == 2:
-            if len(dir[key[0]]) == 0 or len(dir[key[1]]) == 0:
-                out_dir[key] = np.zeros_like(c[key])
-            else:
-                out_dir[key] = dir[key[0]][:, None] ^ dir[key[1]][None, :]
-        elif len(key) == 4:
-            if (
-                len(dir[key[0]]) == 0
-                or len(dir[key[1]]) == 0
-                or len(dir[key[2]]) == 0
-                or len(dir[key[3]]) == 0
-            ):
-                out_dir[key] = np.zeros_like(c[key])
-            else:
-                out_dir[key] = (
-                    dir[key[0]][:, None, None, None]
-                    ^ dir[key[1]][None, :, None, None]
-                    ^ dir[key[2]][None, None, :, None]
-                    ^ dir[key[3]][None, None, None, :]
-                )
+        if key == 'first':
+            out_dir[key] = np.array([0])
+            continue
+
+        if any(len(dir[key[i]]) == 0 for i in range(len(key))):
+            out_dir[key] = np.zeros_like(c[key])
         else:
-            out_dir[key] = np.array([0])  # First
+            if (len(key)==1):
+                out_dir[key] = dir[key]
+            elif (len(key)==2):
+                out_dir[key] = (dir[key[0]][:, None] 
+                                ^ dir[key[1]][None, :])
+            elif (len(key)==3):
+                out_dir[key] = (dir[key[0]][:, None, None] 
+                                ^ dir[key[1]][None, :, None] 
+                                ^ dir[key[2]][None, None, :])
+            elif (len(key)==4):
+                out_dir[key] = (dir[key[0]][:, None, None, None] 
+                                ^ dir[key[1]][None, :, None, None] 
+                                ^ dir[key[2]][None, None, :, None] 
+                                ^ dir[key[3]][None, None, None, :])
+        
     return out_dir
 
 
