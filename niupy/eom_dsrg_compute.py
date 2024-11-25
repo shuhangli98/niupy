@@ -9,7 +9,6 @@ if os.path.exists("ee_eom_dsrg.py"):
 if os.path.exists("ip_eom_dsrg.py"):
     print("Importing ip_eom_dsrg")
     import ip_eom_dsrg
-
 import numpy as np
 import copy
 from niupy.eom_tools import (
@@ -70,13 +69,16 @@ def kernel(eom_dsrg):
     # # Get spin multiplicity and process eigenvectors
     # spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
 
-    # Optimize slicing by vectorizing
-    eom_dsrg.Mbar = [
-        slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar
-    ]
+    if eom_dsrg.build_transition_dipole is NotImplemented:
+        osc_strength = None
+    else:
+        # Optimize slicing by vectorizing
+        eom_dsrg.Mbar = [
+            slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar
+        ]
 
-    # Compute oscillator strengths
-    osc_strength = compute_oscillator_strength(eom_dsrg, e, eigvec)
+        # Compute oscillator strengths
+        osc_strength = compute_oscillator_strength(eom_dsrg, e, eigvec)
 
     return conv, e, eigvec, spin, symmetry, osc_strength
 
@@ -137,6 +139,17 @@ def calculate_norms(current_vec_dict):
     addition_norms = []
 
     for key in current_vec_dict.keys():
+        if len(key) == 1 and key.islower():
+            upper_key = key.upper()
+            if upper_key in current_vec_dict:
+                sub_norm = np.linalg.norm(
+                    current_vec_dict[key] - current_vec_dict[upper_key]
+                )
+                add_norm = np.linalg.norm(
+                    current_vec_dict[key] + current_vec_dict[upper_key]
+                )
+                subtraction_norms.append(sub_norm)
+                addition_norms.append(add_norm)
         if len(key) == 2 and key.islower():
             upper_key = key.upper()
             if upper_key in current_vec_dict:
@@ -169,7 +182,7 @@ def get_information(eom_dsrg, u, nop):
     eigvec = np.array(
         [eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]
     ).T
-    eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec))
+    eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec), method='ee' if eom_dsrg.method_type == 'cvs_ee' else 'ip')
 
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
@@ -190,17 +203,23 @@ def get_information(eom_dsrg, u, nop):
         print(f"Norms {key}: {subtraction_norms}, {addition_norms}")
 
         # Check spin classification based on calculated norms
-        singlet = all(
+        minus = all(
             norm < 1e-2 for norm in subtraction_norms
         )  # The parent state is assumed to be singlet.
-        triplet = all(norm < 1e-2 for norm in addition_norms) and not all(
+        plus = all(norm < 1e-2 for norm in addition_norms) and not all(
             norm < 1e-2 for norm in subtraction_norms
         )
 
-        if triplet:
-            spin.append("Triplet")
-        elif singlet:
-            spin.append("Singlet")
+        if plus:
+            if eom_dsrg.method_type == "cvs_ee":
+                spin.append("Triplet")
+            elif eom_dsrg.method_type == "ip":
+                spin.append("Quartet")
+        elif minus:
+            if eom_dsrg.method_type == "cvs_ee":
+                spin.append("Singlet")
+            elif eom_dsrg.method_type == "ip":
+                spin.append("Doublet")
         else:
             spin.append("Incorrect spin")
 
@@ -271,17 +290,20 @@ def setup_davidson(eom_dsrg):
     if eom_dsrg.method_type == "cvs_ee":
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
-    eom_dsrg.first_row = eom_dsrg.build_first_row(
-        eom_dsrg.einsum,
-        eom_dsrg.einsum_type,
-        eom_dsrg.full_template_c,
-        eom_dsrg.Hbar,
-        eom_dsrg.gamma1,
-        eom_dsrg.eta1,
-        eom_dsrg.lambda2,
-        eom_dsrg.lambda3,
-        eom_dsrg.lambda4,
-    )
+    if eom_dsrg.build_first_row is NotImplemented:
+        eom_dsrg.first_row = None
+    else:
+        eom_dsrg.first_row = eom_dsrg.build_first_row(
+            eom_dsrg.einsum,
+            eom_dsrg.einsum_type,
+            eom_dsrg.full_template_c,
+            eom_dsrg.Hbar,
+            eom_dsrg.gamma1,
+            eom_dsrg.eta1,
+            eom_dsrg.lambda2,
+            eom_dsrg.lambda3,
+            eom_dsrg.lambda4,
+        )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
     eom_dsrg.build_S = eom_dsrg.build_sigma_vector_s
 
@@ -298,14 +320,14 @@ def setup_davidson(eom_dsrg):
 
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
-    apply_M = define_effective_hamiltonian(eom_dsrg, nop, northo)
+    apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
 
     x0 = compute_guess_vectors(eom_dsrg, precond, nop)
 
     return apply_M, precond, x0, nop
 
 
-def define_effective_hamiltonian(eom_dsrg, nop, northo):
+def define_effective_hamiltonian(x, eom_dsrg, nop, northo):
     """
     Define the effective Hamiltonian application function.
 
@@ -319,32 +341,28 @@ def define_effective_hamiltonian(eom_dsrg, nop, northo):
     """
 
     # nop and northo include the first row/column
-    def apply_M(x):
-        Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
-        Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
-        Xt_dict = antisymmetrize(Xt_dict)
+    Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
+    Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
+    Xt_dict = antisymmetrize(Xt_dict, method='ee' if eom_dsrg.method_type == 'cvs_ee' else 'ip')
 
-        HXt_dict = eom_dsrg.build_H(
-            eom_dsrg.einsum,
-            eom_dsrg.einsum_type,
-            Xt_dict,
-            eom_dsrg.Hbar,
-            eom_dsrg.gamma1,
-            eom_dsrg.eta1,
-            eom_dsrg.lambda2,
-            eom_dsrg.lambda3,
-            eom_dsrg.lambda4,
-            eom_dsrg.first_row,
-        )
+    HXt_dict = eom_dsrg.build_H(
+        eom_dsrg.einsum,
+        eom_dsrg.einsum_type,
+        Xt_dict,
+        eom_dsrg.Hbar,
+        eom_dsrg.gamma1,
+        eom_dsrg.eta1,
+        eom_dsrg.lambda2,
+        eom_dsrg.lambda3,
+        eom_dsrg.lambda4,
+        eom_dsrg.first_row,
+    )
 
-        HXt_dict = antisymmetrize(HXt_dict)
-        HXt = dict_to_vec(HXt_dict, 1).flatten()
-        XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
-        XHXt = XHXt.flatten()
-        return XHXt
-
-    return apply_M
-
+    HXt_dict = antisymmetrize(HXt_dict, method='ee' if eom_dsrg.method_type == 'cvs_ee' else 'ip')
+    HXt = dict_to_vec(HXt_dict, 1).flatten()
+    XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
+    XHXt = XHXt.flatten()
+    return XHXt
 
 def compute_guess_vectors(eom_dsrg, precond, nop, ascending=True):
     """
@@ -380,11 +398,8 @@ def get_templates(eom_dsrg):
     # Dictionary mapping method types to the appropriate template functions
     template_funcs = {
         "ee": ee_eom_dsrg.get_template_c if os.path.exists("ee_eom_dsrg.py") else None,
-        "cvs_ee": (
-            cvs_ee_eom_dsrg.get_template_c
-            if os.path.exists("cvs_ee_eom_dsrg.py")
-            else None
-        ),
+        "cvs_ee": cvs_ee_eom_dsrg.get_template_c if os.path.exists("cvs_ee_eom_dsrg.py") else None,
+        "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
         # Additional mappings for other methods can be added here
     }
 
@@ -400,8 +415,9 @@ def get_templates(eom_dsrg):
 
     # Create a deep copy of the template and adjust its structure
     full_template = copy.deepcopy(template)
-    full_template["first"] = np.zeros(1).reshape(1, 1)
-    full_template = {"first": full_template.pop("first"), **full_template}
+    if (eom_dsrg.method_type == "cvs-ee"):
+        full_template["first"] = np.zeros(1).reshape(1, 1)
+        full_template = {"first": full_template.pop("first"), **full_template}
 
     return template, full_template
 
@@ -412,6 +428,7 @@ def get_sigma_build(eom_dsrg):
     sigma_funcs = {
         "ee": ee_eom_dsrg if os.path.exists("ee_eom_dsrg.py") else None,
         "cvs_ee": cvs_ee_eom_dsrg if os.path.exists("cvs_ee_eom_dsrg.py") else None,
+        "ip": ip_eom_dsrg if os.path.exists("ip_eom_dsrg.py") else None,
         # Additional mappings for other methods can be added here
     }
 

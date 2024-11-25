@@ -6,7 +6,6 @@ import os
 import subprocess
 from niupy.code_generator import cvs_ee, ee, ip
 
-
 class EOM_DSRG:
     def __init__(
         self,
@@ -52,17 +51,18 @@ class EOM_DSRG:
             )
         elif method_type == "ee":
             raise NotImplementedError("EE-EOM-DSRG has been disabled.")
-            # ee.generator(
-            #     self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-            # )
         elif method_type == "ip":
-            ip.generator(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-            )
+            ip.generator(self.abs_file_path)
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
-        subprocess.run(
+        self.einsum_type = einsum_type
+        if opt_einsum:
+            print("Using opt_einsum...")
+            from opt_einsum import contract
+            self.einsum = contract
+            
+            subprocess.run(
             [
                 "sed",
                 "-i",
@@ -71,13 +71,6 @@ class EOM_DSRG:
                 os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
             ]
         )
-
-        self.einsum_type = einsum_type
-        if opt_einsum:
-            print("Using opt_einsum...")
-            from opt_einsum import contract
-
-            self.einsum = contract
         else:
             self.einsum = np.einsum
 
@@ -125,9 +118,7 @@ class EOM_DSRG:
         import niupy.eom_dsrg_compute as eom_dsrg_compute
 
         self.eom_dsrg_compute = eom_dsrg_compute
-        self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(
-            self
-        )
+        self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(self)
         self._initialize_sigma_vectors()
 
         # Generate symmetry information
@@ -170,6 +161,12 @@ class EOM_DSRG:
             # self.occ_sym = np.array([])
             # self.act_sym = np.array([0, 0, 2, 3])
             # self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
+        elif method_type == "ip":
+            print("Running BeH2/STO-6G since no wfn and mo_spaces are provided.")
+            self.core_sym = np.array([])
+            self.occ_sym = np.array([0, 0])
+            self.act_sym = np.array([0, 3])
+            self.vir_sym = np.array([0, 2, 3])
 
     def _print_symmetry_info(self):
         print("\n")
