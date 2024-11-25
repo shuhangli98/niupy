@@ -182,7 +182,10 @@ def get_information(eom_dsrg, u, nop):
     eigvec = np.array(
         [eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]
     ).T
-    eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec), method='ee' if eom_dsrg.method_type == 'cvs_ee' else 'ip')
+    eigvec_dict = antisymmetrize(
+        vec_to_dict(eom_dsrg.full_template_c, eigvec),
+        method="ee" if eom_dsrg.method_type == "cvs_ee" else "ip",
+    )
 
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
@@ -343,7 +346,9 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo):
     # nop and northo include the first row/column
     Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
     Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
-    Xt_dict = antisymmetrize(Xt_dict, method='ee' if eom_dsrg.method_type == 'cvs_ee' else 'ip')
+    Xt_dict = antisymmetrize(
+        Xt_dict, method="ee" if eom_dsrg.method_type == "cvs_ee" else "ip"
+    )
 
     HXt_dict = eom_dsrg.build_H(
         eom_dsrg.einsum,
@@ -358,11 +363,14 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo):
         eom_dsrg.first_row,
     )
 
-    HXt_dict = antisymmetrize(HXt_dict, method='ee' if eom_dsrg.method_type == 'cvs_ee' else 'ip')
+    HXt_dict = antisymmetrize(
+        HXt_dict, method="ee" if eom_dsrg.method_type == "cvs_ee" else "ip"
+    )
     HXt = dict_to_vec(HXt_dict, 1).flatten()
     XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
     XHXt = XHXt.flatten()
     return XHXt
+
 
 def compute_guess_vectors(eom_dsrg, precond, nop, ascending=True):
     """
@@ -398,7 +406,11 @@ def get_templates(eom_dsrg):
     # Dictionary mapping method types to the appropriate template functions
     template_funcs = {
         "ee": ee_eom_dsrg.get_template_c if os.path.exists("ee_eom_dsrg.py") else None,
-        "cvs_ee": cvs_ee_eom_dsrg.get_template_c if os.path.exists("cvs_ee_eom_dsrg.py") else None,
+        "cvs_ee": (
+            cvs_ee_eom_dsrg.get_template_c
+            if os.path.exists("cvs_ee_eom_dsrg.py")
+            else None
+        ),
         "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
         # Additional mappings for other methods can be added here
     }
@@ -415,7 +427,7 @@ def get_templates(eom_dsrg):
 
     # Create a deep copy of the template and adjust its structure
     full_template = copy.deepcopy(template)
-    if (eom_dsrg.method_type == "cvs-ee"):
+    if eom_dsrg.method_type == "cvs_ee":
         full_template["first"] = np.zeros(1).reshape(1, 1)
         full_template = {"first": full_template.pop("first"), **full_template}
 
