@@ -4,7 +4,7 @@ import forte.utils
 import numpy as np
 import os
 import subprocess
-from niupy.code_generator import cvs_ee, ee, ip
+from niupy.code_generator import cvs_ee, ee, ip, cvs_ip
 
 
 class EOM_DSRG:
@@ -54,6 +54,10 @@ class EOM_DSRG:
             raise NotImplementedError("EE-EOM-DSRG has been disabled.")
         elif method_type == "ip":
             ip.generator(self.abs_file_path)
+        elif method_type == "cvs_ip":
+            cvs_ip.generator(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
@@ -69,7 +73,7 @@ class EOM_DSRG:
         self.verbose = verbose
         self.method_type = method_type
         self.diagonal_type = diagonal_type  # "compute" or "load"
-        self.davidson_type = davidson_type  # 'traditional' or 'generalized'
+        self.davidson_type = davidson_type
         self.nroots = nroots
         self.max_space = max_space
         self.max_cycle = max_cycle
@@ -143,7 +147,7 @@ class EOM_DSRG:
             self.occ_sym = np.array([0, 0])
             self.act_sym = np.array([0, 3])
             self.vir_sym = np.array([0, 2, 3])
-        elif method_type == "cvs_ee":
+        elif method_type == "cvs_ee" or method_type == "cvs_ip":
             print("Running H2O/6-31g since no wfn and mo_spaces are provided.")
             # 6-31g
             self.core_sym = np.array([0])

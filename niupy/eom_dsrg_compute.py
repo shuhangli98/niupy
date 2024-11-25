@@ -3,6 +3,9 @@ import os
 if os.path.exists("cvs_ee_eom_dsrg.py"):
     print("Importing cvs_ee_eom_dsrg")
     import cvs_ee_eom_dsrg
+if os.path.exists("cvs_ip_eom_dsrg.py"):
+    print("Importing cvs_ip_eom_dsrg")
+    import cvs_ip_eom_dsrg
 if os.path.exists("ee_eom_dsrg.py"):
     print("Importing ee_eom_dsrg")
     import ee_eom_dsrg
@@ -216,12 +219,12 @@ def get_information(eom_dsrg, u, nop):
         if plus:
             if eom_dsrg.method_type == "cvs_ee":
                 spin.append("Triplet")
-            elif eom_dsrg.method_type == "ip":
+            elif eom_dsrg.method_type == "ip" or eom_dsrg.method_type == "cvs_ip":
                 spin.append("Quartet")
         elif minus:
             if eom_dsrg.method_type == "cvs_ee":
                 spin.append("Singlet")
-            elif eom_dsrg.method_type == "ip":
+            elif eom_dsrg.method_type == "ip" or eom_dsrg.method_type == "cvs_ip":
                 spin.append("Doublet")
         else:
             spin.append("Incorrect spin")
@@ -231,7 +234,7 @@ def get_information(eom_dsrg, u, nop):
         if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
             symmetry.append(first_value)
         else:
-            symmetry.append("Spin contamination.")
+            symmetry.append("Incorrect symmetry")
 
     return spin, eigvec, symmetry
 
@@ -290,7 +293,7 @@ def setup_davidson(eom_dsrg):
     print("Time(s) for S12: ", time.time() - start, flush=True)
 
     eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
-    if eom_dsrg.method_type == "cvs_ee":
+    if eom_dsrg.method_type == "cvs_ee" or eom_dsrg.method_type == "cvs_ip":
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
     if eom_dsrg.build_first_row is NotImplemented:
@@ -411,6 +414,11 @@ def get_templates(eom_dsrg):
             if os.path.exists("cvs_ee_eom_dsrg.py")
             else None
         ),
+        "cvs_ip": (
+            cvs_ip_eom_dsrg.get_template_c
+            if os.path.exists("cvs_ip_eom_dsrg.py")
+            else None
+        ),
         "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
         # Additional mappings for other methods can be added here
     }
@@ -440,6 +448,7 @@ def get_sigma_build(eom_dsrg):
     sigma_funcs = {
         "ee": ee_eom_dsrg if os.path.exists("ee_eom_dsrg.py") else None,
         "cvs_ee": cvs_ee_eom_dsrg if os.path.exists("cvs_ee_eom_dsrg.py") else None,
+        "cvs_ip": cvs_ip_eom_dsrg if os.path.exists("cvs_ip_eom_dsrg.py") else None,
         "ip": ip_eom_dsrg if os.path.exists("ip_eom_dsrg.py") else None,
         # Additional mappings for other methods can be added here
     }
