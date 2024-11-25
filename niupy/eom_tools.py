@@ -284,6 +284,7 @@ def generate_block_contraction(
     bra_name="bra",
     ket_name="c",
     method="ee",
+    optimize="True",
 ):
     indent_spaces = {"once": "    ", "twice": "        "}
     space = indent_spaces.get(indent, "    ")
@@ -309,7 +310,7 @@ def generate_block_contraction(
 
         if correct_contraction:
             code.append(
-                f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name)}"
+                f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name, optimize=optimize)}"
             )
 
     code.append(f"{space}sigma = antisymmetrize(sigma, method='{method}')")
@@ -640,7 +641,7 @@ def generate_preconditioner(
                 f"        c = vec_to_dict(c, eom_dsrg.S12.{space[0]})",
                 f"        c = antisymmetrize(c, method='{method}')",
                 generate_block_contraction(
-                    space, mbeq, block_type="composite", indent="twice", method=method,
+                    space, mbeq, block_type="composite", indent="twice", method=method, 
                 ),
                 f"        c.clear()",
                 f"        vec = dict_to_vec(sigma, northo)",
