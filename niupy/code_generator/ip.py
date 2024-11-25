@@ -25,10 +25,10 @@ def generator(abs_path):
     T = w.op("c", s, unique=True)
     # Define subspaces. Single first!
     single_space = ["C","cCa","cAa","cCv","aCv","cAv","aAv","CCA","CCV","CAV","AAV"]
-    active = ["A", "AAA", "aAa"]
     aac = ["aCa", "CAA"]
-    composite_space = [active, aac]
-    block_list = (single_space + active + aac)
+    active = ["A", "AAA", "aAa"]
+    composite_space = [aac, active]
+    block_list = (single_space + aac + active)
 
     # Define Hbar
     Hbar_op = w.gen_op_ms0('Hbar', 1, 'cav', 'cav') +  w.gen_op_ms0('Hbar', 2, 'cav', 'cav')

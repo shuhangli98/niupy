@@ -510,7 +510,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
         code_block = add_composite_space_block(space)
         singles = []
         for key in space:
-            if len(key) == 2:
+            if len(key) == 1 or len(key) == 2:
                 singles.append(key)
 
         code_block.extend(
@@ -567,7 +567,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
 
     # Add composite space code blocks
     for space in composite_space:
-        if any(len(key) == 2 for key in space):
+        if any((len(key) == 1 or len(key) == 2) for key in space):
             code.extend(sequential_orthogonalization(space))
         else:
             code.extend(add_composite_space_code(space))
@@ -612,7 +612,7 @@ def generate_preconditioner(
             f"        c['{key}'] = np.zeros((northo, *shape_block))",
             f"        sigma['{key}'] = np.zeros((northo, *shape_block))",
             f"        c = vec_to_dict(c, eom_dsrg.S12.{key})",
-            f"        c = antisymmetrize(c)",
+            f"        c = antisymmetrize(c, method='{method}')",
             generate_block_contraction(key, mbeq, block_type="single", indent="twice", method=method),
             f"        c.clear()",
             f"        vec = dict_to_vec(sigma, northo)",
@@ -638,7 +638,7 @@ def generate_preconditioner(
                 f"            c[key] = np.zeros((northo, *shape_block))",
                 f"            sigma[key] = np.zeros((northo, *shape_block))",
                 f"        c = vec_to_dict(c, eom_dsrg.S12.{space[0]})",
-                f"        c = antisymmetrize(c)",
+                f"        c = antisymmetrize(c, method='{method}')",
                 generate_block_contraction(
                     space, mbeq, block_type="composite", indent="twice", method=method,
                 ),
@@ -646,6 +646,7 @@ def generate_preconditioner(
                 f"        vec = dict_to_vec(sigma, northo)",
                 f"        sigma.clear()",
                 f"        vmv = eom_dsrg.S12.{space[0]}.T @ vec",
+                f"        print(np.linalg.eigvalsh(vmv))",
                 f"        diagonal.append(vmv.diagonal())",
                 f"        del vec, vmv",
             ]
