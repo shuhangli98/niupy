@@ -290,7 +290,7 @@ def setup_davidson(eom_dsrg):
     print("Starting Preconditioner...", flush=True)
     if eom_dsrg.diagonal_type == "compute":
         precond = eom_dsrg.compute_preconditioner(eom_dsrg)
-        # np.save(f"{eom_dsrg.abs_file_path}/precond", precond)
+        np.save(f"{eom_dsrg.abs_file_path}/precond", precond)
     elif eom_dsrg.diagonal_type == "load":
         print("Loading Preconditioner from file")
         precond = np.load(f"{eom_dsrg.abs_file_path}/precond.npy")
@@ -300,23 +300,7 @@ def setup_davidson(eom_dsrg):
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = define_effective_hamiltonian(eom_dsrg, nop, northo)
 
-    # Update Preconditioner
-    temp = np.ones(northo)
-    temp_XHXt = apply_M(temp)
-    shift_position = np.where(temp_XHXt > 49)[0]
-    precond[shift_position] = 50
-
     x0 = compute_guess_vectors(eom_dsrg, precond, nop)
-
-    # # Symmetry check
-    # test = np.zeros((len(x0), len(x0)))
-    # for i_x, x in enumerate(x0):
-    #     for i_y, y in enumerate(x0):
-    #         Mx = apply_M(x)
-    #         test[i_x, i_y] = np.dot(y.T, Mx)
-
-    # print(test)
-    # print(f"Test matrix: {np.allclose(test, test.T)}")
 
     return apply_M, precond, x0, nop
 
@@ -339,6 +323,7 @@ def define_effective_hamiltonian(eom_dsrg, nop, northo):
         Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
         Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
         Xt_dict = antisymmetrize(Xt_dict)
+
         HXt_dict = eom_dsrg.build_H(
             eom_dsrg.einsum,
             eom_dsrg.einsum_type,
@@ -351,26 +336,9 @@ def define_effective_hamiltonian(eom_dsrg, nop, northo):
             eom_dsrg.lambda4,
             eom_dsrg.first_row,
         )
+
         HXt_dict = antisymmetrize(HXt_dict)
         HXt = dict_to_vec(HXt_dict, 1).flatten()
-        # Shift incorrect symmetry components.
-        SXt_dict = eom_dsrg.build_S(
-            eom_dsrg.einsum,
-            eom_dsrg.einsum_type,
-            Xt_dict,
-            eom_dsrg.Hbar,
-            eom_dsrg.gamma1,
-            eom_dsrg.eta1,
-            eom_dsrg.lambda2,
-            eom_dsrg.lambda3,
-            eom_dsrg.lambda4,
-            eom_dsrg.first_row,
-        )
-        SXt_dict = antisymmetrize(SXt_dict)
-        SXt = dict_to_vec(SXt_dict, 1).flatten()
-        HXt[eom_dsrg.sym_vec != eom_dsrg.target_sym] = (
-            50 * SXt[eom_dsrg.sym_vec != eom_dsrg.target_sym]
-        )
         XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
         XHXt = XHXt.flatten()
         return XHXt
@@ -394,20 +362,16 @@ def compute_guess_vectors(eom_dsrg, precond, nop, ascending=True):
     # print(f"precond:{precond[sort_ind]}")
     print(f"length of precond: {len(precond)}")
 
-    x0s = np.zeros((precond.shape[0], eom_dsrg.nroots * 10))
-    min_shape = min(precond.shape[0], eom_dsrg.nroots * 10)
+    x0s = np.zeros((precond.shape[0], eom_dsrg.nroots))
+    min_shape = min(precond.shape[0], eom_dsrg.nroots)
     x0s[:min_shape, :min_shape] = np.identity(min_shape)
 
-    x0 = np.zeros((precond.shape[0], eom_dsrg.nroots * 10))
+    x0 = np.zeros((precond.shape[0], eom_dsrg.nroots))
     x0[sort_ind] = x0s.copy()
 
     x0s = []
     for p in range(x0.shape[1]):
-        if len(x0s) < eom_dsrg.nroots:
-            temp = eom_dsrg.apply_S12(eom_dsrg, nop, x0[:, p], transpose=False)
-            temp_large = np.argmax(abs(temp))
-            if eom_dsrg.sym_vec[temp_large] == eom_dsrg.target_sym:
-                x0s.append(x0[:, p])
+        x0s.append(x0[:, p])
     return x0s
 
 

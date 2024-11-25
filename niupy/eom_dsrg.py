@@ -19,7 +19,6 @@ class EOM_DSRG:
         tol_s=1e-10,
         tol_semi=1e-6,
         ref_sym=0,
-        target_sym=0,
         nroots=6,
         wfn=None,
         mo_spaces=None,
@@ -94,7 +93,6 @@ class EOM_DSRG:
         self.tol_s = tol_s
         self.tol_semi = tol_semi
         self.ref_sym = ref_sym
-        self.target_sym = target_sym
         if self.ref_sym != 0:
             raise NotImplementedError(
                 "Reference symmetry other than 0 is not implemented."
@@ -195,8 +193,8 @@ class EOM_DSRG:
 
     def kernel(self):
         conv, e, u, spin, symmetry, osc_strength = self.eom_dsrg_compute.kernel(self)
-        # if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
-        #     os.remove(f"{self.method_type}_eom_dsrg.py")
-        # if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
-        #     os.remove(f"{self.method_type}_eom_dsrg.py-e")
+        if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
+            os.remove(f"{self.method_type}_eom_dsrg.py")
+        if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
+            os.remove(f"{self.method_type}_eom_dsrg.py-e")
         return conv, e, u, spin, symmetry, osc_strength
