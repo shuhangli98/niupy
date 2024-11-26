@@ -18,61 +18,33 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
 
-    # Define operators
-    s = []
-
-    for i in itertools.product(["I"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["V+", "A+"], ["A", "C", "I"], ["I"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["v+", "a+"], ["a", "c", "i"], ["I"]):
-        s.append(" ".join(i))
-
-    s = filter_list(s, ncore, nocc, nact, nvir)
+    s = w.gen_op("bra", (0, 1), "avAV", "ciaCIA", only_terms=True) \
+        + w.gen_op("bra", (1, 2), "avAV", "ciaCIA", only_terms=True)
+    s = [_.strip() for _ in s]
+    s = filter_ops_by_ms(s, 1)
+    s = [_ for _ in s if ("I" in _ or "i" in _)]
 
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
 
     # Define Hbar
-    Hops = []
-    for i in itertools.product(["v+", "a+", "c+", "i+"], ["v", "a", "c", "i"]):
-        Hops.append(" ".join(i))
-    for i in itertools.product(["V+", "A+", "C+", "I+"], ["V", "A", "C", "I"]):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["v+", "a+", "c+", "i+"],
-        ["v+", "a+", "c+", "i+"],
-        ["v", "a", "c", "i"],
-        ["v", "a", "c", "i"],
-    ):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["V+", "A+", "C+", "I+"],
-        ["V+", "A+", "C+", "I+"],
-        ["V", "A", "C", "I"],
-        ["V", "A", "C", "I"],
-    ):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["v+", "a+", "c+", "i+"],
-        ["V+", "A+", "C+", "I+"],
-        ["v", "a", "c", "i"],
-        ["V", "A", "C", "I"],
-    ):
-        Hops.append(" ".join(i))
-    Hbar_op = w.op("Hbar", Hops, unique=True)
+    Hbar_op = w.gen_op_ms0("Hbar", 1, 'ciav','ciav') + w.gen_op_ms0("Hbar", 2, 'ciav','ciav')
 
     single_space = [
         "I",
-        "iIa",
-        "iIv",
-        "cIv",
+        "iCa",
         "cIa",
+        "iIa",
+        "iAa",
+        "iCv",
+        "cIv",
+        "iIv",
         "aIv",
-        "IIV",
+        "iAv",
+        "ICA",
         "IIA",
         "ICV",
-        "ICA",
+        "IIV",
         "IAV",
     ]
     aac = ["aIa", "IAA"]
