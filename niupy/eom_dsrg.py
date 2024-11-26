@@ -9,24 +9,26 @@ from niupy.code_generator import cvs_ee, ee, ip, cvs_ip
 
 
 class EOM_DSRG:
-    def __init__(
-        self,
-        opt_einsum=True,
-        tol_e=1e-8,
-        max_space=100,
-        max_cycle=100,
-        tol_davidson=1e-5,
-        tol_s=1e-10,
-        tol_semi=1e-6,
-        ref_sym=0,
-        nroots=6,
-        wfn=None,
-        mo_spaces=None,
-        verbose=5,
-        diagonal_type="compute",
-        method_type="cvs_ee",
-        davidson_type="traditional",
-    ):
+    def __init__(self, method_type, wfn=None, **kwargs):
+        self.method_type = method_type
+        # Set defaults
+        self.tol_e = kwargs.get("tol_e", 1e-8)
+        self.max_space = kwargs.get("max_space", 100)
+        self.max_cycle = kwargs.get("max_cycle", 100)
+        self.tol_davidson = kwargs.get("tol_davidson", 1e-5)
+        self.tol_s = kwargs.get("tol_s", 1e-10)
+        self.tol_semi = kwargs.get("tol_semi", 1e-6)
+        self.nroots = kwargs.get("nroots", 6)
+        self.verbose = kwargs.get("verbose", 5)
+        self.diagonal_type = kwargs.get("diagonal_type", "compute")
+        self.ref_sym = kwargs.get("ref_sym", 0)
+        if self.ref_sym != 0:
+            raise NotImplementedError(
+                "Reference symmetry other than 0 is not implemented."
+            )
+
+        opt_einsum = kwargs.get("opt_einsum", True)
+        mo_spaces = kwargs.get("mo_spaces", None)
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
@@ -50,8 +52,6 @@ class EOM_DSRG:
             cvs_ee.generator(
                 self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
             )
-        elif method_type == "ee":
-            raise NotImplementedError("EE-EOM-DSRG has been disabled.")
         elif method_type == "ip":
             ip.generator(self.abs_file_path)
         elif method_type == "cvs_ip":
@@ -69,45 +69,9 @@ class EOM_DSRG:
         else:
             self.einsum = np.einsum
 
-        self.verbose = verbose
-        self.method_type = method_type
-        self.diagonal_type = diagonal_type  # "compute" or "load"
-        self.davidson_type = davidson_type
-        self.nroots = nroots
-        self.max_space = max_space
-        self.max_cycle = max_cycle
-        self.tol_e = tol_e
-        self.tol_davidson = tol_davidson
-        self.tol_s = tol_s
-        self.tol_semi = tol_semi
-        self.ref_sym = ref_sym
-        if self.ref_sym != 0:
-            raise NotImplementedError(
-                "Reference symmetry other than 0 is not implemented."
-            )
-
         self.S12 = lambda: None
 
-        # SL: A new function?
-        # Set Hamiltonian and RDMs
-        self.gamma1 = np.load(f"{self.abs_file_path}/save_gamma1.npz")
-        self.eta1 = np.load(f"{self.abs_file_path}/save_eta1.npz")
-        self.lambda2 = np.load(f"{self.abs_file_path}/save_lambda2.npz")
-        self.lambda3 = np.load(f"{self.abs_file_path}/save_lambda3.npz")
-        self.lambda4 = np.load(f"{self.abs_file_path}/save_lambda4.npz")
-
-        # self.Hbar = np.load(f'{self.abs_file_path}/save_Hbar.npz')
-        self.Mbar0 = np.load(f"{self.abs_file_path}/Mbar0.npy")
-        Mbar1_x = np.load(f"{self.abs_file_path}/Mbar1_0.npz")
-        Mbar1_y = np.load(f"{self.abs_file_path}/Mbar1_1.npz")
-        Mbar1_z = np.load(f"{self.abs_file_path}/Mbar1_2.npz")
-        Mbar2_x = np.load(f"{self.abs_file_path}/Mbar2_0.npz")
-        Mbar2_y = np.load(f"{self.abs_file_path}/Mbar2_1.npz")
-        Mbar2_z = np.load(f"{self.abs_file_path}/Mbar2_2.npz")
-        Mbar_x = {**Mbar1_x, **Mbar2_x}
-        Mbar_y = {**Mbar1_y, **Mbar2_y}
-        Mbar_z = {**Mbar1_z, **Mbar2_z}
-        self.Mbar = [Mbar_x, Mbar_y, Mbar_z]
+        self._get_integrals()
 
         # Initialize templates and sigma vectors
         import niupy.eom_dsrg_compute as eom_dsrg_compute
@@ -127,6 +91,26 @@ class EOM_DSRG:
             self.vir_sym,
         )
         self.sym_vec = dict_to_vec(self.sym, 1).flatten()
+
+    def _get_integrals(self):
+        self.gamma1 = np.load(f"{self.abs_file_path}/save_gamma1.npz")
+        self.eta1 = np.load(f"{self.abs_file_path}/save_eta1.npz")
+        self.lambda2 = np.load(f"{self.abs_file_path}/save_lambda2.npz")
+        self.lambda3 = np.load(f"{self.abs_file_path}/save_lambda3.npz")
+        self.lambda4 = np.load(f"{self.abs_file_path}/save_lambda4.npz")
+
+        # self.Hbar is loaded in setup_davidson
+        self.Mbar0 = np.load(f"{self.abs_file_path}/Mbar0.npy")
+        Mbar1_x = np.load(f"{self.abs_file_path}/Mbar1_0.npz")
+        Mbar1_y = np.load(f"{self.abs_file_path}/Mbar1_1.npz")
+        Mbar1_z = np.load(f"{self.abs_file_path}/Mbar1_2.npz")
+        Mbar2_x = np.load(f"{self.abs_file_path}/Mbar2_0.npz")
+        Mbar2_y = np.load(f"{self.abs_file_path}/Mbar2_1.npz")
+        Mbar2_z = np.load(f"{self.abs_file_path}/Mbar2_2.npz")
+        Mbar_x = {**Mbar1_x, **Mbar2_x}
+        Mbar_y = {**Mbar1_y, **Mbar2_y}
+        Mbar_z = {**Mbar1_z, **Mbar2_z}
+        self.Mbar = [Mbar_x, Mbar_y, Mbar_z]
 
     def _initialize_mo_symmetry(self, wfn, mo_spaces, method_type):
         if wfn is not None:
@@ -148,13 +132,7 @@ class EOM_DSRG:
             self._set_default_symmetry(method_type)
 
     def _set_default_symmetry(self, method_type):
-        if method_type == "ee":
-            print("Running BeH2/STO-6G since no wfn and mo_spaces are provided.")
-            self.core_sym = np.array([])
-            self.occ_sym = np.array([0, 0])
-            self.act_sym = np.array([0, 3])
-            self.vir_sym = np.array([0, 2, 3])
-        elif method_type == "cvs_ee" or method_type == "cvs_ip":
+        if method_type == "cvs_ee" or method_type == "cvs_ip":
             print("Running H2O/6-31g since no wfn and mo_spaces are provided.")
             # 6-31g
             self.core_sym = np.array([0])

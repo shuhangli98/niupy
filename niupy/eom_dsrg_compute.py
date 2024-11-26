@@ -45,27 +45,23 @@ def kernel(eom_dsrg):
     print("Setting up Davidson algorithm...", flush=True)
 
     # Setup Davidson algorithm
-    if eom_dsrg.davidson_type == "traditional":
-        apply_M, precond, x0, nop = setup_davidson(eom_dsrg)
-        print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
-        # Davidson algorithm
-        conv, e, u = davidson(
-            lambda xs: [apply_M(x) for x in xs],
-            x0,
-            precond,
-            nroots=eom_dsrg.nroots,
-            verbose=eom_dsrg.verbose,
-            max_space=eom_dsrg.max_space,
-            max_cycle=eom_dsrg.max_cycle,
-            tol=eom_dsrg.tol_e,
-            tol_residual=eom_dsrg.tol_davidson,
-        )
+    apply_M, precond, x0, nop = setup_davidson(eom_dsrg)
+    print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
+    # Davidson algorithm
+    conv, e, u = davidson(
+        lambda xs: [apply_M(x) for x in xs],
+        x0,
+        precond,
+        nroots=eom_dsrg.nroots,
+        verbose=eom_dsrg.verbose,
+        max_space=eom_dsrg.max_space,
+        max_cycle=eom_dsrg.max_cycle,
+        tol=eom_dsrg.tol_e,
+        tol_residual=eom_dsrg.tol_davidson,
+    )
 
-        # Get spin multiplicity and process eigenvectors
-        spin, eigvec, symmetry = get_information(eom_dsrg, u, nop)
-
-    else:
-        raise ValueError(f"Invalid Davidson type: {eom_dsrg.davidson_type}")
+    # Get spin multiplicity and process eigenvectors
+    spin, eigvec, symmetry = get_information(eom_dsrg, u, nop)
 
     del eom_dsrg.Hbar
 
