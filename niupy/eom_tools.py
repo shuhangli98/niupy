@@ -274,6 +274,7 @@ def generate_block_contraction(
     bra_name="bra",
     ket_name="c",
     optimize="True",
+    ea=False,
 ):
     indent_spaces = {"once": "    ", "twice": "        "}
     space = indent_spaces.get(indent, "    ")
@@ -302,7 +303,7 @@ def generate_block_contraction(
                 f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name, optimize=optimize)}"
             )
 
-    code.append(f"{space}sigma = antisymmetrize(sigma)")
+    code.append(f"{space}sigma = antisymmetrize(sigma, ea={ea})")
 
     func = "\n".join(code)
     return func
@@ -423,7 +424,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False):
             f"    del c_vec",
             f"    c = antisymmetrize(c, ea={ea})",
             f"    if eom_dsrg.verbose: print('Starts contraction')",
-            generate_block_contraction(key, mbeq, block_type="single", indent="once"),
+            generate_block_contraction(key, mbeq, block_type="single", indent="once", ea=ea),
             f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
             f"    sigma.clear()",
@@ -467,7 +468,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False):
         )
         code_block.append(
             generate_block_contraction(
-                space, mbeq, block_type="composite", indent="once",
+                space, mbeq, block_type="composite", indent="once", ea=ea,
             )
         )
         code_block.extend(
@@ -605,7 +606,7 @@ def generate_preconditioner(
             f"        sigma['{key}'] = np.zeros((northo, *shape_block))",
             f"        c = vec_to_dict(c, eom_dsrg.S12.{key})",
             f"        c = antisymmetrize(c, ea={ea})",
-            generate_block_contraction(key, mbeq, block_type="single", indent="twice"),
+            generate_block_contraction(key, mbeq, block_type="single", indent="twice", ea=ea),
             f"        c.clear()",
             f"        vec = dict_to_vec(sigma, northo)",
             f"        sigma.clear()",
@@ -632,7 +633,7 @@ def generate_preconditioner(
                 f"        c = vec_to_dict(c, eom_dsrg.S12.{space[0]})",
                 f"        c = antisymmetrize(c, ea={ea})",
                 generate_block_contraction(
-                    space, mbeq, block_type="composite", indent="twice",
+                    space, mbeq, block_type="composite", indent="twice", ea=ea
                 ),
                 f"        c.clear()",
                 f"        vec = dict_to_vec(sigma, northo)",
