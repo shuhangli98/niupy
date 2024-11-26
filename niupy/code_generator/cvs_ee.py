@@ -19,21 +19,11 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     wt = w.WickTheorem()
 
     # Define operators
-    s = []
-
-    for i in itertools.product(["v+", "a+"], ["i"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["V+", "A+"], ["I"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["v+", "a+"], ["v+", "a+"], ["a", "c", "i"], ["i"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["V+", "A+"], ["V+", "A+"], ["A", "C", "I"], ["I"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["v+", "a+"], ["V+", "A+"], ["a", "c", "i"], ["I"]):
-        s.append(" ".join(i))
-    for i in itertools.product(["v+", "a+"], ["V+", "A+"], ["A", "C", "I"], ["i"]):
-        s.append(" ".join(i))
-
+    s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True) \
+        + w.gen_op( "bra", 2, "avAV", "ciaCIA", only_terms=True)
+    s = [_.strip() for _ in s]
+    s = filter_ops_by_ms(s, 0)
+    s = [_ for _ in s if ("I" in _ or "i" in _)]
     s = filter_list(s, ncore, nocc, nact, nvir)
 
     T_adj = w.op("bra", s, unique=True).adjoint()
@@ -51,33 +41,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     T_original = w.op("c", s, unique=True)
 
     # Define Hbar
-    Hops = []
-    for i in itertools.product(["v+", "a+", "c+", "i+"], ["v", "a", "c", "i"]):
-        Hops.append(" ".join(i))
-    for i in itertools.product(["V+", "A+", "C+", "I+"], ["V", "A", "C", "I"]):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["v+", "a+", "c+", "i+"],
-        ["v+", "a+", "c+", "i+"],
-        ["v", "a", "c", "i"],
-        ["v", "a", "c", "i"],
-    ):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["V+", "A+", "C+", "I+"],
-        ["V+", "A+", "C+", "I+"],
-        ["V", "A", "C", "I"],
-        ["V", "A", "C", "I"],
-    ):
-        Hops.append(" ".join(i))
-    for i in itertools.product(
-        ["v+", "a+", "c+", "i+"],
-        ["V+", "A+", "C+", "I+"],
-        ["v", "a", "c", "i"],
-        ["V", "A", "C", "I"],
-    ):
-        Hops.append(" ".join(i))
-    Hbar_op = w.op("Hbar", Hops, unique=True)
+    Hbar_op = w.gen_op_ms0("Hbar", 1, 'ciav','ciav') + w.gen_op_ms0("Hbar", 2, 'ciav','ciav')
 
     # ============================================================================
 

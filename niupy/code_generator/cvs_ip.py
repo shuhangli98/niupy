@@ -23,6 +23,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 1)
     s = [_ for _ in s if ("I" in _ or "i" in _)]
+    s = filter_list(s, ncore, nocc, nact, nvir)
 
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)

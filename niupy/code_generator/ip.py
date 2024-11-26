@@ -18,9 +18,8 @@ def generator(abs_path):
     wt.set_max_cumulant(4)
 
     # Define operators
-    s = w.gen_op("bra", (0, 1), "avAV", "caCA", only_terms=True) + w.gen_op(
-        "bra", (1, 2), "avAV", "caCA", only_terms=True
-    )
+    s = w.gen_op("bra", (0, 1), "avAV", "caCA", only_terms=True) \
+        + w.gen_op("bra", (1, 2), "avAV", "caCA", only_terms=True)
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 1)
 
