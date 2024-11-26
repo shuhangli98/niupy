@@ -4,7 +4,8 @@ import forte.utils
 import numpy as np
 import os
 import subprocess
-from niupy.code_generator import cvs_ee, ee, ip
+from niupy.code_generator import cvs_ee, ee, ip, cvs_ip
+
 
 class EOM_DSRG:
     def __init__(
@@ -53,6 +54,10 @@ class EOM_DSRG:
             raise NotImplementedError("EE-EOM-DSRG has been disabled.")
         elif method_type == "ip":
             ip.generator(self.abs_file_path)
+        elif method_type == "cvs_ip":
+            cvs_ip.generator(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
@@ -60,24 +65,15 @@ class EOM_DSRG:
         if opt_einsum:
             print("Using opt_einsum...")
             from opt_einsum import contract
+
             self.einsum = contract
-            
-            subprocess.run(
-            [
-                "sed",
-                "-i",
-                "-e",
-                "s/optimize='optimal'/optimize=einsum_type/g; s/np\\.einsum/einsum/g",
-                os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
-            ]
-        )
         else:
             self.einsum = np.einsum
 
         self.verbose = verbose
         self.method_type = method_type
         self.diagonal_type = diagonal_type  # "compute" or "load"
-        self.davidson_type = davidson_type  # 'traditional' or 'generalized'
+        self.davidson_type = davidson_type
         self.nroots = nroots
         self.max_space = max_space
         self.max_cycle = max_cycle
@@ -118,7 +114,9 @@ class EOM_DSRG:
         import niupy.eom_dsrg_compute as eom_dsrg_compute
 
         self.eom_dsrg_compute = eom_dsrg_compute
-        self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(self)
+        self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(
+            self
+        )
         self._initialize_sigma_vectors()
 
         # Generate symmetry information
@@ -149,18 +147,13 @@ class EOM_DSRG:
             self.occ_sym = np.array([0, 0])
             self.act_sym = np.array([0, 3])
             self.vir_sym = np.array([0, 2, 3])
-        elif method_type == "cvs_ee":
+        elif method_type == "cvs_ee" or method_type == "cvs_ip":
             print("Running H2O/6-31g since no wfn and mo_spaces are provided.")
             # 6-31g
             self.core_sym = np.array([0])
             self.occ_sym = np.array([0, 3])
             self.act_sym = np.array([0, 0, 2, 3])
             self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
-            # Test no occ
-            # self.core_sym = np.array([0, 0, 3])
-            # self.occ_sym = np.array([])
-            # self.act_sym = np.array([0, 0, 2, 3])
-            # self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
         elif method_type == "ip":
             print("Running BeH2/STO-6G since no wfn and mo_spaces are provided.")
             self.core_sym = np.array([])

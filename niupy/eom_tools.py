@@ -32,9 +32,9 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
 
     # this is for the edge case of scaling the 'aAa' operator in spin integrated IP theory
     factor = 1.0
-    if d["rhs"][bra_idx][1] == 'aaA':
+    if d["rhs"][bra_idx][1] == "aaA":
         factor *= np.sqrt(2)
-    if d["rhs"][ket_idx][1] == 'aAa':
+    if d["rhs"][ket_idx][1] == "aAa":
         factor *= np.sqrt(2)
 
     d["factor"] = float(d["factor"]) * factor
@@ -48,17 +48,6 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
     return w.dict_to_einsum(d, optimize=optimize)
 
 
-# BZ: Remove if deprecated
-# def compile_first_row_safe(equation, ket_name="c"):
-#     eq, d = w.compile_einsum(equation, return_eq_dict=True)
-#     for idx, t in enumerate(d["rhs"]):
-#         if t[0] == ket_name:
-#             ket_idx = idx
-
-#     d["rhs"][ket_idx][2] = "p" + d["rhs"][ket_idx][2]
-#     d["lhs"][0][2] = "p"
-#     return w.dict_to_einsum(d)
-
 def compile_first_row(equation, ket_name="c"):
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
     for idx, t in enumerate(d["rhs"]):
@@ -68,6 +57,7 @@ def compile_first_row(equation, ket_name="c"):
     ket[0] = "sigma"
     d["lhs"] = [ket]
     return w.dict_to_einsum(d)
+
 
 def increment_index(index):
     """
@@ -186,7 +176,7 @@ def matrix_elements_to_diag(mbeq, indent="once"):
     return func
 
 
-def generate_sigma_build(mbeq, matrix, first_row=True, optimize='True'):
+def generate_sigma_build(mbeq, matrix, first_row=True, optimize="True"):
     code = [
         f"def build_sigma_vector_{matrix}(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
         "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}",
@@ -573,7 +563,9 @@ def generate_S12(mbeq, single_space, composite_space):
             code.extend(add_composite_space_code(space))
         code.append("")  # Blank line for separation
 
-    code.append("    if eom_dsrg.verbose: print(f'Number of orthogonalized operators: {num_ortho}')")
+    code.append(
+        "    if eom_dsrg.verbose: print(f'Number of orthogonalized operators: {num_ortho}')"
+    )
 
     return "\n".join(code)
 
@@ -646,7 +638,6 @@ def generate_preconditioner(
                 f"        vec = dict_to_vec(sigma, northo)",
                 f"        sigma.clear()",
                 f"        vmv = eom_dsrg.S12.{space[0]}.T @ vec",
-                f"        print(np.linalg.eigvalsh(vmv))",
                 f"        diagonal.append(vmv.diagonal())",
                 f"        del vec, vmv",
             ]
@@ -925,7 +916,7 @@ def is_antisymmetric(tensor_dict):
 
 def sym_dir(c, core_sym, occ_sym, act_sym, vir_sym):
     """
-    Generate the symmetry of the direct product of two spaces.    
+    Generate the symmetry of the direct product of two spaces.
     """
     out_dir = {}
     dir = {
@@ -939,28 +930,31 @@ def sym_dir(c, core_sym, occ_sym, act_sym, vir_sym):
         "I": core_sym,
     }
     for key in c.keys():
-        if key == 'first':
+        if key == "first":
             out_dir[key] = np.array([0])
             continue
 
         if any(len(dir[key[i]]) == 0 for i in range(len(key))):
             out_dir[key] = np.zeros_like(c[key])
         else:
-            if (len(key)==1):
+            if len(key) == 1:
                 out_dir[key] = dir[key]
-            elif (len(key)==2):
-                out_dir[key] = (dir[key[0]][:, None] 
-                                ^ dir[key[1]][None, :])
-            elif (len(key)==3):
-                out_dir[key] = (dir[key[0]][:, None, None] 
-                                ^ dir[key[1]][None, :, None] 
-                                ^ dir[key[2]][None, None, :])
-            elif (len(key)==4):
-                out_dir[key] = (dir[key[0]][:, None, None, None] 
-                                ^ dir[key[1]][None, :, None, None] 
-                                ^ dir[key[2]][None, None, :, None] 
-                                ^ dir[key[3]][None, None, None, :])
-        
+            elif len(key) == 2:
+                out_dir[key] = dir[key[0]][:, None] ^ dir[key[1]][None, :]
+            elif len(key) == 3:
+                out_dir[key] = (
+                    dir[key[0]][:, None, None]
+                    ^ dir[key[1]][None, :, None]
+                    ^ dir[key[2]][None, None, :]
+                )
+            elif len(key) == 4:
+                out_dir[key] = (
+                    dir[key[0]][:, None, None, None]
+                    ^ dir[key[1]][None, :, None, None]
+                    ^ dir[key[2]][None, None, :, None]
+                    ^ dir[key[3]][None, None, None, :]
+                )
+
     return out_dir
 
 
@@ -1110,11 +1104,13 @@ def filter_list(element_list, ncore, nocc, nact, nvir):
         and (nvir != 0 or ("v" not in element and "V" not in element))
     ]
 
+
 def op_to_ms(op):
     ms2 = 0
-    for i in op.split(' '):
-        ms2 += ((i.islower())*2-1) * (('+' in i)*2-1)
+    for i in op.split(" "):
+        ms2 += ((i.islower()) * 2 - 1) * (("+" in i) * 2 - 1)
     return int(ms2)
+
 
 def filter_ops_by_ms(ops, ms2):
     """
