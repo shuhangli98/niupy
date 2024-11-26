@@ -1,6 +1,7 @@
 from niupy.eom_tools import *
 import forte
 import forte.utils
+import psi4
 import numpy as np
 import os
 import subprocess
@@ -130,9 +131,17 @@ class EOM_DSRG:
         self.sym_vec = dict_to_vec(self.sym, 1).flatten()
 
     def _initialize_mo_symmetry(self, wfn, mo_spaces, method_type):
-        if wfn is not None and mo_spaces is not None:
-            res = forte.utils.prepare_forte_objects(wfn, mo_spaces)
-            mo_space_info = res["mo_space_info"]
+        if wfn is not None:
+            if mo_spaces is None:
+                psi4_options = psi4.core.get_options()
+                spaces = ["frozen_docc", "restricted_docc", "active", "restricted_uocc", "frozen_uocc"]
+                mo_spaces = {}
+                for s in spaces:
+                    if len(psi4_options.get_int_vector(s)) > 0:
+                        mo_spaces[s] = psi4_options.get_int_vector(s)
+            nmopi = wfn.nmopi()
+            point_group = wfn.molecule().point_group().symbol()
+            mo_space_info = forte.make_mo_space_info_from_map(nmopi, point_group, mo_spaces)
             self.core_sym = np.array(mo_space_info.symmetry("FROZEN_DOCC"))
             self.occ_sym = np.array(mo_space_info.symmetry("RESTRICTED_DOCC"))
             self.act_sym = np.array(mo_space_info.symmetry("ACTIVE"))
