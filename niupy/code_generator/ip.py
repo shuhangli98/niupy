@@ -58,8 +58,8 @@ def generator(abs_path):
     # Generate wicked contraction
     funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize='True')  # HC
     funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize='True')  # SC
-    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, method='ip')
-    funct_preconditioner = generate_preconditioner(mbeq, {},{}, single_space, composite_space, method='ip', first_row=False)
+    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space)
+    funct_preconditioner = generate_preconditioner(mbeq, {},{}, single_space, composite_space, first_row=False)
     funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=False)
 
     # abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

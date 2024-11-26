@@ -283,7 +283,6 @@ def generate_block_contraction(
     indent="once",
     bra_name="bra",
     ket_name="c",
-    method="ee",
     optimize="True",
 ):
     indent_spaces = {"once": "    ", "twice": "        "}
@@ -313,13 +312,13 @@ def generate_block_contraction(
                 f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name, optimize=optimize)}"
             )
 
-    code.append(f"{space}sigma = antisymmetrize(sigma, method='{method}')")
+    code.append(f"{space}sigma = antisymmetrize(sigma)")
 
     func = "\n".join(code)
     return func
 
 
-def generate_S12(mbeq, single_space, composite_space, method="ee"):
+def generate_S12(mbeq, single_space, composite_space):
     """
     single_space: a list of strings.
     composite_space: a list of lists of strings.
@@ -432,9 +431,9 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
             f"    np.fill_diagonal(c_vec, 1)",
             f"    c = vec_to_dict(c, c_vec)",
             f"    del c_vec",
-            f"    c = antisymmetrize(c, method='{method}')",
+            f"    c = antisymmetrize(c)",
             f"    if eom_dsrg.verbose: print('Starts contraction')",
-            generate_block_contraction(key, mbeq, block_type="single", indent="once", method=method),
+            generate_block_contraction(key, mbeq, block_type="single", indent="once"),
             f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
             f"    sigma.clear()",
@@ -472,13 +471,13 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
                 f"    np.fill_diagonal(c_vec, 1)",
                 f"    c = vec_to_dict(c, c_vec)",
                 f"    del c_vec",
-                f"    c = antisymmetrize(c, method='{method}')",
+                f"    c = antisymmetrize(c)",
                 f"    if eom_dsrg.verbose: print('Starts contraction')",
             ]
         )
         code_block.append(
             generate_block_contraction(
-                space, mbeq, block_type="composite", indent="once", method=method,
+                space, mbeq, block_type="composite", indent="once",
             )
         )
         code_block.extend(
@@ -580,7 +579,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
 
 
 def generate_preconditioner(
-    mbeq, mbeqs_one_active, mbeqs_no_active, single_space, composite_space, method="ee", first_row=True
+    mbeq, mbeqs_one_active, mbeqs_no_active, single_space, composite_space, first_row=True
 ):
     """
     mbeqs_one_active and mbeqs_no_active are dictionaries.
@@ -613,8 +612,8 @@ def generate_preconditioner(
             f"        c['{key}'] = np.zeros((northo, *shape_block))",
             f"        sigma['{key}'] = np.zeros((northo, *shape_block))",
             f"        c = vec_to_dict(c, eom_dsrg.S12.{key})",
-            f"        c = antisymmetrize(c, method='{method}')",
-            generate_block_contraction(key, mbeq, block_type="single", indent="twice", method=method),
+            f"        c = antisymmetrize(c)",
+            generate_block_contraction(key, mbeq, block_type="single", indent="twice"),
             f"        c.clear()",
             f"        vec = dict_to_vec(sigma, northo)",
             f"        sigma.clear()",
@@ -639,9 +638,9 @@ def generate_preconditioner(
                 f"            c[key] = np.zeros((northo, *shape_block))",
                 f"            sigma[key] = np.zeros((northo, *shape_block))",
                 f"        c = vec_to_dict(c, eom_dsrg.S12.{space[0]})",
-                f"        c = antisymmetrize(c, method='{method}')",
+                f"        c = antisymmetrize(c)",
                 generate_block_contraction(
-                    space, mbeq, block_type="composite", indent="twice", method=method, 
+                    space, mbeq, block_type="composite", indent="twice",
                 ),
                 f"        c.clear()",
                 f"        vec = dict_to_vec(sigma, northo)",
@@ -832,82 +831,35 @@ def generate_apply_S12(single_space, composite_space, first_row=True):
     return "\n".join(code_block)
 
 
-def antisymmetrize_tensor_2_2(Roovv, nlow, nocc, nvir):
-    # antisymmetrize the tensor
-    Roovv_anti = np.zeros((nlow, nocc, nocc, nvir, nvir))
-    Roovv_anti += np.einsum("pijab->pijab", Roovv)
-    Roovv_anti -= np.einsum("pijab->pjiab", Roovv)
-    Roovv_anti -= np.einsum("pijab->pijba", Roovv)
-    Roovv_anti += np.einsum("pijab->pjiba", Roovv)
-    return Roovv_anti
+def antisymmetrize(input_dict):
+    if type(input_dict) is not dict:
+        return input_dict
+    
+    def _antisym(tensor, key):
+        if len(key) <= 2:
+            return tensor
+        transpositions = []
+        if len(key) == 3:
+            if key[0] == key[1]:
+                transpositions.append(([0,2,1,3],-1))
+        elif len(key) == 4:
+            do_lower = (key[0] == key[1])
+            do_upper = (key[2] == key[3])
+            if do_lower:
+                transpositions.append(([0,2,1,3,4], -1))
+            if do_upper:
+                transpositions.append(([0,1,2,4,3], -1))
+            if do_lower and do_upper:
+                transpositions.append(([0,2,1,4,3], 1))
+        
+        tensor_new = tensor.copy()
+        for trans, fact in transpositions:
+            tensor_new += fact * tensor.transpose(trans)
+        return tensor_new
+    
+    for key, tensor in input_dict.items():
+        input_dict[key] = _antisym(tensor, key)
 
-
-def antisymmetrize_tensor_2_1(Rccav, nlow, nocc, nact, nvir, method="ee"):
-    # antisymmetrize the tensor
-    if method == "ee":
-        Rccav_anti = np.zeros((nlow, nocc, nocc, nact, nvir))
-        Rccav_anti += np.einsum("pijab->pijab", Rccav)
-        Rccav_anti -= np.einsum("pijab->pjiab", Rccav)
-    elif method == "ip":
-        Rccav_anti = np.zeros((nlow, nocc, nocc, nact))
-        Rccav_anti += np.einsum("pija->pija", Rccav)
-        Rccav_anti -= np.einsum("pija->pjia", Rccav)
-    return Rccav_anti
-
-
-def antisymmetrize_tensor_1_2(Rcavv, nlow, nocc, nact, nvir, method="ee"):
-    # antisymmetrize the tensor
-    Rcavv_anti = np.zeros((nlow, nocc, nact, nvir, nvir))
-    Rcavv_anti += np.einsum("pijab->pijab", Rcavv)
-    Rcavv_anti -= np.einsum("pijab->pijba", Rcavv)
-    return Rcavv_anti
-
-
-def antisymmetrize(input_dict, method="ee"):
-    if type(input_dict) is dict:
-        if method == "ee":
-            for key in input_dict.keys():
-                if len(key) == 4:
-                    if key[0] == key[1] and key[2] != key[3]:
-                        tensor = input_dict[key]
-                        input_dict[key] = antisymmetrize_tensor_2_1(
-                            tensor,
-                            tensor.shape[0],
-                            tensor.shape[1],
-                            tensor.shape[3],
-                            tensor.shape[4],
-                        )
-                    elif key[0] != key[1] and key[2] == key[3]:
-                        tensor = input_dict[key]
-                        input_dict[key] = antisymmetrize_tensor_1_2(
-                            tensor,
-                            tensor.shape[0],
-                            tensor.shape[1],
-                            tensor.shape[2],
-                            tensor.shape[3],
-                        )
-                    elif key[0] == key[1] and key[2] == key[3]:
-                        tensor = input_dict[key]
-                        input_dict[key] = antisymmetrize_tensor_2_2(
-                            tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3]
-                        )
-                    else:
-                        continue
-        elif method == "ip":
-            for key in input_dict.keys():
-                if len(key) == 3:
-                    if key[0] == key[1]:
-                        tensor = input_dict[key]
-                        input_dict[key] = antisymmetrize_tensor_2_1(
-                            tensor,
-                            tensor.shape[0],
-                            tensor.shape[1],
-                            tensor.shape[3],
-                            None,
-                            method="ip",
-                        )
-                    else:
-                        continue
     return input_dict
 
 
