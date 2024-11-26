@@ -30,7 +30,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     T = w.op("c", s, unique=True)
 
     # These blocks are computed with the commutator trick.
-    s_comm = ["a+ a+ a i", "A+ A+ A I", "a+ A+ a I", "a+ A+ A i"]
+    s_comm = ["a+ a+ a i", "A+ A+ A I", "a+ A+ I a", "a+ A+ A i"]
     for i in s_comm:
         s.remove(i)
 
