@@ -11,7 +11,6 @@ class EOM_DSRG:
     def __init__(
         self,
         opt_einsum=True,
-        einsum_type="greedy",
         tol_e=1e-8,
         max_space=100,
         max_cycle=100,
@@ -61,7 +60,6 @@ class EOM_DSRG:
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
-        self.einsum_type = einsum_type
         if opt_einsum:
             print("Using opt_einsum...")
             from opt_einsum import contract
@@ -131,8 +129,9 @@ class EOM_DSRG:
 
     def _initialize_mo_symmetry(self, wfn, mo_spaces, method_type):
         if wfn is not None and mo_spaces is not None:
-            res = forte.utils.prepare_forte_objects(wfn, mo_spaces)
-            mo_space_info = res["mo_space_info"]
+            nmopi = wfn.nmopi()
+            point_group = wfn.molecule().point_group().symbol()
+            mo_space_info = forte.make_mo_space_info_from_map(nmopi, point_group, mo_spaces)
             self.core_sym = np.array(mo_space_info.symmetry("FROZEN_DOCC"))
             self.occ_sym = np.array(mo_space_info.symmetry("RESTRICTED_DOCC"))
             self.act_sym = np.array(mo_space_info.symmetry("ACTIVE"))

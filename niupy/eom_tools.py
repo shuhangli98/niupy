@@ -178,7 +178,7 @@ def matrix_elements_to_diag(mbeq, indent="once"):
 
 def generate_sigma_build(mbeq, matrix, first_row=True, optimize="True"):
     code = [
-        f"def build_sigma_vector_{matrix}(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
+        f"def build_sigma_vector_{matrix}(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
         "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}",
     ]
 
@@ -222,7 +222,7 @@ def generate_template_c(block_list, index_dict, function_args):
 
 def generate_first_row(mbeq):
     code = [
-        f"def build_first_row(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
+        f"def build_first_row(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = {key: np.zeros((1, *tensor.shape[1:])) for key, tensor in c.items() if key != 'first'}",
     ]
     for eq in mbeq["|"]:
@@ -235,7 +235,7 @@ def generate_first_row(mbeq):
 
 def generate_transition_dipole(mbeq):  # redundant
     code = [
-        f"def build_transition_dipole(einsum, einsum_type, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
+        f"def build_transition_dipole(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = 0.0",
     ]
     for eq in mbeq["|"]:
@@ -315,12 +315,10 @@ def generate_S12(mbeq, single_space, composite_space, ea=False):
     composite_space: a list of lists of strings.
     tol: tolerance for truncating singular values.
     tol_semi: tolerance for truncating singular values for semi-internals.
-    einsum, einsum_type, template_c, gamma1, eta1, lambda2, lambda3, lambda4, tol={tol}, tol_semi={tol_semi}
     """
     code = [
         f"def get_S12(eom_dsrg):",
         "    einsum = eom_dsrg.einsum",
-        "    einsum_type = eom_dsrg.einsum_type",
         "    template_c = eom_dsrg.template_c",
         "    gamma1 = eom_dsrg.gamma1",
         "    eta1 = eom_dsrg.eta1",
@@ -576,12 +574,10 @@ def generate_preconditioner(
 ):
     """
     mbeqs_one_active and mbeqs_no_active are dictionaries.
-    einsum, einsum_type, template_c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4
     """
     code = [
         f"def compute_preconditioner(eom_dsrg):",
         "    einsum = eom_dsrg.einsum",
-        "    einsum_type = eom_dsrg.einsum_type",
         "    template_c = eom_dsrg.template_c",
         "    Hbar = eom_dsrg.Hbar",
         "    gamma1 = eom_dsrg.gamma1",

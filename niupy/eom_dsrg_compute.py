@@ -112,7 +112,6 @@ def compute_dipole(eom_dsrg, current_vec):
     for i, Mbar_i in enumerate(eom_dsrg.Mbar):
         HT = eom_dsrg.build_transition_dipole(
             eom_dsrg.einsum,
-            eom_dsrg.einsum_type,
             current_vec_dict,
             Mbar_i,
             eom_dsrg.gamma1,
@@ -298,7 +297,6 @@ def setup_davidson(eom_dsrg):
     else:
         eom_dsrg.first_row = eom_dsrg.build_first_row(
             eom_dsrg.einsum,
-            eom_dsrg.einsum_type,
             eom_dsrg.full_template_c,
             eom_dsrg.Hbar,
             eom_dsrg.gamma1,
@@ -350,7 +348,6 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
 
     HXt_dict = eom_dsrg.build_H(
         eom_dsrg.einsum,
-        eom_dsrg.einsum_type,
         Xt_dict,
         eom_dsrg.Hbar,
         eom_dsrg.gamma1,
