@@ -163,7 +163,7 @@ def calculate_norms(current_vec_dict):
     return subtraction_norms, addition_norms
 
 
-def get_information(eom_dsrg, u, nop):
+def get_information(eom_dsrg, u, nop, ea=False):
     """
     Process vectors to classify their spin multiplicities.
 
@@ -180,10 +180,7 @@ def get_information(eom_dsrg, u, nop):
     eigvec = np.array(
         [eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]
     ).T
-    eigvec_dict = antisymmetrize(
-        vec_to_dict(eom_dsrg.full_template_c, eigvec),
-        method="ee" if eom_dsrg.method_type == "cvs_ee" else "ip",
-    )
+    eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec), ea=ea)
 
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
@@ -327,7 +324,7 @@ def setup_davidson(eom_dsrg):
     return apply_M, precond, x0, nop
 
 
-def define_effective_hamiltonian(x, eom_dsrg, nop, northo):
+def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
     """
     Define the effective Hamiltonian application function.
 
@@ -343,9 +340,7 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo):
     # nop and northo include the first row/column
     Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
     Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
-    Xt_dict = antisymmetrize(
-        Xt_dict, method="ee" if eom_dsrg.method_type == "cvs_ee" else "ip"
-    )
+    Xt_dict = antisymmetrize(Xt_dict, ea=ea)
 
     HXt_dict = eom_dsrg.build_H(
         eom_dsrg.einsum,
@@ -359,9 +354,7 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo):
         eom_dsrg.first_row,
     )
 
-    HXt_dict = antisymmetrize(
-        HXt_dict, method="ee" if eom_dsrg.method_type == "cvs_ee" else "ip"
-    )
+    HXt_dict = antisymmetrize(HXt_dict, ea=ea)
     HXt = dict_to_vec(HXt_dict, 1).flatten()
     XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
     XHXt = XHXt.flatten()
