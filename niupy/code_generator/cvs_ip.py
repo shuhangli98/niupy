@@ -103,4 +103,4 @@ def generator(abs_path, ncore, nocc, nact, nvir):
 
 
 if __name__ == "__main__":
-    generator(abs_path=os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    generator(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), 1, 1, 1, 1)

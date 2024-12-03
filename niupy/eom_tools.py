@@ -36,6 +36,18 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
         factor *= np.sqrt(2)
     if d["rhs"][ket_idx][1] == "aAa":
         factor *= np.sqrt(2)
+        
+    if len(d["rhs"][bra_idx][1]) == 4 and d["rhs"][bra_idx][1][0].islower() and d["rhs"][bra_idx][1][1].isupper():
+        if d["rhs"][bra_idx][1][0].lower() == d["rhs"][bra_idx][1][1].lower():
+            factor *= np.sqrt(2)
+        if d["rhs"][bra_idx][1][2].lower() == d["rhs"][bra_idx][1][3].lower():
+            factor *= np.sqrt(2)
+            
+    if len(d["rhs"][ket_idx][1]) == 4 and d["rhs"][ket_idx][1][0].islower() and d["rhs"][ket_idx][1][1].isupper():
+        if d["rhs"][ket_idx][1][0].lower() == d["rhs"][ket_idx][1][1].lower():
+            factor *= np.sqrt(2)
+        if d["rhs"][ket_idx][1][2].lower() == d["rhs"][ket_idx][1][3].lower():
+            factor *= np.sqrt(2)
 
     d["factor"] = float(d["factor"]) * factor
     d["rhs"][ket_idx][2] = "p" + d["rhs"][ket_idx][2]
