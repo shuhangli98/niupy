@@ -285,8 +285,8 @@ def generate_block_contraction(
     indent="once",
     bra_name="bra",
     ket_name="c",
-    method="ee",
     optimize="True",
+    ea=False,
 ):
     indent_spaces = {"once": "    ", "twice": "        "}
     space = indent_spaces.get(indent, "    ")
@@ -315,13 +315,13 @@ def generate_block_contraction(
                 f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name, optimize=optimize)}"
             )
 
-    code.append(f"{space}sigma = antisymmetrize(sigma, method='{method}')")
+    code.append(f"{space}sigma = antisymmetrize(sigma, ea={ea})")
 
     func = "\n".join(code)
     return func
 
 
-def generate_S12(mbeq, single_space, composite_space, method="ee"):
+def generate_S12(mbeq, single_space, composite_space, ea=False):
     """
     single_space: a list of strings.
     composite_space: a list of lists of strings.
@@ -432,11 +432,9 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
             f"    np.fill_diagonal(c_vec, 1)",
             f"    c = vec_to_dict(c, c_vec)",
             f"    del c_vec",
-            f"    c = antisymmetrize(c, method='{method}')",
+            f"    c = antisymmetrize(c, ea={ea})",
             f"    if eom_dsrg.verbose: print('Starts contraction')",
-            generate_block_contraction(
-                key, mbeq, block_type="single", indent="once", method=method
-            ),
+            generate_block_contraction(key, mbeq, block_type="single", indent="once", ea=ea),
             f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
             f"    sigma.clear()",
@@ -474,17 +472,13 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
                 f"    np.fill_diagonal(c_vec, 1)",
                 f"    c = vec_to_dict(c, c_vec)",
                 f"    del c_vec",
-                f"    c = antisymmetrize(c, method='{method}')",
+                f"    c = antisymmetrize(c, ea={ea})",
                 f"    if eom_dsrg.verbose: print('Starts contraction')",
             ]
         )
         code_block.append(
             generate_block_contraction(
-                space,
-                mbeq,
-                block_type="composite",
-                indent="once",
-                method=method,
+                space, mbeq, block_type="composite", indent="once", ea=ea,
             )
         )
         code_block.extend(
@@ -588,13 +582,7 @@ def generate_S12(mbeq, single_space, composite_space, method="ee"):
 
 
 def generate_preconditioner(
-    mbeq,
-    mbeqs_one_active,
-    mbeqs_no_active,
-    single_space,
-    composite_space,
-    method="ee",
-    first_row=True,
+    mbeq, mbeqs_one_active, mbeqs_no_active, single_space, composite_space, first_row=True, ea=False
 ):
     """
     mbeqs_one_active and mbeqs_no_active are dictionaries.
@@ -625,10 +613,8 @@ def generate_preconditioner(
             f"        c['{key}'] = np.zeros((northo, *shape_block))",
             f"        sigma['{key}'] = np.zeros((northo, *shape_block))",
             f"        c = vec_to_dict(c, eom_dsrg.S12.{key})",
-            f"        c = antisymmetrize(c, method='{method}')",
-            generate_block_contraction(
-                key, mbeq, block_type="single", indent="twice", method=method
-            ),
+            f"        c = antisymmetrize(c, ea={ea})",
+            generate_block_contraction(key, mbeq, block_type="single", indent="twice", ea=ea),
             f"        c.clear()",
             f"        vec = dict_to_vec(sigma, northo)",
             f"        sigma.clear()",
@@ -653,13 +639,9 @@ def generate_preconditioner(
                 f"            c[key] = np.zeros((northo, *shape_block))",
                 f"            sigma[key] = np.zeros((northo, *shape_block))",
                 f"        c = vec_to_dict(c, eom_dsrg.S12.{space[0]})",
-                f"        c = antisymmetrize(c, method='{method}')",
+                f"        c = antisymmetrize(c, ea={ea})",
                 generate_block_contraction(
-                    space,
-                    mbeq,
-                    block_type="composite",
-                    indent="twice",
-                    method=method,
+                    space, mbeq, block_type="composite", indent="twice", ea=ea
                 ),
                 f"        c.clear()",
                 f"        vec = dict_to_vec(sigma, northo)",
@@ -849,82 +831,39 @@ def generate_apply_S12(single_space, composite_space, first_row=True):
     return "\n".join(code_block)
 
 
-def antisymmetrize_tensor_2_2(Roovv, nlow, nocc, nvir):
-    # antisymmetrize the tensor
-    Roovv_anti = np.zeros((nlow, nocc, nocc, nvir, nvir))
-    Roovv_anti += np.einsum("pijab->pijab", Roovv)
-    Roovv_anti -= np.einsum("pijab->pjiab", Roovv)
-    Roovv_anti -= np.einsum("pijab->pijba", Roovv)
-    Roovv_anti += np.einsum("pijab->pjiba", Roovv)
-    return Roovv_anti
+def antisymmetrize(input_dict, ea=False):
+    if not isinstance(input_dict, dict):
+        return input_dict
+    
+    def _antisym(tensor, key):
+        if len(key) <= 2:
+            return tensor
+        transpositions = []
+        if len(key) == 3:
+            if ea:
+                if key[1] == key[2]:
+                    transpositions.append(([0,1,3,2],-1))
+            else:
+                if key[0] == key[1]:
+                    transpositions.append(([0,2,1,3],-1))
+        elif len(key) == 4:
+            do_lower = (key[0] == key[1])
+            do_upper = (key[2] == key[3])
+            if do_lower:
+                transpositions.append(([0,2,1,3,4], -1))
+            if do_upper:
+                transpositions.append(([0,1,2,4,3], -1))
+            if do_lower and do_upper:
+                transpositions.append(([0,2,1,4,3], 1))
+        
+        tensor_new = tensor.copy()
+        for trans, fact in transpositions:
+            tensor_new += fact * tensor.transpose(trans)
+        return tensor_new
+    
+    for key, tensor in input_dict.items():
+        input_dict[key] = _antisym(tensor, key)
 
-
-def antisymmetrize_tensor_2_1(Rccav, nlow, nocc, nact, nvir, method="ee"):
-    # antisymmetrize the tensor
-    if method == "ee":
-        Rccav_anti = np.zeros((nlow, nocc, nocc, nact, nvir))
-        Rccav_anti += np.einsum("pijab->pijab", Rccav)
-        Rccav_anti -= np.einsum("pijab->pjiab", Rccav)
-    elif method == "ip":
-        Rccav_anti = np.zeros((nlow, nocc, nocc, nact))
-        Rccav_anti += np.einsum("pija->pija", Rccav)
-        Rccav_anti -= np.einsum("pija->pjia", Rccav)
-    return Rccav_anti
-
-
-def antisymmetrize_tensor_1_2(Rcavv, nlow, nocc, nact, nvir, method="ee"):
-    # antisymmetrize the tensor
-    Rcavv_anti = np.zeros((nlow, nocc, nact, nvir, nvir))
-    Rcavv_anti += np.einsum("pijab->pijab", Rcavv)
-    Rcavv_anti -= np.einsum("pijab->pijba", Rcavv)
-    return Rcavv_anti
-
-
-def antisymmetrize(input_dict, method="ee"):
-    if type(input_dict) is dict:
-        if method == "ee":
-            for key in input_dict.keys():
-                if len(key) == 4:
-                    if key[0] == key[1] and key[2] != key[3]:
-                        tensor = input_dict[key]
-                        input_dict[key] = antisymmetrize_tensor_2_1(
-                            tensor,
-                            tensor.shape[0],
-                            tensor.shape[1],
-                            tensor.shape[3],
-                            tensor.shape[4],
-                        )
-                    elif key[0] != key[1] and key[2] == key[3]:
-                        tensor = input_dict[key]
-                        input_dict[key] = antisymmetrize_tensor_1_2(
-                            tensor,
-                            tensor.shape[0],
-                            tensor.shape[1],
-                            tensor.shape[2],
-                            tensor.shape[3],
-                        )
-                    elif key[0] == key[1] and key[2] == key[3]:
-                        tensor = input_dict[key]
-                        input_dict[key] = antisymmetrize_tensor_2_2(
-                            tensor, tensor.shape[0], tensor.shape[1], tensor.shape[3]
-                        )
-                    else:
-                        continue
-        elif method == "ip":
-            for key in input_dict.keys():
-                if len(key) == 3:
-                    if key[0] == key[1]:
-                        tensor = input_dict[key]
-                        input_dict[key] = antisymmetrize_tensor_2_1(
-                            tensor,
-                            tensor.shape[0],
-                            tensor.shape[1],
-                            tensor.shape[3],
-                            None,
-                            method="ip",
-                        )
-                    else:
-                        continue
     return input_dict
 
 
@@ -937,55 +876,6 @@ def is_hermitian(matrix):
     # Check if the matrix is equal to its conjugate transpose
     # print(matrix)
     return np.allclose(matrix, matrix.conj().T)
-
-
-def eigh_gen(A, S, eta=1e-14):
-    if not is_hermitian(S):
-        raise ValueError(
-            f"Matrix S is not Hermitian. Max non-Hermicity is {np.max(np.abs(S - S.conj().T))}"
-        )
-    if not is_hermitian(A):
-        raise ValueError(
-            f"Matrix A is not Hermitian. Max non-Hermicity is {np.max(np.abs(A - A.conj().T))}"
-        )
-    sevals, sevecs = np.linalg.eigh(S)
-    trunc_indices = np.where(sevals > eta)[0]
-    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
-    Ap = X.T @ A @ X
-    eigval, eigvec = np.linalg.eigh(Ap)
-    eigvec = X @ eigvec
-    return eigval, eigvec
-
-
-def is_antisymmetric_tensor_2_2(tensor):
-    return (
-        np.allclose(tensor, -tensor.transpose(0, 2, 1, 3, 4))
-        and np.allclose(tensor, -tensor.transpose(0, 1, 2, 4, 3))
-        and np.allclose(tensor, tensor.transpose(0, 2, 1, 4, 3))
-    )
-
-
-def is_antisymmetric_tensor_2_1(tensor):
-    return np.allclose(tensor, -tensor.transpose(0, 2, 1, 3, 4))
-
-
-def is_antisymmetric_tensor_1_2(tensor):
-    return np.allclose(tensor, -tensor.transpose(0, 1, 2, 4, 3))
-
-
-def is_antisymmetric(tensor_dict):
-    for key, tensor in tensor_dict.items():
-        if len(key) == 4:
-            if key[0] == key[1] and key[2] != key[3]:
-                if not is_antisymmetric_tensor_2_1(tensor):
-                    raise ValueError("Subspace is not antisymmetric.")
-            elif key[0] != key[1] and key[2] == key[3]:
-                if not is_antisymmetric_tensor_1_2(tensor):
-                    raise ValueError("Subspace is not antisymmetric.")
-            elif key[0] == key[1] and key[2] == key[3]:
-                if not is_antisymmetric_tensor_2_2(tensor):
-                    raise ValueError("Subspace is not antisymmetric.")
-    return True
 
 
 def sym_dir(c, core_sym, occ_sym, act_sym, vir_sym):
@@ -1122,50 +1012,6 @@ def slice_H_core(Hbar_old, core_sym, occ_sym):
                     ][:, :, third_dim_indices, :][:, :, :, fourth_dim_indices]
 
     return Hbar
-
-
-def normalize(input_obj):
-    if type(input_obj) is dict:
-        vec = dict_to_vec(input_obj, input_obj[list(input_obj.keys())[0]].shape[0])
-    elif type(input_obj) is np.ndarray:
-        vec = input_obj
-
-    out_array = np.zeros_like(vec)
-
-    for i in range(vec.shape[1]):
-        vec_i = vec[:, i]
-        norm = np.linalg.norm(vec_i)
-        if norm < 1e-6:
-            continue
-        else:
-            out_array[:, i] = vec_i / np.linalg.norm(vec_i)
-
-    if type(input_obj) is dict:
-        output_obj = vec_to_dict(input_obj, out_array)
-    elif type(input_obj) is np.ndarray:
-        output_obj = out_array
-
-    return output_obj
-
-
-def orthonormalize(vectors, num_orthonormals=1, eps=1e-6):
-    ortho_normals = vectors
-    count_orthonormals = num_orthonormals
-    # Skip unchanged ones.
-    for i in range(num_orthonormals, vectors.shape[1]):
-        vector_i = vectors[:, i]
-        # Makes sure vector_i is orthogonal to all processed vectors.
-        for j in range(i):
-            vector_i -= ortho_normals[:, j] * np.dot(
-                ortho_normals[:, j].conj(), vector_i
-            )
-
-        # Makes sure vector_i is normalized.
-        if np.max(np.abs(vector_i)) < eps:
-            continue
-        ortho_normals[:, count_orthonormals] = vector_i / np.linalg.norm(vector_i)
-        count_orthonormals += 1
-    return ortho_normals[:, :count_orthonormals]
 
 
 def filter_list(element_list, ncore, nocc, nact, nvir):
