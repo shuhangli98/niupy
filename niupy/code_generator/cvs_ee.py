@@ -25,12 +25,13 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     s = filter_ops_by_ms(s, 0)
     s = [_ for _ in s if ("I" in _ or "i" in _)]
     s = filter_list(s, ncore, nocc, nact, nvir)
+    
+    # # These blocks are computed with the commutator trick.
+    s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
 
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
 
-    # These blocks are computed with the commutator trick.
-    s_comm = ["a+ a+ a i", "A+ A+ A I", "a+ A+ I a", "a+ A+ A i"]
     for i in s_comm:
         s.remove(i)
 
@@ -96,7 +97,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         "iivv",
         "iIvV",
         "IIVV",
-    ]  #        "iv", "IV"
+    ]
     S_half_1 = [
         "icva",
         "iCvA",
@@ -115,8 +116,8 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     S_half_0_com_iv = ["iava", "iAvA"]
     S_half_0_com_IV = ["aIaV", "IAVA"]
 
-    S_half_1_com_i = ["ia", "iaaa", "iAaA"]  # ia
-    S_half_1_com_I = ["IA", "aIaA", "IAAA"]  # IA
+    S_half_1_com_i = ["ia", "iaaa", "iAaA"]
+    S_half_1_com_I = ["IA", "aIaA", "IAAA"]
 
     S_half_0 = filter_list(S_half_0, ncore, nocc, nact, nvir)
     S_half_1 = filter_list(S_half_1, ncore, nocc, nact, nvir)
@@ -210,3 +211,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         f.write(f"{funct_s}\n\n")
         f.write(f"{funct_first}\n\n")
         f.write(f"{funct_dipole}\n\n")
+
+
+if __name__ == "__main__":
+    generator(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), 1, 1, 1, 1)
