@@ -322,7 +322,7 @@ def setup_davidson(eom_dsrg):
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
 
-    x0 = compute_guess_vectors(eom_dsrg, precond, nop)
+    x0 = compute_guess_vectors(eom_dsrg, precond)
 
     return apply_M, precond, x0, nop
 
@@ -368,7 +368,7 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo):
     return XHXt
 
 
-def compute_guess_vectors(eom_dsrg, precond, nop, ascending=True):
+def compute_guess_vectors(eom_dsrg, precond, ascending=True):
     """
     Compute initial guess vectors for the Davidson algorithm.
 
