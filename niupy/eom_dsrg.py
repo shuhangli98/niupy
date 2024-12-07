@@ -41,6 +41,11 @@ class EOM_DSRG:
         self.nocc = len(self.occ_sym)
         self.nact = len(self.act_sym)
         self.nvir = len(self.vir_sym)
+        if self.verbose:
+            print(f"ncore: {self.ncore}")
+            print(f"nocc: {self.nocc}")
+            print(f"nact: {self.nact}")
+            print(f"nvir: {self.nvir}")
 
         self.abs_file_path = os.getcwd()
 
@@ -71,8 +76,6 @@ class EOM_DSRG:
 
         self.S12 = lambda: None
 
-        self._get_integrals()
-
         # Initialize templates and sigma vectors
         import niupy.eom_dsrg_compute as eom_dsrg_compute
 
@@ -81,6 +84,7 @@ class EOM_DSRG:
             self
         )
         self._initialize_sigma_vectors()
+        self._get_integrals()
 
         # Generate symmetry information
         self.sym = sym_dir(
@@ -100,17 +104,20 @@ class EOM_DSRG:
         self.lambda4 = np.load(f"{self.abs_file_path}/save_lambda4.npz")
 
         # self.Hbar is loaded in setup_davidson
-        self.Mbar0 = np.load(f"{self.abs_file_path}/Mbar0.npy")
-        Mbar1_x = np.load(f"{self.abs_file_path}/Mbar1_0.npz")
-        Mbar1_y = np.load(f"{self.abs_file_path}/Mbar1_1.npz")
-        Mbar1_z = np.load(f"{self.abs_file_path}/Mbar1_2.npz")
-        Mbar2_x = np.load(f"{self.abs_file_path}/Mbar2_0.npz")
-        Mbar2_y = np.load(f"{self.abs_file_path}/Mbar2_1.npz")
-        Mbar2_z = np.load(f"{self.abs_file_path}/Mbar2_2.npz")
-        Mbar_x = {**Mbar1_x, **Mbar2_x}
-        Mbar_y = {**Mbar1_y, **Mbar2_y}
-        Mbar_z = {**Mbar1_z, **Mbar2_z}
-        self.Mbar = [Mbar_x, Mbar_y, Mbar_z]
+        if self.build_transition_dipole is not NotImplemented:
+            self.Mbar0 = np.load(f"{self.abs_file_path}/Mbar0.npy")
+            Mbar1_x = np.load(f"{self.abs_file_path}/Mbar1_0.npz")
+            Mbar1_y = np.load(f"{self.abs_file_path}/Mbar1_1.npz")
+            Mbar1_z = np.load(f"{self.abs_file_path}/Mbar1_2.npz")
+            Mbar2_x = np.load(f"{self.abs_file_path}/Mbar2_0.npz")
+            Mbar2_y = np.load(f"{self.abs_file_path}/Mbar2_1.npz")
+            Mbar2_z = np.load(f"{self.abs_file_path}/Mbar2_2.npz")
+            Mbar_x = {**Mbar1_x, **Mbar2_x}
+            Mbar_y = {**Mbar1_y, **Mbar2_y}
+            Mbar_z = {**Mbar1_z, **Mbar2_z}
+            self.Mbar = [Mbar_x, Mbar_y, Mbar_z]
+        else:
+            self.Mbar = [None, None, None]
 
     def _initialize_mo_symmetry(self, wfn, mo_spaces, method_type):
         if wfn is not None:

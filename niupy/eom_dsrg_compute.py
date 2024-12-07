@@ -1,4 +1,5 @@
 import os
+import functools
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
     print("Importing cvs_ee_eom_dsrg")
