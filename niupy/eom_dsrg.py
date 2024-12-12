@@ -174,9 +174,9 @@ class EOM_DSRG:
         ) = self.eom_dsrg_compute.get_sigma_build(self)
 
     def kernel(self):
-        conv, e, u, spin, symmetry, osc_strength = self.eom_dsrg_compute.kernel(self)
+        conv, e, u, spin, symmetry, spec_info = self.eom_dsrg_compute.kernel(self)
         if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
             os.remove(f"{self.method_type}_eom_dsrg.py")
         if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
             os.remove(f"{self.method_type}_eom_dsrg.py-e")
-        return conv, e, u, spin, symmetry, osc_strength
+        return conv, e, u, spin, symmetry, spec_info

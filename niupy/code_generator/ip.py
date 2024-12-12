@@ -23,6 +23,7 @@ def generator(abs_path):
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 1)
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
+    print('Commutator trick:', s_comm)
 
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)

@@ -40,7 +40,7 @@ def kernel(eom_dsrg):
         e: Eigenvalues from the Davidson algorithm.
         eigvec: Eigenvectors after processing.
         spin: Spin multiplicities ('Singlet', 'Triplet', or 'Incorrect spin').
-        osc_strength: Computed oscillator strengths.
+        spec_info: Computed oscillator strengths for cvs_ee method, spectroscopic factors for ip method.
     """
     start = time.time()
     print("Setting up Davidson algorithm...", flush=True)
@@ -64,24 +64,35 @@ def kernel(eom_dsrg):
     # Get spin multiplicity and process eigenvectors
     spin, eigvec, symmetry = get_information(eom_dsrg, u, nop)
 
+
     del eom_dsrg.Hbar
 
     # # Get spin multiplicity and process eigenvectors
     # spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
 
-    if eom_dsrg.build_transition_dipole is NotImplemented:
-        osc_strength = None
-    else:
+    if eom_dsrg.build_transition_dipole is not NotImplemented:
         # Optimize slicing by vectorizing
         eom_dsrg.Mbar = [
             slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar
         ]
 
         # Compute oscillator strengths
-        osc_strength = compute_oscillator_strength(eom_dsrg, e, eigvec)
+        spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
+    elif eom_dsrg.method_type in ["ip", "cvs_ip"]:
+        spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
 
-    return conv, e, eigvec, spin, symmetry, osc_strength
+    return conv, e, eigvec, spin, symmetry, spec_info
 
+def compute_spectroscopic_factors(eom_dsrg, eigvec):
+    assert eom_dsrg.method_type in ["ip", "cvs_ip"]
+    p = np.zeros(eigvec.shape[1])
+    eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec), ea=False)
+    for i in range(eigvec.shape[1]):
+        p[i] = np.linalg.norm(eigvec_dict["C"][i,:])**2
+        if "I" in eigvec_dict:
+            p[i] += np.linalg.norm(eigvec_dict["I"][i,:])**2
+        p[i] += np.linalg.norm(np.einsum('u,uv->v', eigvec_dict["A"][i,:], eom_dsrg.gamma1["AA"]))**2
+    return p
 
 def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
     """
