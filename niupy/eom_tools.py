@@ -179,7 +179,7 @@ def matrix_elements_to_diag(mbeq, indent="once"):
                     t[2][i] = deltas[l]
             eqdict_new["rhs"].append(t)
 
-        einsum = w.dict_to_equation(eqdict_new).compile("einsum")
+        einsum = w.compile_einsum(w.dict_to_equation(eqdict_new), optimize="True")
         lhs = einsum.split(" +=")[0]
         einsum = einsum.replace(lhs, lhs[0])
         einsums.append(f"{space}{einsum}")
