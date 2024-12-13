@@ -60,7 +60,7 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
     return w.dict_to_einsum(d, optimize=optimize)
 
 
-def compile_first_row(equation, ket_name="c"):
+def compile_first_row(equation, ket_name="c", optimize="True"):
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
     for idx, t in enumerate(d["rhs"]):
         if t[0] == ket_name:
@@ -68,7 +68,7 @@ def compile_first_row(equation, ket_name="c"):
     ket = d["rhs"].pop(ket_idx)
     ket[0] = "sigma"
     d["lhs"] = [ket]
-    return w.dict_to_einsum(d)
+    return w.dict_to_einsum(d, optimize=optimize)
 
 
 def increment_index(index):
@@ -147,7 +147,7 @@ def get_matrix_elements(bra, op, ket, inter_general=False, double_comm=False):
     return mbeq_new
 
 
-def matrix_elements_to_diag(mbeq, indent="once"):
+def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
     indent_spaces = {"once": "    ", "twice": "        "}
     space = indent_spaces.get(indent, "    ")
     einsums = []
@@ -232,26 +232,26 @@ def generate_template_c(block_list, index_dict, function_args):
     return code
 
 
-def generate_first_row(mbeq):
+def generate_first_row(mbeq, optimize="True"):
     code = [
         f"def build_first_row(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = {key: np.zeros((1, *tensor.shape[1:])) for key, tensor in c.items() if key != 'first'}",
     ]
     for eq in mbeq["|"]:
-        code.append(f"    {compile_first_row(eq, ket_name='c')}")
+        code.append(f"    {compile_first_row(eq, ket_name='c', optimize=optimize)}")
 
     code.append("    return sigma")
     funct = "\n".join(code)
     return funct
 
 
-def generate_transition_dipole(mbeq):  # redundant
+def generate_transition_dipole(mbeq, optimize="True"): 
     code = [
         f"def build_transition_dipole(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = 0.0",
     ]
     for eq in mbeq["|"]:
-        code.append(f"    {w.compile_einsum(eq)}")
+        code.append(f"    {w.compile_einsum(eq, optimize=optimize)}")
 
     code.append("    return sigma")
     funct = "\n".join(code)
