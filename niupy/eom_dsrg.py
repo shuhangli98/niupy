@@ -71,6 +71,13 @@ class EOM_DSRG:
             from opt_einsum import contract
 
             self.einsum = contract
+            
+            subprocess.run(
+            [
+                "sed", "-i", "-e","s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g", os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
+            ]
+            )
+            
         else:
             self.einsum = np.einsum
 
