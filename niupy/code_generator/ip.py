@@ -22,9 +22,20 @@ def generator(abs_path):
         + w.gen_op("bra", (1, 2), "avAV", "caCA", only_terms=True)
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 1)
+    s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
+    print('Commutator trick:', s_comm)
 
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
+    for i in s_comm:
+        s.remove(i)
+
+    T_comm_adj = w.op("bra", s_comm, unique=True).adjoint()
+    T_comm = w.op("c", s_comm, unique=True)
+
+    T_original_adj = w.op("bra", s, unique=True).adjoint()
+    T_original = w.op("c", s, unique=True)
+
     # Define subspaces. Single first!
     single_space = [
         "C",
@@ -62,7 +73,14 @@ def generator(abs_path):
     function_args = "nlow, ncore, nocc, nact, nvir"
     func_template_c = generate_template_c(block_list, index_dict, function_args)
 
-    THT = T_adj @ Hbar_op @ T
+    THT_comm = w.rational(1, 2) * (
+        T_comm_adj @ w.commutator(Hbar_op, T_comm)
+        + w.commutator(T_comm_adj, Hbar_op) @ T_comm
+    )
+    THT_original = T_original_adj @ Hbar_op @ T_original
+    THT_coupling = T_original_adj @ Hbar_op @ T_comm
+    THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
+    THT = THT_comm + THT_original + THT_coupling + THT_coupling_2
     expr = wt.contract(THT, 0, 0, inter_general=True)
     mbeq = expr.to_manybody_equation("sigma")
 
