@@ -85,13 +85,16 @@ def kernel(eom_dsrg):
 
 def compute_spectroscopic_factors(eom_dsrg, eigvec):
     assert eom_dsrg.method_type in ["ip", "cvs_ip"]
+    if eom_dsrg.method_type == "ip":
+        p_compute = ip_eom_dsrg.build_sigma_vector_p
+    elif eom_dsrg.method_type == "cvs_ip":
+        p_compute = cvs_ip_eom_dsrg.build_sigma_vector_p
     p = np.zeros(eigvec.shape[1])
-    eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec), ea=False)
     for i in range(eigvec.shape[1]):
-        p[i] = np.linalg.norm(eigvec_dict["C"][i,:])**2
-        if "I" in eigvec_dict:
-            p[i] += np.linalg.norm(eigvec_dict["I"][i,:])**2
-        p[i] += np.linalg.norm(np.einsum('u,uv->v', eigvec_dict["A"][i,:], eom_dsrg.gamma1["AA"]))**2
+        current_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec[:, i].reshape(-1, 1))
+        pi = p_compute(eom_dsrg.einsum, current_dict, None, eom_dsrg.gamma1, eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4, first_row=False)
+        pi = dict_to_vec(pi, 1)
+        p[i] = (pi**2).sum()
     return p
 
 def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
