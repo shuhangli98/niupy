@@ -93,7 +93,7 @@ def compute_spectroscopic_factors(eom_dsrg, eigvec):
     for i in range(eigvec.shape[1]):
         current_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec[:, i].reshape(-1, 1))
         pi = p_compute(eom_dsrg.einsum, current_dict, None, eom_dsrg.gamma1, eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4, first_row=False)
-        pi = dict_to_vec(pi, 1)
+        pi = antisymmetrize(dict_to_vec(pi, 1), ea=False)
         p[i] = (pi**2).sum()
     return p
 
