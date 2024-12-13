@@ -25,6 +25,12 @@ def generator(abs_path):
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
     print('Commutator trick:', s_comm)
 
+    # used in spectroscopic amplitudes
+    singles = w.gen_op("bra", (0, 1), "avAV", "caCA", only_terms=True)
+    singles = [_.strip() for _ in singles]
+    singles = filter_ops_by_ms(singles, 1)
+    P_adj = w.op("bra", singles, unique=True).adjoint()
+
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
     for i in s_comm:
@@ -89,9 +95,14 @@ def generator(abs_path):
     expr_s = wt.contract(TT, 0, 0, inter_general=True)
     mbeq_s = expr_s.to_manybody_equation("sigma")
 
+    PT = P_adj @ T
+    expr_p = wt.contract(PT, 0, 0, inter_general=True)
+    mbeq_p = expr_p.to_manybody_equation("sigma")
+
     # Generate wicked contraction
     funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize="True")  # HC
     funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize="True")  # SC
+    funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
     funct_S_12 = generate_S12(mbeq_s, single_space, composite_space)
     funct_preconditioner = generate_preconditioner(
         mbeq, {}, {}, single_space, composite_space, first_row=False
@@ -110,6 +121,7 @@ def generator(abs_path):
         f.write(f"{funct_preconditioner}\n\n")
         f.write(f"{funct}\n\n")
         f.write(f"{funct_s}\n\n")
+        f.write(f"{funct_p}\n\n")
         f.write(f"{funct_apply_S12}\n\n")
         f.write(f"build_first_row = NotImplemented\n")
         f.write(f"build_transition_dipole = NotImplemented\n")
