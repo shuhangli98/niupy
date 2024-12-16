@@ -183,14 +183,17 @@ class EOM_DSRG:
         ) = self.eom_dsrg_compute.get_sigma_build(self)
 
     def _pretty_print_info(self, e, spin, symmetry, spec_info):
+        def _irrep(x):
+            if isinstance(x, list):
+                return ",".join([irrep_table[self.point_group.lower()][i] for i in x])
+            else:
+                return irrep_table[self.point_group.lower()][x]
         nroot = len(e)
         if "ee" in self.method_type:
             spec = "f"
         elif "ip" in self.method_type:
             spec = "P"
-        if self.point_group.lower() in irrep_table:
-            _irrep = lambda x: irrep_table[self.point_group.lower()][x]
-        else:
+        if self.point_group.lower() not in irrep_table:
             _irrep = lambda x: x
         print("=" * 85)
         print(f"{'EOM-DSRG summary':^85}")
