@@ -3,6 +3,21 @@ import numpy as np
 import copy
 import itertools
 import re
+import scipy.constants
+
+eh_to_ev = scipy.constants.value("Hartree energy in eV")
+irrep_table = {
+               "c1": {0:"A"},
+               "ci": {0:"Ag", 1:"Au"},
+               "c2": {0:"A", 1:"B"},
+               "cs": {0:"A'", 1:"A''"},
+               "d2": {0:"A", 1:"B1", 2:"B2", 3:"B3"},
+               "c2v": {0:"A1", 1:"A2", 2:"B1", 3:"B2"}, 
+               "c2h": {0:"Ag", 1:"Bg", 2:"Au", 3:"Bu"},
+               "d2h": {0:"A1g", 1:"B1g", 2:"B2g", 3:"B3g", 4:"A1u", 5:"B1u", 6:"B2u", 7:"B3u"},
+               }
+for v in irrep_table.values():
+    v.update({"Incorrect symmetry": "Incorrect symmetry"})
 
 
 def op_to_tensor_label(op):
