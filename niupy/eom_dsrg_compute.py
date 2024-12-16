@@ -65,7 +65,6 @@ def kernel(eom_dsrg):
     # Get spin multiplicity and process eigenvectors
     spin, eigvec, symmetry = get_information(eom_dsrg, u, nop)
 
-
     del eom_dsrg.Hbar
 
     # # Get spin multiplicity and process eigenvectors
@@ -153,17 +152,6 @@ def calculate_norms(current_vec_dict):
     addition_norms = []
 
     for key in current_vec_dict.keys():
-        if len(key) == 1 and key.islower():
-            upper_key = key.upper()
-            if upper_key in current_vec_dict:
-                sub_norm = np.linalg.norm(
-                    current_vec_dict[key] - current_vec_dict[upper_key]
-                )
-                add_norm = np.linalg.norm(
-                    current_vec_dict[key] + current_vec_dict[upper_key]
-                )
-                subtraction_norms.append(sub_norm)
-                addition_norms.append(add_norm)
         if len(key) == 2 and key.islower():
             upper_key = key.upper()
             if upper_key in current_vec_dict:
@@ -213,8 +201,14 @@ def get_information(eom_dsrg, u, nop, ea=False):
             eom_dsrg.full_template_c, current_vec.reshape(-1, 1)
         )
 
+        spin.append(assign_spin_multiplicity(eom_dsrg, current_vec_dict))
+        symmetry.append(assign_spatial_symmetry(eom_dsrg, current_vec))
+    
+    return spin, eigvec, symmetry
+
+def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
+    if "ee" in eom_dsrg.method_type:
         subtraction_norms, addition_norms = calculate_norms(current_vec_dict)
-        print(f"Norms {key}: {subtraction_norms}, {addition_norms}")
 
         # Check spin classification based on calculated norms
         minus = all(
@@ -223,29 +217,47 @@ def get_information(eom_dsrg, u, nop, ea=False):
         plus = all(norm < 1e-2 for norm in addition_norms) and not all(
             norm < 1e-2 for norm in subtraction_norms
         )
-
         if plus:
-            if eom_dsrg.method_type == "cvs_ee":
-                spin.append("Triplet")
-            elif eom_dsrg.method_type == "ip" or eom_dsrg.method_type == "cvs_ip":
-                spin.append("Quartet")
+            return "Triplet"
         elif minus:
-            if eom_dsrg.method_type == "cvs_ee":
-                spin.append("Singlet")
-            elif eom_dsrg.method_type == "ip" or eom_dsrg.method_type == "cvs_ip":
-                spin.append("Doublet")
+            return "Singlet"
         else:
-            spin.append("Incorrect spin")
-
-        large_indices = np.where(abs(current_vec) > 1e-2)[0]
-        first_value = eom_dsrg.sym_vec[large_indices[0]]
-        if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
-            symmetry.append(first_value)
+            return "Incorrect spin"
+    elif "ip" in eom_dsrg.method_type:
+        hole_norm = 0.0
+        for k,v in current_vec_dict.items():
+            if len(k) == 1:
+                hole_norm += np.linalg.norm(v)
+        if hole_norm > 1e-8:
+            return "Doublet"
+        cCv = current_vec_dict["cCv"][0,...]
+        CCV = current_vec_dict["CCV"][0,...]
+        ab_sum = cCv.sum()
+        bb_sum = 0.0
+        for i in range(CCV.shape[0]):
+            for j in range(i+1, CCV.shape[1]):
+                for a in range(CCV.shape[2]):
+                    bb_sum += CCV[i,j,a]
+        if (abs(bb_sum) - abs(ab_sum) < 1e-8):
+            return "Quartet"
         else:
-            symmetry.append("Incorrect symmetry")
+            return "Doublet"
 
-    return spin, eigvec, symmetry
-
+def assign_spatial_symmetry(eom_dsrg, current_vec):
+    large_indices = np.where(abs(current_vec) > 1e-2)[0]
+    first_value = eom_dsrg.sym_vec[large_indices[0]]
+    if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
+        return first_value
+    else:
+        irreps = list(set(eom_dsrg.sym_vec[index] for index in large_indices))
+        if len(irreps) > 2:
+            return "Incorrect symmetry"
+        else:
+            if irreps[0] ^ irreps[1] == 1:
+                # this means that it is a mixture of En(g/u)x and En(g/u)y irreps in Dinfh or Cinfv
+                return irreps
+            else:
+                return "Incorrect symmetry"
 
 def find_top_values(data, num):
     random_key = next(iter(data))
@@ -301,7 +313,7 @@ def setup_davidson(eom_dsrg):
     print("Time(s) for S12: ", time.time() - start, flush=True)
 
     eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
-    if eom_dsrg.method_type == "cvs_ee" or eom_dsrg.method_type == "cvs_ip":
+    if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
     if eom_dsrg.build_first_row is NotImplemented:
@@ -393,7 +405,6 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
         List of initial guess vectors.
     """
     sort_ind = np.argsort(precond) if ascending else np.argsort(precond)[::-1]
-    # print(f"precond:{precond[sort_ind]}")
     print(f"length of precond: {len(precond)}")
 
     x0s = np.zeros((precond.shape[0], eom_dsrg.nroots))
