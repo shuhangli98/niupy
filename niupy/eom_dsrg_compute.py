@@ -101,10 +101,7 @@ def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
     """
     Compute oscillator strengths for each eigenvector.
     """
-    return [
-        2.0 / 3.0 * (eigval[i] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i])
-        for i in range(1, eigvec.shape[1])
-    ]
+    return [0.0] + [2.0 / 3.0 * (eigval[i] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i]) for i in range(1, eigvec.shape[1])]
 
 
 def compute_dipole(eom_dsrg, current_vec):
@@ -420,6 +417,9 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
     return x0s
 
 def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=False):
+    start = time.time()
+    print("Computing initial guess...", flush=True)
+    
     nsingles = 0
     temp_dict = {}
     
@@ -427,8 +427,7 @@ def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=Fals
         if not (key.count('v') + key.count('V') > 1):
             shape_block = value.shape[1:]
             nsingles += np.prod(shape_block)
-            print(f"key: {key}, value: {value.shape}, nsingles: {np.prod(shape_block)}")
-            
+            # print(f"key: {key}, value: {value.shape}, nsingles: {np.prod(shape_block)}")
     for key, value in eom_dsrg.full_template_c.items():
         if not (key.count('v') + key.count('V') > 1):
             shape_block = value.shape[1:]
@@ -445,7 +444,6 @@ def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=Fals
     for key, value in temp_full_c.items():
         if key in temp_dict.keys():
             temp_full_c[key] = temp_dict[key].copy()
-
     temp_full_c_vec = dict_to_vec(temp_full_c, nsingles)
     
     H_singles = eom_dsrg.build_sigma_vector_Hbar_singles(eom_dsrg.einsum, temp_full_c, eom_dsrg.Hbar,\
@@ -456,8 +454,12 @@ def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=Fals
     S_singles = antisymmetrize(S_singles, ea=ea)
     H_singles_vec = dict_to_vec(H_singles, nsingles)
     S_singles_vec = dict_to_vec(S_singles, nsingles)
-    
+    print("Time(s) for H, S construction: ", time.time() - start, flush=True)
+    start = time.time()
+    print("Start diagonalization...", flush=True)
     eigval, eigvec = eigh_gen(H_singles_vec, S_singles_vec, eta=1e-10)
+    print("Time(s) for diagonalization: ", time.time() - start, flush=True)
+    start = time.time()
     sort_ind = np.argsort(eigval) if ascending else np.argsort(eigval)[::-1]
     unit_vec = np.zeros(northo)
     unit_vec[0] = 1.0
@@ -474,6 +476,8 @@ def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=Fals
             x0s.append(SHSx/np.linalg.norm(SHSx))
         if len(x0s) == eom_dsrg.nroots:
             break
+    print("Time(s) for projecting guess vectors: ", time.time() - start, flush=True)
+    print("Initial guess done.", flush=True)
     return x0s
 
 def get_templates(eom_dsrg, nlow = 1):

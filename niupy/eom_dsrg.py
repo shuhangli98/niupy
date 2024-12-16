@@ -23,9 +23,7 @@ class EOM_DSRG:
         self.diagonal_type = kwargs.get("diagonal_type", "compute")
         self.ref_sym = kwargs.get("ref_sym", 0)
         if self.ref_sym != 0:
-            raise NotImplementedError(
-                "Reference symmetry other than 0 is not implemented."
-            )
+            raise NotImplementedError("Reference symmetry other than 0 is not implemented.")
 
         opt_einsum = kwargs.get("opt_einsum", True)
         mo_spaces = kwargs.get("mo_spaces", None)
@@ -59,15 +57,11 @@ class EOM_DSRG:
         # code_generator_dir = os.path.join(package_dir, "code_generator")
 
         if method_type == "cvs_ee":
-            cvs_ee.generator(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-            )
+            cvs_ee.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         elif method_type == "ip":
             ip.generator(self.abs_file_path)
         elif method_type == "cvs_ip":
-            cvs_ip.generator(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-            )
+            cvs_ip.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
@@ -92,9 +86,7 @@ class EOM_DSRG:
         import niupy.eom_dsrg_compute as eom_dsrg_compute
 
         self.eom_dsrg_compute = eom_dsrg_compute
-        self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(
-            self
-        )
+        self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(self)
         self._initialize_sigma_vectors()
         self._get_integrals()
 
