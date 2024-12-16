@@ -455,7 +455,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False):
     def add_composite_space_block(space):
         code_block = [
             f"    # {space} composite block",
-            f'    if eom_dsrg.verbose: print("Starts {space} composite block")',
+            f'    if eom_dsrg.verbose: print("Starts {space} composite block", flush = True)',
             f"    shape_size = 0",
         ]
 
@@ -501,10 +501,11 @@ def generate_S12(mbeq, single_space, composite_space, ea=False):
                 f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
                 f"    sevals, sevecs = np.linalg.eigh(vec)",
                 f"    if np.any(sevals < -tol):",
-                f"        raise ValueError('Negative overlap eigenvalues found in {key} block')",
+                f'        raise ValueError("Negative overlap eigenvalues found in {space} space")',
                 f"    del vec",
-                f"    if eom_dsrg.verbose: print('Diagonalization done')",
+                f"    if eom_dsrg.verbose: print('Diagonalization done', flush = True)",
                 f"    trunc_indices = np.where(sevals > tol)[0]",
+                "    print(f'Number of orthogonalized operators: {len(trunc_indices)}', flush = True)",
                 f"    eom_dsrg.S12.{space[0]} = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
                 f"    num_ortho += eom_dsrg.S12.{space[0]}.shape[1]",
                 f"    del sevals, sevecs, trunc_indices",
