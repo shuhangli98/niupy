@@ -20,6 +20,7 @@ from niupy.eom_tools import (
     vec_to_dict,
     antisymmetrize,
     slice_H_core,
+    eigh_gen,
 )
 from pyscf import lib
 import time
@@ -333,9 +334,12 @@ def setup_davidson(eom_dsrg):
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
-
-    x0 = compute_guess_vectors(eom_dsrg, precond)
-
+    
+    if eom_dsrg.guess == "singles":
+        x0 = compute_guess_vectors_from_singles(eom_dsrg, northo)
+    elif eom_dsrg.guess == "ones":
+        x0 = compute_guess_vectors(eom_dsrg, precond)
+        
     return apply_M, precond, x0, nop
 
 
@@ -404,8 +408,64 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
         x0s.append(x0[:, p])
     return x0s
 
+def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=False):
+    nsingles = 0
+    temp_dict = {}
+    
+    for key, value in eom_dsrg.full_template_c.items():
+        if not (key.count('v') + key.count('V') > 1):
+            shape_block = value.shape[1:]
+            nsingles += np.prod(shape_block)
+            print(f"key: {key}, value: {value.shape}, nsingles: {np.prod(shape_block)}")
+            
+    for key, value in eom_dsrg.full_template_c.items():
+        if not (key.count('v') + key.count('V') > 1):
+            shape_block = value.shape[1:]
+            temp_dict[key] = np.zeros((nsingles, *shape_block))
+            
+    temp_dict_vec = dict_to_vec(temp_dict, nsingles)
+    np.fill_diagonal(temp_dict_vec, 1.0)
+    temp_dict = vec_to_dict(temp_dict, temp_dict_vec)
+    temp_dict = antisymmetrize(temp_dict, ea=ea)
+    del temp_dict_vec
+    
+    _, temp_full_c = get_templates(eom_dsrg, nsingles)
+    
+    for key, value in temp_full_c.items():
+        if key in temp_dict.keys():
+            temp_full_c[key] = temp_dict[key].copy()
 
-def get_templates(eom_dsrg):
+    temp_full_c_vec = dict_to_vec(temp_full_c, nsingles)
+    
+    H_singles = eom_dsrg.build_sigma_vector_Hbar_singles(eom_dsrg.einsum, temp_full_c, eom_dsrg.Hbar,\
+        eom_dsrg.gamma1,eom_dsrg.eta1,eom_dsrg.lambda2,eom_dsrg.lambda3,eom_dsrg.lambda4)
+    S_singles = eom_dsrg.build_sigma_vector_s_singles(eom_dsrg.einsum, temp_full_c, eom_dsrg.Hbar,\
+        eom_dsrg.gamma1,eom_dsrg.eta1,eom_dsrg.lambda2,eom_dsrg.lambda3,eom_dsrg.lambda4)
+    H_singles = antisymmetrize(H_singles, ea=ea)
+    S_singles = antisymmetrize(S_singles, ea=ea)
+    H_singles_vec = dict_to_vec(H_singles, nsingles)
+    S_singles_vec = dict_to_vec(S_singles, nsingles)
+    
+    eigval, eigvec = eigh_gen(H_singles_vec, S_singles_vec, eta=1e-10)
+    sort_ind = np.argsort(eigval) if ascending else np.argsort(eigval)[::-1]
+    unit_vec = np.zeros(northo)
+    unit_vec[0] = 1.0
+    x0s = [unit_vec]
+    for p in range(eom_dsrg.nroots):
+        Sx = temp_full_c_vec @ eigvec[:, sort_ind[p]].reshape(-1,1)
+        Sx_dict = vec_to_dict(temp_full_c, Sx)
+        HSx_dict = eom_dsrg.build_H(eom_dsrg.einsum,Sx_dict,eom_dsrg.Hbar,eom_dsrg.gamma1,eom_dsrg.eta1,\
+            eom_dsrg.lambda2,eom_dsrg.lambda3,eom_dsrg.lambda4,eom_dsrg.first_row)
+        HSx_dict = antisymmetrize(HSx_dict, ea=ea)
+        HSx = dict_to_vec(HSx_dict, 1).flatten()
+        SHSx = eom_dsrg.apply_S12(eom_dsrg, northo, HSx, transpose=True).flatten()
+        if np.linalg.norm(SHSx) > 1e-4:
+            x0s.append(SHSx/np.linalg.norm(SHSx))
+        if len(x0s) == eom_dsrg.nroots:
+            break
+    return x0s
+
+def get_templates(eom_dsrg, nlow = 1):
     """Generate the initial and full templates based on the method type."""
     # Dictionary mapping method types to the appropriate template functions
     template_funcs = {
@@ -431,13 +491,13 @@ def get_templates(eom_dsrg):
 
     # Generate the template with the specified parameters
     template = template_func(
-        1, eom_dsrg.ncore, eom_dsrg.nocc, eom_dsrg.nact, eom_dsrg.nvir
+        nlow, eom_dsrg.ncore, eom_dsrg.nocc, eom_dsrg.nact, eom_dsrg.nvir
     )
 
     # Create a deep copy of the template and adjust its structure
     full_template = copy.deepcopy(template)
     if eom_dsrg.method_type == "cvs_ee":
-        full_template["first"] = np.zeros(1).reshape(1, 1)
+        full_template["first"] = np.zeros(nlow).reshape(nlow, 1)
         full_template = {"first": full_template.pop("first"), **full_template}
 
     return template, full_template
@@ -467,6 +527,8 @@ def get_sigma_build(eom_dsrg):
     get_S12 = sigma_module.get_S12
     apply_S12 = sigma_module.apply_S12
     compute_preconditioner = sigma_module.compute_preconditioner
+    build_sigma_vector_Hbar_singles = sigma_module.build_sigma_vector_Hbar_singles
+    build_sigma_vector_s_singles = sigma_module.build_sigma_vector_s_singles
 
     return (
         build_first_row,
@@ -476,4 +538,6 @@ def get_sigma_build(eom_dsrg):
         get_S12,
         apply_S12,
         compute_preconditioner,
+        build_sigma_vector_Hbar_singles,
+        build_sigma_vector_s_singles,
     )

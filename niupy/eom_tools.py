@@ -59,6 +59,22 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
     d["lhs"] = [bra]
     return w.dict_to_einsum(d, optimize=optimize)
 
+def compile_sigma_vector_singles(equation, bra_name="bra", ket_name="c", optimize="True"):
+    eq, d = w.compile_einsum(equation, return_eq_dict=True)
+    for idx, t in enumerate(d["rhs"]):
+        if t[0] == bra_name:
+            bra_idx = idx
+        if t[0] == ket_name:
+            ket_idx = idx
+    bra_true = False
+    ket_true = False
+    
+    if not (d["rhs"][bra_idx][1].count('v') + d["rhs"][bra_idx][1].count('V') > 1):
+        bra_true = True
+    if not (d["rhs"][ket_idx][1].count('v') + d["rhs"][ket_idx][1].count('V') > 1):
+        ket_true = True
+    if bra_true and ket_true:
+        return compile_sigma_vector(equation, bra_name=bra_name, ket_name=ket_name, optimize=optimize)
 
 def compile_first_row(equation, ket_name="c", optimize="True"):
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
@@ -212,6 +228,25 @@ def generate_sigma_build(mbeq, matrix, first_row=True, optimize="True"):
             ]
         )
     elif matrix == "s" and first_row:
+        code.append("    sigma['first'] = c['first'].copy()")
+
+    code.append("    return sigma")
+    return "\n".join(code)
+
+def generate_sigma_build_singles(mbeq, matrix, optimize="True"):
+    code = [
+        f"def build_sigma_vector_{matrix}_singles(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
+        "    sigma = {key: np.zeros(c[key].shape) for key in c.keys() if not (key.count('v') + key.count('V') > 1)}",
+    ]
+
+    for eq in mbeq["|"]:
+        line = compile_sigma_vector_singles(eq, optimize=optimize)
+        if line is not None:
+            code.append(f"    {line}")
+
+    if matrix == "Hbar":
+        code.append("    sigma['first'] = np.zeros_like(c['first'])")
+    elif matrix == "s":
         code.append("    sigma['first'] = c['first'].copy()")
 
     code.append("    return sigma")
@@ -500,7 +535,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False):
             [
                 f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
                 "    print(f'Symmetry: {np.allclose(vec, vec.T)}', flush = True)",
-                f"    sevals, sevecs = scipy.linalg.eigh(vec)",
+                f"    sevals, sevecs = np.linalg.eigh(vec)",
                 f"    if np.any(sevals < -tol):",
                 f'        raise ValueError("Negative overlap eigenvalues found in {space} space")',
                 f"    del vec",
@@ -1047,3 +1082,19 @@ def filter_ops_by_ms(ops, ms2):
     Filter operators by Ms*2 (safe integer comparison)
     """
     return [op for op in ops if op_to_ms(op) == ms2]
+
+def eigh_gen(A, S, eta=1e-10):
+    if not is_hermitian(S):
+        raise ValueError(
+            f"Matrix S is not Hermitian. Max non-Hermicity is {np.max(np.abs(S - S.conj().T))}")
+    if not is_hermitian(A):
+        raise ValueError(
+            f"Matrix A is not Hermitian. Max non-Hermicity is {np.max(np.abs(A - A.conj().T))}")
+    sevals, sevecs = np.linalg.eigh(S)
+    trunc_indices = np.where(sevals > eta)[0]
+    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
+    Ap = X.T @ A @ X
+    eigval, eigvec = np.linalg.eigh(Ap)
+    eigvec = X @ eigvec
+    return eigval, eigvec
+

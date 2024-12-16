@@ -193,6 +193,11 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         composite_space,
     )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space)
+    
+    # Initial guess
+    funct_H_singles = generate_sigma_build_singles(mbeq, "Hbar")
+    funct_s_singles = generate_sigma_build_singles(mbeq_s, "s")
+    
     # script_dir = os.path.dirname(__file__)
     # rel_path = "../cvs_ee_eom_dsrg.py"
     # abs_file_path = os.path.join(script_dir, rel_path)
@@ -210,6 +215,8 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         f.write(f"{funct}\n\n")
         f.write(f"{funct_s}\n\n")
         f.write(f"{funct_first}\n\n")
+        f.write(f"{funct_H_singles}\n\n")
+        f.write(f"{funct_s_singles}\n\n")
         f.write(f"{funct_dipole}\n\n")
 
 

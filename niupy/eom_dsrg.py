@@ -29,6 +29,11 @@ class EOM_DSRG:
 
         opt_einsum = kwargs.get("opt_einsum", True)
         mo_spaces = kwargs.get("mo_spaces", None)
+        
+        if self.method_type == "cvs_ee":
+            self.guess = kwargs.get("guess", "singles")
+        else:
+            self.guess = kwargs.get("guess", "ones")
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
@@ -178,6 +183,8 @@ class EOM_DSRG:
             self.get_S12,
             self.apply_S12,
             self.compute_preconditioner,
+            self.build_sigma_vector_Hbar_singles,
+            self.build_sigma_vector_s_singles
         ) = self.eom_dsrg_compute.get_sigma_build(self)
 
     def kernel(self):
