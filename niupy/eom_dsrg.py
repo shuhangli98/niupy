@@ -136,8 +136,8 @@ class EOM_DSRG:
                     if len(psi4_options.get_int_vector(s)) > 0:
                         mo_spaces[s] = psi4_options.get_int_vector(s)
             nmopi = wfn.nmopi()
-            point_group = wfn.molecule().point_group().symbol()
-            mo_space_info = forte.make_mo_space_info_from_map(nmopi, point_group, mo_spaces)
+            self.point_group = wfn.molecule().point_group().symbol()
+            mo_space_info = forte.make_mo_space_info_from_map(nmopi, self.point_group, mo_spaces)
             self.core_sym = np.array(mo_space_info.symmetry("FROZEN_DOCC"))
             self.occ_sym = np.array(mo_space_info.symmetry("RESTRICTED_DOCC"))
             self.act_sym = np.array(mo_space_info.symmetry("ACTIVE"))
@@ -149,12 +149,14 @@ class EOM_DSRG:
         if method_type == "cvs_ee" or method_type == "cvs_ip":
             print("Running H2O/6-31g since no wfn and mo_spaces are provided.")
             # 6-31g
+            self.point_group = "c2v"
             self.core_sym = np.array([0])
             self.occ_sym = np.array([0, 3])
             self.act_sym = np.array([0, 0, 2, 3])
             self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
         elif method_type == "ip":
             print("Running BeH2/STO-6G since no wfn and mo_spaces are provided.")
+            self.point_group = "c2v"
             self.core_sym = np.array([])
             self.occ_sym = np.array([0, 0])
             self.act_sym = np.array([0, 3])
@@ -180,8 +182,38 @@ class EOM_DSRG:
             self.compute_preconditioner,
         ) = self.eom_dsrg_compute.get_sigma_build(self)
 
+    def _pretty_print_info(self, e, spin, symmetry, spec_info):
+        nroot = len(e)
+        if "ee" in self.method_type:
+            spec = "f"
+        elif "ip" in self.method_type:
+            spec = "P"
+        if self.point_group.lower() in irrep_table:
+            _irrep = lambda x: irrep_table[self.point_group.lower()][x]
+        else:
+            _irrep = lambda x: x
+        print("=" * 85)
+        print(f"{'EOM-DSRG summary':^85}")
+        print("-" * 85)
+        print(f"{'Root':<5} {'Energy (eV)':<20} {spec:<20} {'Symmetry':<10} {'Spin':<20}")
+        print("-" * 85)
+        for i in range(nroot):
+            print(
+                f"{i+1:<5} {e[i]*eh_to_ev:<20.10f} {spec_info[i]:<20.8f} {_irrep(symmetry[i]):<10} {spin[i]:<20}"
+            )
+        print("=" * 85)
+
     def kernel(self):
         conv, e, u, spin, symmetry, spec_info = self.eom_dsrg_compute.kernel(self)
+
+        if not all(conv):
+            unconv = [i for i, c in enumerate(conv) if not c]
+            print("Some roots did not converge.")
+            print(f"Unconverged roots: {unconv}")
+        else:
+            print("All EOM-DSRG roots converged.")
+        self._pretty_print_info(e, spin, symmetry, spec_info)
+        
         if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
             os.remove(f"{self.method_type}_eom_dsrg.py")
         if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
