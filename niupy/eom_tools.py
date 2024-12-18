@@ -4,6 +4,7 @@ import copy
 import itertools
 import re
 import scipy.constants
+import pickle
 
 eh_to_ev = scipy.constants.value("Hartree energy in eV")
 irrep_table = {
@@ -18,23 +19,6 @@ irrep_table = {
                }
 for v in irrep_table.values():
     v.update({"Incorrect symmetry": "Incorrect symmetry"})
-
-
-def op_to_tensor_label(op):
-    wop = w.op("o", [op])
-    op_canon = wop.__str__().split(" {")[1].split(" }")[0]
-    indices = op_canon.split(" ")
-    if len(indices) == 1:
-        return op if "+" not in op else op.replace("+", "")
-    cre = []
-    ann = []
-    for i in indices:
-        if "+" in i:
-            cre.append(i.replace("+", ""))
-        else:
-            ann.append(i)
-
-    return "".join(ann[::-1]) + "".join(cre)
 
 
 def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"):
@@ -313,6 +297,21 @@ def dict_to_vec(dictionary, n_lowest):
     vec = np.concatenate(reshape_vec, axis=1)
     return vec.T
 
+def full_vec_to_dict(dict_template, slices, vec, nmos):
+    new_dict = {}
+    nroots = vec.shape[1]
+    keys_temp = dict_template.keys()
+    keys_slices = slices.keys()
+    for kt, ks in zip(keys_temp, keys_slices):
+        shape = dict_template[kt].shape[1:]
+        if len(ks) == 1:
+            new_dict[kt] = vec[slices[ks], :].T.reshape((nroots, *shape))
+        else:
+            shape_full = [nmos[_] for _ in ks]
+            temp = vec[slices[ks], :].T.reshape((nroots, *shape_full))
+            new_dict[kt] = temp.swapaxes(1,3).swapaxes(1,2)
+            assert new_dict[kt].shape[1:] == dict_template[kt].shape[1:]
+    return new_dict
 
 def vec_to_dict(dict_template, vec):
     new_dict = {}
@@ -326,7 +325,6 @@ def vec_to_dict(dict_template, vec):
         new_dict[key] = array_slice
         start = end
     return new_dict
-
 
 def generate_block_contraction(
     block_str,
@@ -1113,3 +1111,284 @@ def eigh_gen(A, S, eta=1e-10):
     eigvec = X @ eigvec
     return eigval, eigvec
 
+
+def get_matrix_elements(wt, bra, op, ket, inter_general=False, double_comm=False):
+    """
+    This function calculates the matrix elements of an operator
+    between two internally contracted configurations.
+
+    This is achieved by taking the second derivative of the fully
+    contracted expression with respect to the fictitious bra and
+    ket tensor elements.
+    """
+    if op is None:
+        if double_comm:
+            expr = w.commutator(bra.adjoint(), ket)
+        else:
+            expr = bra.adjoint() @ ket
+    else:
+        if double_comm:
+            expr = bra.adjoint() @ w.commutator(op, ket)
+        else:
+            expr = bra.adjoint() @ op @ ket
+    label = 'S' if op is None else 'H'
+    try:
+        mbeq = wt.contract(expr, 0, 0, inter_general=inter_general).to_manybody_equations(label)['|']
+    except KeyError:
+        return
+    mbeq_new = []
+    for i in mbeq:
+        eqdict = w.equation_to_dict(i)
+        newdict = {'factor':eqdict['factor'], 
+                   'lhs':[label,[],[]],
+                   'rhs':[]}
+        lhs_indices = set()
+        rhs_indices = set()
+        for j in eqdict['rhs']:
+            if j[0] == 'bra':
+                bra_indices = j[2][::1]+j[1]
+                lhs_indices.update(bra_indices)
+            elif j[0] == 'ket':
+                ket_indices = j[1]+j[2][::1]
+                lhs_indices.update(ket_indices)
+            else:
+                newdict['rhs'].append(j)
+                rhs_indices.update(j[1]+j[2])
+        
+        if (len(bra_indices+ket_indices) > len(lhs_indices)):
+            lhs = bra_indices+ket_indices
+            index_pool = lhs_indices | rhs_indices
+            for i in lhs_indices:
+                if lhs.count(i)==2:
+                    test_index = increment_index(i)
+                    while True:
+                        if test_index not in index_pool:
+                            ket_indices[ket_indices.index(i)] = test_index
+                            index_pool.update([test_index])
+                            newdict['rhs'].append(['delta', [i], [test_index]])
+                            break
+                        test_index = increment_index(test_index)                
+
+        newdict['lhs'][1] = ket_indices
+        newdict['lhs'][2] = bra_indices
+        mbeq_new.append(w.dict_to_equation(newdict))
+    return mbeq_new
+
+def op_to_index(op):
+    indices = op.split(' ')
+    if (len(indices) == 1):
+        return op
+    cre = []
+    ann = []
+    for i in indices:
+        if '+' in i:
+            cre.append(i)
+        else:
+            ann.append(i)
+    return ' '.join(cre) + ' ' + ' '.join(ann[::-1])
+
+def increment_index(index):
+    """
+    increment a sting like 'a128' to 'a129' using regex
+    """
+    return re.sub(r'(\d+)', lambda x: str(int(x.group(0)) + 1), index)
+
+            
+def make_function(key, mbeq, tensor_label):
+    fbra = re.sub(r'[^a-zA-Z]', '', key.split('|')[0])
+    fket = re.sub(r'[^a-zA-Z]', '', key.split('|')[1])
+    fname = f'{fbra}_{fket}'
+    func = f'def make_{tensor_label}{fname}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes):\n'
+    func += f"\t{tensor_label}{fbra+fket} = np.zeros((list((sizes[_] for _ in '{fbra+fket}'))))\n\n"
+
+    for eq in mbeq:
+        es_str = eq.compile('einsum')
+        func += f"\t{es_str}\n"
+    
+    braname = re.sub(r'[^a-zA-Z]', '', key.split('|')[0])
+    ketname = re.sub(r'[^a-zA-Z]', '', key.split('|')[1])
+    func += f'\n\tbrasize = 1\n'
+    func += f'\tfor i in \'{braname}\':\n'
+    func += f'\t\tbrasize *= sizes[i]\n'
+    func += f'\tketsize = 1\n'
+    func += f'\tfor i in \'{ketname}\':\n'
+    func += f'\t\tketsize *= sizes[i]\n'
+    func += f"\n\treturn antisymmetrize_full({tensor_label}{fbra+fket}, '{key}').reshape(brasize,ketsize)\n"
+    return func
+
+def make_driver(Hmbeq, Smbeq):
+    func = 'def driver(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, nops, slices, sizes):\n'
+    func += '\theff = np.zeros((nops,nops))\n'
+    func += '\tovlp = np.zeros((nops,nops))\n'
+    for key in Hmbeq.keys():
+        if 'a A' in key.split('|')[0]:
+            factor = 'np.sqrt(2) * '
+            if 'a A' in key.split('|')[1]:
+                factor = '2 * '
+        elif 'a A' in key.split('|')[1]:
+            factor = 'np.sqrt(2) * '
+        else:
+            factor = ''
+        fname = key.replace('|','_').replace(' ','').replace('+','')
+        bra = key.split('|')[0].replace(' ','').replace('+','')
+        ket = key.split('|')[1].replace(' ','').replace('+','')
+        func += f"\theff[slices[\'{bra}\'],slices[\'{ket}\']] = {factor}make_H{fname}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes)\n"
+        if bra!=ket:
+            func += f"\theff[slices[\'{ket}\'],slices[\'{bra}\']] = heff[slices[\'{bra}\'],slices[\'{ket}\']].T\n"
+    for key in Smbeq.keys():
+        if 'a A' in key.split('|')[0]:
+            factor = 'np.sqrt(2) * '
+            if 'a A' in key.split('|')[1]:
+                factor = '2 * '
+        elif 'a A' in key.split('|')[1]:
+            factor = 'np.sqrt(2) * '
+        else:
+            factor = ''
+        fname = key.replace('|','_').replace(' ','').replace('+','')
+        bra = key.split('|')[0].replace(' ','').replace('+','')
+        ket = key.split('|')[1].replace(' ','').replace('+','')
+        func += f"\tovlp[slices[\'{bra}\'],slices[\'{ket}\']] = {factor}make_S{fname}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes)\n"
+        if bra!=ket:
+            func += f"\tovlp[slices[\'{ket}\'],slices[\'{bra}\']] = ovlp[slices[\'{bra}\'],slices[\'{ket}\']].T\n"
+    func += '\treturn heff, ovlp\n'
+    return func
+
+def antisymmetrize_full(tensor, label):
+    bra_label = label.split('|')[0].split(' ')
+    ket_label = label.split('|')[1].split(' ')
+    if (len(bra_label) == 1) and (len(ket_label) == 1):
+        return tensor
+    bc = []
+    ba = []
+    kc = []
+    ka = []
+
+    lba = lbc = lka = lkc = 0
+    bc_ind = []
+    ba_ind = []
+    kc_ind = []
+    ka_ind = []
+    ind = 0
+    for i in bra_label:
+        if '+' in i:
+            bc.append(i.split('+')[0])
+            lbc += 1
+            bc_ind.append(ind)
+        else:
+            ba.append(i)
+            lba += 1
+            ba_ind.append(ind)
+        ind += 1
+    for i in ket_label:
+        if '+' in i:
+            kc.append(i.split('+')[0])
+            lkc += 1
+            kc_ind.append(ind)
+        else:
+            ka.append(i)
+            lka += 1
+            ka_ind.append(ind)
+        ind += 1
+    
+    # only support up to two-body tensors
+    do_ba = do_bc = do_ka = do_kc = False
+    if lba == 2:
+        if ba[0] == ba[1]: do_ba = True
+    if lbc == 2:
+        if bc[0] == bc[1]: do_bc = True
+    if lka == 2:
+        if ka[0] == ka[1]: do_ka = True
+    if lkc == 2:
+        if kc[0] == kc[1]: do_kc = True
+    
+    transpositions = []
+    if do_bc:
+        transpositions.append((bc_ind[::-1]+ba_ind+kc_ind+ka_ind, -1))
+    if do_ba:
+        transpositions.append((bc_ind+ba_ind[::-1]+kc_ind+ka_ind, -1))
+    if do_kc:
+        transpositions.append((bc_ind+ba_ind+kc_ind[::-1]+ka_ind, -1))
+    if do_ka:
+        transpositions.append((bc_ind+ba_ind+kc_ind+ka_ind[::-1], -1))
+    
+    if do_bc and do_ba:
+        transpositions.append((bc_ind[::-1]+ba_ind[::-1]+kc_ind+ka_ind, 1))
+    if do_kc and do_ka:
+        transpositions.append((bc_ind+ba_ind+kc_ind[::-1]+ka_ind[::-1], 1))
+    if do_bc and do_kc:
+        transpositions.append((bc_ind[::-1]+ba_ind+kc_ind[::-1]+ka_ind, 1))
+    if do_bc and do_ka:
+        transpositions.append((bc_ind[::-1]+ba_ind+kc_ind+ka_ind[::-1], 1))
+    if do_ba and do_kc:
+        transpositions.append((bc_ind+ba_ind[::-1]+kc_ind[::-1]+ka_ind, 1))
+    if do_ba and do_ka:
+        transpositions.append((bc_ind+ba_ind[::-1]+kc_ind+ka_ind[::-1], 1))
+
+    if do_bc and do_ba and do_kc:
+        transpositions.append((bc_ind[::-1]+ba_ind[::-1]+kc_ind[::-1]+ka_ind, -1))
+    if do_bc and do_ba and do_ka:
+        transpositions.append((bc_ind[::-1]+ba_ind[::-1]+kc_ind+ka_ind[::-1], -1))
+    if do_bc and do_kc and do_ka:
+        transpositions.append((bc_ind[::-1]+ba_ind+kc_ind[::-1]+ka_ind[::-1], -1))
+    if do_ba and do_kc and do_ka:
+        transpositions.append((bc_ind+ba_ind[::-1]+kc_ind[::-1]+ka_ind[::-1], -1))
+    
+    if do_bc and do_ba and do_kc and do_ka:
+        transpositions.append((bc_ind[::-1]+ba_ind[::-1]+kc_ind[::-1]+ka_ind[::-1], 1))
+    
+    tensor_new = tensor.copy()
+    for trans, fact in transpositions:
+        tensor_new += fact * tensor.transpose(trans)
+    
+    return tensor_new
+
+def get_nops(ops, sizes):
+    _ops = [re.sub(r'[^a-zA-Z]', '', _) for _ in ops]
+    nops = 0
+    for i in _ops:
+        ni = 1
+        for j in i:
+            ni *= sizes[j]
+        nops += ni
+    return nops
+
+def get_slices(ops, sizes):
+    nops = get_nops(ops,sizes)
+    slices = {}
+    nop = 0
+    ops = [op_to_index(op) for op in ops]
+    for op in ops:
+        op_trimmed = op.replace(' ','').replace('+','')
+        op_size = get_nops([op],sizes)
+        slices[op_trimmed] = slice(int(nop), int(nop+op_size))
+        nop += op_size
+
+    return nops, slices
+
+def tensor_label_to_op(tensor_label, ea=False):
+    if (len(tensor_label)%2 == 0) or (len(tensor_label)%2 == 1 and ea): # EE or EA type tensor
+        cre = list(tensor_label[len(tensor_label)//2:]) # this works for EA because integer division rounds down
+        ann = list(tensor_label[:len(tensor_label)//2])
+    else: # IP type
+        cre = list(tensor_label[1+len(tensor_label)//2:])
+        ann = list(tensor_label[:1+len(tensor_label)//2]) 
+    cre = [c+'+' for c in cre]
+    op = ' '.join(cre) + ' ' + ' '.join(ann[::-1])
+    op = op.strip()
+    return op
+
+def op_to_tensor_label(op):
+    wop = w.op("o", [op])
+    op_canon = wop.__str__().split(" {")[1].split(" }")[0]
+    indices = op_canon.split(" ")
+    if len(indices) == 1:
+        return op if "+" not in op else op.replace("+", "")
+    cre = []
+    ann = []
+    for i in indices:
+        if "+" in i:
+            cre.append(i.replace("+", ""))
+        else:
+            ann.append(i)
+
+    return "".join(ann[::-1]) + "".join(cre)

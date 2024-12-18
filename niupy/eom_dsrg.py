@@ -7,7 +7,6 @@ import os
 import subprocess
 from niupy.code_generator import cvs_ee, ee, ip, cvs_ip
 
-
 class EOM_DSRG:
     def __init__(self, method_type, wfn=None, **kwargs):
         self.method_type = method_type
@@ -60,6 +59,13 @@ class EOM_DSRG:
             cvs_ee.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         elif method_type == "ip":
             ip.generator(self.abs_file_path)
+        elif method_type == "ip_full":
+            self.ops = ip.generator_full_hbar(self.abs_file_path)
+            self.nmos = {'i': self.ncore, 'c': self.nocc, 'a': self.nact, 'v': self.nvir,
+                         'I': self.ncore, 'C': self.nocc, 'A': self.nact, 'V': self.nvir}
+            self.nops, self.slices = get_slices(self.ops, self.nmos)
+            self.delta = {'cc':np.eye(self.nmos['c']), 'vv':np.eye(self.nmos['v']),
+                          'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
         elif method_type == "cvs_ip":
             cvs_ip.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         else:
@@ -177,8 +183,8 @@ class EOM_DSRG:
             self.get_S12,
             self.apply_S12,
             self.compute_preconditioner,
-            self.build_sigma_vector_Hbar_singles,
-            self.build_sigma_vector_s_singles
+            # self.build_sigma_vector_Hbar_singles,
+            # self.build_sigma_vector_s_singles
         ) = self.eom_dsrg_compute.get_sigma_build(self)
 
     def _pretty_print_info(self, e, spin, symmetry, spec_info):
@@ -205,19 +211,29 @@ class EOM_DSRG:
             )
         print("=" * 85)
 
-    def kernel(self):
-        conv, e, u, spin, symmetry, spec_info = self.eom_dsrg_compute.kernel(self)
-
+    def kernel(self, x0=None):
+        conv, e, u, nop = self.eom_dsrg_compute.kernel(self, x0)
+        
         if not all(conv):
             unconv = [i for i, c in enumerate(conv) if not c]
             print("Some roots did not converge.")
             print(f"Unconverged roots: {unconv}")
         else:
             print("All EOM-DSRG roots converged.")
+
+        eigvec, spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(self, e, u, nop)
         self._pretty_print_info(e, spin, symmetry, spec_info)
-        
+            
         if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
             os.remove(f"{self.method_type}_eom_dsrg.py")
         if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
             os.remove(f"{self.method_type}_eom_dsrg.py-e")
-        return conv, e, u, spin, symmetry, spec_info
+
+        return conv, e, u, eigvec, spin, symmetry, spec_info
+
+    def kernel_full(self):
+        evals, evecs = self.eom_dsrg_compute.kernel_full(self)
+        print(evals)
+        evec_dict = full_vec_to_dict(self.full_template_c, self.slices, evecs[:, :self.nroots], self.nmos)
+        pickle.dump(evec_dict, open("singles.pkl", "wb"))
+    

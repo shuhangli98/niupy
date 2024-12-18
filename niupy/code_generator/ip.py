@@ -3,6 +3,80 @@ import itertools
 import os
 from niupy.eom_tools import *
 
+def generator_full_hbar(abs_path):
+    w.reset_space()
+    w.add_space('c', 'fermion', 'occupied', list('ijklmn'))
+    w.add_space('v', 'fermion', 'unoccupied', list('abcdef'))
+    w.add_space('a', 'fermion', 'general', list('stuvwxyz'))
+    w.add_space('C', 'fermion', 'occupied', list('IJKLMN'))
+    w.add_space('V', 'fermion', 'unoccupied', list('ABCDEF'))
+    w.add_space('A', 'fermion', 'general', list('STUVWXYZ'))
+    wt = w.WickTheorem()
+    wt.set_max_cumulant(4)
+    
+    single_space = [
+        "C",
+        "cCa",
+        "cAa",
+        "cCv",
+        "aCv",
+        "cAv",
+        "aAv",
+        "CCA",
+        "CCV",
+        "CAV",
+        "AAV",
+    ]
+    aac = ["aCa", "CAA"]
+    active = ["A", "AAA", "aAa"]
+    composite_space = [aac, active]
+    block_list = single_space + aac + active
+
+    ops = [tensor_label_to_op(_) for _ in block_list]
+
+    index_dict = {
+        "c": "nocc",
+        "a": "nact",
+        "v": "nvir",
+        "C": "nocc",
+        "A": "nact",
+        "V": "nvir",
+    }
+
+    function_args = "nlow, ncore, nocc, nact, nvir"
+    func_template_c = generate_template_c(block_list, index_dict, function_args)
+    
+    H = w.gen_op_ms0('Hbar', 1, 'cav', 'cav') +  w.gen_op_ms0('Hbar', 2, 'cav', 'cav')
+
+    Hmbeq = {}
+    Smbeq = {}
+    for ibra in range(len(ops)):
+        bop = ops[ibra]
+        bra = w.op('bra', [bop])
+        braind = op_to_index(bop)
+        for iket in range(ibra+1):
+            kop = ops[iket]
+            ket = w.op('ket', [kop])
+            ketind = op_to_index(kop)
+            S_mbeq = get_matrix_elements(wt, bra, None, ket, inter_general=True, double_comm=False)
+            if S_mbeq: 
+                Smbeq[f'{braind}|{ketind}'] = S_mbeq
+            double_comm = (kop.count('a') + kop.count('A') == 3) and (bop.count('a') + bop.count('A') == 3)
+            H_mbeq = get_matrix_elements(wt, bra, H, ket, inter_general=True, double_comm=double_comm)
+            if H_mbeq: Hmbeq[f'{braind}|{ketind}'] = H_mbeq
+
+    print(f"Code generator: Writing to {abs_path}")
+
+    with open(os.path.join(abs_path, "ip_eom_dsrg_full.py"), "w") as f:
+        f.write(f'import numpy as np\n')
+        f.write(f'from niupy.eom_tools import *\n\n')
+        f.write(f"{func_template_c}\n\n")
+        f.write(make_driver(Hmbeq, Smbeq))
+        for k, v in Hmbeq.items():
+            if v: f.write(make_function(k, v, 'H')+ '\n')
+        for k, v in Smbeq.items():
+            if v: f.write(make_function(k, v, 'S')+ '\n')
+    return ops
 
 def generator(abs_path):
     w.reset_space()
