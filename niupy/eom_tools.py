@@ -373,7 +373,7 @@ def generate_block_contraction(
     return func
 
 
-def generate_S12(mbeq, single_space, composite_space, ea=False):
+def generate_S12(mbeq, single_space, composite_space, sequential = True, ea=False):
     """
     single_space: a list of strings.
     composite_space: a list of lists of strings.
@@ -631,7 +631,10 @@ def generate_S12(mbeq, single_space, composite_space, ea=False):
     # Add composite space code blocks
     for space in composite_space:
         if any((len(key) == 1 or len(key) == 2) for key in space):
-            code.extend(sequential_orthogonalization(space))
+            if sequential:
+                code.extend(sequential_orthogonalization(space))
+            else:
+                code.extend(add_composite_space_code(space))
         else:
             code.extend(add_composite_space_code(space))
         code.append("")  # Blank line for separation

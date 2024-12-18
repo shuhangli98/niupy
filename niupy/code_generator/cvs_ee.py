@@ -139,6 +139,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         + S_half_1_com_i
         + S_half_1_com_I
     )
+    
     single_space = S_half_0 + S_half_1 + S_half_minus_1 + S_half_2
     composite_space = [S_half_0_com_iv, S_half_0_com_IV, S_half_1_com_i, S_half_1_com_I]
 
@@ -184,7 +185,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     funct_s = generate_sigma_build(mbeq_s, "s")  # SC
     funct_first = generate_first_row(mbeq_first)  # First row/column
     funct_dipole = generate_transition_dipole(mbeq_first)
-    funct_S12 = generate_S12(mbeq_s, single_space, composite_space)
+    funct_S12 = generate_S12(mbeq_s, single_space, composite_space, sequential=False)
     funct_preconditioner = generate_preconditioner(
         mbeq,
         mbeqs_one_active_two_virtual,
