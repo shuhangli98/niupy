@@ -68,9 +68,11 @@ def compile_sigma_vector_singles(equation, bra_name="bra", ket_name="c", optimiz
     bra_true = False
     ket_true = False
     
-    if not (d["rhs"][bra_idx][1].count('v') + d["rhs"][bra_idx][1].count('V') > 1):
+    bra = d["rhs"][bra_idx][1]
+    ket = d["rhs"][ket_idx][1]
+    if (bra.count('v') + bra.count('V') < 1) or len(bra) == 2:
         bra_true = True
-    if not (d["rhs"][ket_idx][1].count('v') + d["rhs"][ket_idx][1].count('V') > 1):
+    if (ket.count('v') + ket.count('V') < 1) or len(ket) == 2:
         ket_true = True
     if bra_true and ket_true:
         return compile_sigma_vector(equation, bra_name=bra_name, ket_name=ket_name, optimize=optimize)
@@ -235,7 +237,7 @@ def generate_sigma_build(mbeq, matrix, first_row=True, optimize="True"):
 def generate_sigma_build_singles(mbeq, matrix, optimize="True"):
     code = [
         f"def build_sigma_vector_{matrix}_singles(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
-        "    sigma = {key: np.zeros(c[key].shape) for key in c.keys() if not (key.count('v') + key.count('V') > 1)}",
+        "    sigma = {key: np.zeros(c[key].shape) for key in c.keys() if (key.count('v') + key.count('V') < 1) or len(key) == 2}",
     ]
 
     for eq in mbeq["|"]:
@@ -547,7 +549,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False):
         code_block.extend(
             [
                 f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
-                "    print(f'Symmetry: {np.allclose(vec, vec.T)}', flush = True)",
+                "    print(f'Symmetric: {np.allclose(vec, vec.T)}', flush = True)",
                 f"    sevals, sevecs = np.linalg.eigh(vec)",
                 f"    if np.any(sevals < -tol):",
                 f'        raise ValueError("Negative overlap eigenvalues found in {space} space")',
