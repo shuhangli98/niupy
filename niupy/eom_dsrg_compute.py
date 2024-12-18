@@ -354,13 +354,13 @@ def setup_davidson(eom_dsrg, x0=None):
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
     
-    x0 = project_guess_vectors(eom_dsrg, nop, northo)
-
     if x0 is None:
         if eom_dsrg.guess == "singles":
             x0 = compute_guess_vectors_from_singles(eom_dsrg, northo)
         elif eom_dsrg.guess == "ones":
             x0 = compute_guess_vectors(eom_dsrg, precond)
+        elif eom_dsrg.guess == "read":
+            x0 = read_guess_vectors(eom_dsrg, nop, northo)
         
     return apply_M, precond, x0, nop
 
@@ -401,11 +401,12 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
     XHXt = XHXt.flatten()
     return XHXt
 
-def project_guess_vectors(eom_dsrg, nops, northo, ea=False):
-    print("Projecting guess vectors...", flush=True)
+def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
+    print("Reading guess vectors...", flush=True)
     singles = pickle.load(open(f"{eom_dsrg.abs_file_path}/singles.pkl", "rb"))
     x0s = []
     
+    print("Projecting guess vectors...", flush=True)
     for i in range(eom_dsrg.nroots):
         x0 = np.zeros((nops, 1))
         x0 = vec_to_dict(eom_dsrg.full_template_c, x0)
