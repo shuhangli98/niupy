@@ -427,7 +427,7 @@ def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=Fals
         if (key.count('v') + key.count('V') < 1) or len(key) == 2:
             shape_block = value.shape[1:]
             nsingles += np.prod(shape_block)
-            print(f"key: {key}, value: {value.shape}, nsingles: {np.prod(shape_block)}")
+            # print(f"key: {key}, value: {value.shape}, nsingles: {np.prod(shape_block)}")
     for key, value in eom_dsrg.full_template_c.items():
         if (key.count('v') + key.count('V') < 1) or len(key) == 2:
             shape_block = value.shape[1:]
@@ -457,10 +457,11 @@ def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=Fals
     print("Time(s) for H, S construction: ", time.time() - start, flush=True)
     start = time.time()
     print("Start diagonalization...", flush=True)
-    eigval, eigvec = eigh_gen(H_singles_vec, S_singles_vec, eta=1e-10)
+    eigval, eigvec = eigh_gen(H_singles_vec, S_singles_vec, eta=1e-4)
     print("Time(s) for diagonalization: ", time.time() - start, flush=True)
     start = time.time()
     sort_ind = np.argsort(eigval) if ascending else np.argsort(eigval)[::-1]
+    print("Eigval (top ten):", " ".join(f"{val:<.2f}" for val in eigval[sort_ind[:10]]))
     unit_vec = np.zeros(northo)
     unit_vec[0] = 1.0
     x0s = [unit_vec]
@@ -472,7 +473,7 @@ def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=Fals
         HSx_dict = antisymmetrize(HSx_dict, ea=ea)
         HSx = dict_to_vec(HSx_dict, 1).flatten()
         SHSx = eom_dsrg.apply_S12(eom_dsrg, northo, HSx, transpose=True).flatten()
-        if np.linalg.norm(SHSx) > 1e-4:
+        if eigval[sort_ind[p]] > 1.0: # I want to exclude the ground state.
             x0s.append(SHSx/np.linalg.norm(SHSx))
         if len(x0s) == eom_dsrg.nroots:
             break
