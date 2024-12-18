@@ -65,12 +65,23 @@ def generator_full_hbar(abs_path):
             H_mbeq = get_matrix_elements(wt, bra, H, ket, inter_general=True, double_comm=double_comm)
             if H_mbeq: Hmbeq[f'{braind}|{ketind}'] = H_mbeq
 
+    singles = w.gen_op("bra", (0, 1), "avAV", "caCA", only_terms=True)
+    singles = [_.strip() for _ in singles]
+    singles = filter_ops_by_ms(singles, 1)
+    T = w.op("c", ops, unique=True)
+    P_adj = w.op("bra", singles, unique=True).adjoint()
+    PT = P_adj @ T
+    expr_p = wt.contract(PT, 0, 0, inter_general=True)
+    mbeq_p = expr_p.to_manybody_equation("sigma")
+    funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
+
     print(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "ip_eom_dsrg_full.py"), "w") as f:
         f.write(f'import numpy as np\n')
         f.write(f'from niupy.eom_tools import *\n\n')
         f.write(f"{func_template_c}\n\n")
+        f.write(f"{funct_p}\n\n")
         f.write(make_driver(Hmbeq, Smbeq))
         for k, v in Hmbeq.items():
             if v: f.write(make_function(k, v, 'H')+ '\n')

@@ -85,9 +85,23 @@ def kernel(eom_dsrg, x0=None):
 
     return conv, e, u, nop
 
-def post_process(eom_dsrg, e, u, nop):
+def post_process(eom_dsrg, e, eigvec, eigvec_dict):
     # Get spin multiplicity and process eigenvectors
-    spin, eigvec, symmetry = get_information(eom_dsrg, u, nop)
+    excitation_analysis = find_top_values(eigvec_dict, 3)
+    for key, values in excitation_analysis.items():
+        print(f"Root {key}: {values}")
+
+    spin = []
+    symmetry = []
+
+    for i_idx in range(eom_dsrg.nroots):
+        current_vec = eigvec[:, i_idx]
+        current_vec_dict = vec_to_dict(
+            eom_dsrg.full_template_c, current_vec.reshape(-1, 1)
+        )
+
+        spin.append(assign_spin_multiplicity(eom_dsrg, current_vec_dict))
+        symmetry.append(assign_spatial_symmetry(eom_dsrg, current_vec))
 
     del eom_dsrg.Hbar
 
@@ -102,15 +116,17 @@ def post_process(eom_dsrg, e, u, nop):
 
         # Compute oscillator strengths
         spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
-    elif eom_dsrg.method_type in ["ip", "cvs_ip"]:
+    elif "ip" in eom_dsrg.method_type:
         spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
     
-    return eigvec, spin, symmetry, spec_info
+    return spin, symmetry, spec_info
 
 def compute_spectroscopic_factors(eom_dsrg, eigvec):
-    assert eom_dsrg.method_type in ["ip", "cvs_ip"]
+    assert "ip" in eom_dsrg.method_type
     if eom_dsrg.method_type == "ip":
         p_compute = ip_eom_dsrg.build_sigma_vector_p
+    elif eom_dsrg.method_type == "ip_full":
+        p_compute = ip_eom_dsrg_full.build_sigma_vector_p
     elif eom_dsrg.method_type == "cvs_ip":
         p_compute = cvs_ip_eom_dsrg.build_sigma_vector_p
     p = np.zeros(eigvec.shape[1])
@@ -186,40 +202,6 @@ def calculate_norms(current_vec_dict):
                 addition_norms.append(add_norm)
 
     return subtraction_norms, addition_norms
-
-
-def get_information(eom_dsrg, u, nop, ea=False):
-    """
-    Process vectors to classify their spin multiplicities.
-
-    Parameters:
-        eom_dsrg: Object with a full_template_c attribute, used for vector processing.
-        u: List of eigenvectors.
-        nop: Number of operators.
-
-    Returns:
-        spin (list): List of spin classifications ("Singlet", "Triplet", or "Incorrect spin").
-        eigvec (np.ndarray): Processed eigenvectors.
-    """
-    eigvec, eigvec_dict = get_original_basis_evecs(eom_dsrg, u, nop, ea=ea)
-
-    excitation_analysis = find_top_values(eigvec_dict, 3)
-    for key, values in excitation_analysis.items():
-        print(f"Root {key}: {values}")
-
-    spin = []
-    symmetry = []
-
-    for i_idx in range(len(u)):
-        current_vec = eigvec[:, i_idx]
-        current_vec_dict = vec_to_dict(
-            eom_dsrg.full_template_c, current_vec.reshape(-1, 1)
-        )
-
-        spin.append(assign_spin_multiplicity(eom_dsrg, current_vec_dict))
-        symmetry.append(assign_spatial_symmetry(eom_dsrg, current_vec))
-    
-    return spin, eigvec, symmetry
 
 def get_original_basis_evecs(eom_dsrg, u, nop, ea=False):
     eigvec = np.array(

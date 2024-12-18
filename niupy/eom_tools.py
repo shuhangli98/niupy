@@ -1124,13 +1124,10 @@ def get_matrix_elements(wt, bra, op, ket, inter_general=False, double_comm=False
     ket tensor elements.
     """
     if op is None:
-        if double_comm:
-            expr = w.commutator(bra.adjoint(), ket)
-        else:
-            expr = bra.adjoint() @ ket
+        expr = bra.adjoint() @ ket
     else:
         if double_comm:
-            expr = bra.adjoint() @ w.commutator(op, ket)
+            expr = w.rational(1, 2) * (bra.adjoint() @ w.commutator(op, ket) + w.commutator(bra.adjoint(), op) @ ket)
         else:
             expr = bra.adjoint() @ op @ ket
     label = 'S' if op is None else 'H'

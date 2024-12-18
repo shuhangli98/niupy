@@ -221,7 +221,8 @@ class EOM_DSRG:
         else:
             print("All EOM-DSRG roots converged.")
 
-        eigvec, spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(self, e, u, nop)
+        eigvec, eigvec_dict = self.eom_dsrg_compute.get_original_basis_evecs(self, u, nop)
+        spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(self, e, eigvec, eigvec_dict)
         self._pretty_print_info(e, spin, symmetry, spec_info)
             
         if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
@@ -229,11 +230,16 @@ class EOM_DSRG:
         if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
             os.remove(f"{self.method_type}_eom_dsrg.py-e")
 
-        return conv, e, u, eigvec, spin, symmetry, spec_info
+        return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
     def kernel_full(self):
+        assert "full" in self.method_type, "The full kernel is only supported for methods ending with '_full'."
         evals, evecs = self.eom_dsrg_compute.kernel_full(self)
-        print(evals)
-        evec_dict = full_vec_to_dict(self.full_template_c, self.slices, evecs[:, :self.nroots], self.nmos)
-        pickle.dump(evec_dict, open("singles.pkl", "wb"))
+        eigvec_dict = full_vec_to_dict(self.full_template_c, self.slices, evecs[:, :self.nroots], self.nmos)
+        eigvec = dict_to_vec(eigvec_dict, self.nroots)
+        e = evals[:self.nroots]
+        spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(self, e, eigvec, eigvec_dict)
+        self._pretty_print_info(e, spin, symmetry, spec_info)
+        return e, eigvec, eigvec_dict, spin, symmetry, spec_info
+        
     
