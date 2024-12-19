@@ -424,12 +424,12 @@ def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=Fals
     temp_dict = {}
     
     for key, value in eom_dsrg.full_template_c.items():
-        if (key.count('v') + key.count('V') < 1) or len(key) == 2:
+        if len(key) == 2 or key == 'first':
             shape_block = value.shape[1:]
             nsingles += np.prod(shape_block)
-            # print(f"key: {key}, value: {value.shape}, nsingles: {np.prod(shape_block)}")
+            print(f"key: {key} is used for initial guess")
     for key, value in eom_dsrg.full_template_c.items():
-        if (key.count('v') + key.count('V') < 1) or len(key) == 2:
+        if len(key) == 2 or key == 'first':
             shape_block = value.shape[1:]
             temp_dict[key] = np.zeros((nsingles, *shape_block))
             
