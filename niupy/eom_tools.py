@@ -189,17 +189,18 @@ def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
     einsums = []
     for eq in mbeq:
         eqdict = w.equation_to_dict(eq)
+        
         factor_scaled = float(eqdict["factor"])
         bra = _get_space(eqdict["lhs"][1])
         ket = _get_space(eqdict["lhs"][2])
-        if len(bra) == 4:
+        if len(bra) == 4 and bra.count('a')+bra.count('A') > 0:
             if bra[0].islower() and bra[1].isupper():
                 if bra[0].lower() == bra[1].lower():
                     factor_scaled *= np.sqrt(2)
             if bra[2].islower() and bra[3].isupper():
                 if bra[2].lower() == bra[3].lower():
                     factor_scaled *= np.sqrt(2)
-        if len(ket) == 4:
+        if len(ket) == 4 and ket.count('a')+ket.count('A') > 0:
             if ket[0].islower() and ket[1].isupper():
                 if ket[0].lower() == ket[1].lower():
                     factor_scaled *= np.sqrt(2)
