@@ -18,6 +18,8 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
 
+    # wt.set_max_cumulant(3)
+
     # Define operators
     s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True) \
         + w.gen_op( "bra", 2, "avAV", "ciaCIA", only_terms=True)
@@ -70,9 +72,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
             char.islower() for char in i
         )
         label = op_to_tensor_label(i)
-        mbeqs_one_active_two_virtual[label] = get_matrix_elements(
-            bra, Hbar_op, ket, inter_general=inter_general, double_comm=False
-        )
+        mbeqs_one_active_two_virtual[label] = get_matrix_elements(bra, Hbar_op, ket, inter_general=inter_general, double_comm=False)
     for i in no_active:
         bra = w.op("bra", [i])
         ket = w.op("ket", [i])
@@ -80,9 +80,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
             char.islower() for char in i
         )
         label = op_to_tensor_label(i)
-        mbeqs_no_active[label] = get_matrix_elements(
-            bra, Hbar_op, ket, inter_general=inter_general, double_comm=False
-        )
+        mbeqs_no_active[label] = get_matrix_elements(bra, Hbar_op, ket, inter_general=inter_general, double_comm=False)
 
     # Define subspaces. Single first!
     S_half_0 = [
@@ -158,10 +156,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     func_template_c = generate_template_c(block_list, index_dict, function_args)
 
     # Hbar
-    THT_comm = w.rational(1, 2) * (
-        T_comm_adj @ w.commutator(Hbar_op, T_comm)
-        + w.commutator(T_comm_adj, Hbar_op) @ T_comm
-    )
+    THT_comm = w.rational(1, 2) * (T_comm_adj @ w.commutator(Hbar_op, T_comm)+ w.commutator(T_comm_adj, Hbar_op) @ T_comm)
     THT_original = T_original_adj @ Hbar_op @ T_original
     THT_coupling = T_original_adj @ Hbar_op @ T_comm
     THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
@@ -185,7 +180,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     funct_s = generate_sigma_build(mbeq_s, "s")  # SC
     funct_first = generate_first_row(mbeq_first)  # First row/column
     funct_dipole = generate_transition_dipole(mbeq_first)
-    funct_S12 = generate_S12(mbeq_s, single_space, composite_space, sequential=False)
+    funct_S12 = generate_S12(mbeq_s, single_space, composite_space, sequential=True)
     funct_preconditioner = generate_preconditioner(
         mbeq,
         mbeqs_one_active_two_virtual,

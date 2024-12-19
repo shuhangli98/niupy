@@ -52,17 +52,22 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
     if d["rhs"][ket_idx][1] == "aAa":
         factor *= np.sqrt(2)
         
-    if len(d["rhs"][bra_idx][1]) == 4 and d["rhs"][bra_idx][1][0].islower() and d["rhs"][bra_idx][1][1].isupper():
-        if d["rhs"][bra_idx][1][0].lower() == d["rhs"][bra_idx][1][1].lower():
-            factor *= np.sqrt(2)
-        if d["rhs"][bra_idx][1][2].lower() == d["rhs"][bra_idx][1][3].lower():
-            factor *= np.sqrt(2)
+    # This is for cvs_ee
+    bra_key = d["rhs"][bra_idx][1]
+    ket_key = d["rhs"][ket_idx][1]
+    if len(bra_key) == 4 and bra_key[0].islower() and bra_key[1].isupper():
+        if (bra_key.count('a') + bra_key.count('A') > 0):
+            if bra_key[0].lower() == bra_key[1].lower():
+                factor *= np.sqrt(2)
+            if bra_key[2].lower() == bra_key[3].lower():
+                factor *= np.sqrt(2)
             
-    if len(d["rhs"][ket_idx][1]) == 4 and d["rhs"][ket_idx][1][0].islower() and d["rhs"][ket_idx][1][1].isupper():
-        if d["rhs"][ket_idx][1][0].lower() == d["rhs"][ket_idx][1][1].lower():
-            factor *= np.sqrt(2)
-        if d["rhs"][ket_idx][1][2].lower() == d["rhs"][ket_idx][1][3].lower():
-            factor *= np.sqrt(2)
+    if len(ket_key) == 4 and ket_key[0].islower() and ket_key[1].isupper():
+        if (ket_key.count('a') + ket_key.count('A') > 0):
+            if ket_key[0].lower() == ket_key[1].lower():
+                factor *= np.sqrt(2)
+            if ket_key[2].lower() == ket_key[3].lower():
+                factor *= np.sqrt(2)
 
     d["factor"] = float(d["factor"]) * factor
     d["rhs"][ket_idx][2] = "p" + d["rhs"][ket_idx][2]
@@ -94,10 +99,22 @@ def compile_sigma_vector_singles(equation, bra_name="bra", ket_name="c", optimiz
         return compile_sigma_vector(equation, bra_name=bra_name, ket_name=ket_name, optimize=optimize)
 
 def compile_first_row(equation, ket_name="c", optimize="True"):
+    factor = 1.0
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
     for idx, t in enumerate(d["rhs"]):
         if t[0] == ket_name:
             ket_idx = idx
+    
+    # This is for cvs_ee
+    ket_key = d["rhs"][ket_idx][1]
+    if len(ket_key) == 4 and ket_key[0].islower() and ket_key[1].isupper():
+        if (ket_key.count('a') + ket_key.count('A') > 0):
+            if ket_key[0].lower() == ket_key[1].lower():
+                factor *= np.sqrt(2)
+            if ket_key[2].lower() == ket_key[3].lower():
+                factor *= np.sqrt(2)
+                
+    d["factor"] = float(d["factor"]) * factor    
     ket = d["rhs"].pop(ket_idx)
     ket[0] = "sigma"
     d["lhs"] = [ket]
@@ -297,14 +314,26 @@ def generate_first_row(mbeq, optimize="True"):
     return funct
 
 
-def generate_transition_dipole(mbeq, optimize="True"): 
+def generate_transition_dipole(mbeq, ket_name='c',optimize="True"): 
     code = [
         f"def build_transition_dipole(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = 0.0",
     ]
     for eq in mbeq["|"]:
-        code.append(f"    {w.compile_einsum(eq, optimize=optimize)}")
-
+        factor = 1.0
+        _, d = w.compile_einsum(eq, return_eq_dict=True)
+        for idx, t in enumerate(d["rhs"]):
+            if t[0] == ket_name:
+                ket_idx = idx
+        ket_key = d["rhs"][ket_idx][1]
+        if len(ket_key) == 4 and ket_key[0].islower() and ket_key[1].isupper():
+            if (ket_key.count('a') + ket_key.count('A') > 0):
+                if ket_key[0].lower() == ket_key[1].lower():
+                    factor *= np.sqrt(2)
+                if ket_key[2].lower() == ket_key[3].lower():
+                    factor *= np.sqrt(2)
+        d["factor"] = float(d["factor"]) * factor 
+        code.append(f"    {w.dict_to_einsum(d, optimize=optimize)}")
     code.append("    return sigma")
     funct = "\n".join(code)
     return funct
@@ -417,11 +446,15 @@ def generate_S12(mbeq, single_space, composite_space, sequential = True, ea=Fals
             anti = True
         else:
             anti = False
+            
+        scale = False
+        if key[2].islower() and key[3].isupper():
+            scale = True
 
         code_block.extend(
             [
                 f"    anti = {anti}",
-                f"    ge, gv = np.linalg.eigh({temp_rdm})",
+                f"    ge, gv = np.linalg.eigh({temp_rdm} *2 if {scale} else {temp_rdm})",
                 f"    if np.any(ge < -tol):",
                 f"        raise ValueError('Negative overlap eigenvalues found in {key} block')",
                 f"    trunc_indices = np.where(ge > tol)[0]",
