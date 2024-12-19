@@ -198,11 +198,33 @@ def get_matrix_elements(bra, op, ket, inter_general=False, double_comm=False):
 
 
 def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
+    def _get_space(indices):
+        # return 'aAaC' for input ['a4', 'A1', 'a5', 'C1']
+        return "".join([i[0] for i in indices])
     indent_spaces = {"once": "    ", "twice": "        "}
     space = indent_spaces.get(indent, "    ")
     einsums = []
     for eq in mbeq:
         eqdict = w.equation_to_dict(eq)
+        
+        factor_scaled = float(eqdict["factor"])
+        bra = _get_space(eqdict["lhs"][1])
+        ket = _get_space(eqdict["lhs"][2])
+        if len(bra) == 4 and bra.count('a')+bra.count('A') > 0:
+            if bra[0].islower() and bra[1].isupper():
+                if bra[0].lower() == bra[1].lower():
+                    factor_scaled *= np.sqrt(2)
+            if bra[2].islower() and bra[3].isupper():
+                if bra[2].lower() == bra[3].lower():
+                    factor_scaled *= np.sqrt(2)
+        if len(ket) == 4 and ket.count('a')+ket.count('A') > 0:
+            if ket[0].islower() and ket[1].isupper():
+                if ket[0].lower() == ket[1].lower():
+                    factor_scaled *= np.sqrt(2)
+            if ket[2].islower() and ket[3].isupper():
+                if ket[2].lower() == ket[3].lower():
+                    factor_scaled *= np.sqrt(2)
+
         eqdict_new = {
             "factor": eqdict["factor"],
             "lhs": [eqdict["lhs"][0], [], []],
@@ -231,7 +253,9 @@ def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
 
         einsum = w.compile_einsum(w.dict_to_equation(eqdict_new), optimize="True")
         lhs = einsum.split(" +=")[0]
+        factor = einsum.split(" += ")[1].split(" * ")[0]
         einsum = einsum.replace(lhs, lhs[0])
+        einsum = einsum.replace(factor, f"{factor_scaled:.8f}")
         einsums.append(f"{space}{einsum}")
 
     func = "\n".join(einsums)
