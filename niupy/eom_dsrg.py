@@ -64,6 +64,7 @@ class EOM_DSRG:
             self.nmos = {'i': self.ncore, 'c': self.nocc, 'a': self.nact, 'v': self.nvir,
                          'I': self.ncore, 'C': self.nocc, 'A': self.nact, 'V': self.nvir}
             self.nops, self.slices = get_slices(self.ops, self.nmos)
+            print(self.slices.keys())
             self.delta = {'cc':np.eye(self.nmos['c']), 'vv':np.eye(self.nmos['v']),
                           'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
         elif method_type == "cvs_ip":
@@ -211,8 +212,8 @@ class EOM_DSRG:
             )
         print("=" * 85)
 
-    def kernel(self, x0=None):
-        conv, e, u, nop = self.eom_dsrg_compute.kernel(self, x0)
+    def kernel(self):
+        conv, e, u, nop = self.eom_dsrg_compute.kernel(self)
         
         if not all(conv):
             unconv = [i for i, c in enumerate(conv) if not c]

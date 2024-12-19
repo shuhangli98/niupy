@@ -2,6 +2,7 @@ import wicked as w
 import numpy as np
 import copy
 import itertools
+import functools
 import re
 import scipy.constants
 import pickle
@@ -371,7 +372,7 @@ def generate_block_contraction(
     return func
 
 
-def generate_S12(mbeq, single_space, composite_space, ea=False):
+def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True):
     """
     single_space: a list of strings.
     composite_space: a list of lists of strings.
@@ -628,7 +629,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False):
 
     # Add composite space code blocks
     for space in composite_space:
-        if any((len(key) == 1 or len(key) == 2) for key in space):
+        if any((len(key) == 1 or len(key) == 2) for key in space) and sequential:
             code.extend(sequential_orthogonalization(space))
         else:
             code.extend(add_composite_space_code(space))
@@ -1391,3 +1392,49 @@ def op_to_tensor_label(op):
             ann.append(i)
 
     return "".join(ann[::-1]) + "".join(cre)
+
+def eigh_gen_composite(H, S, single_spaces, composite_spaces, slices, tol_single=1e-8, tol_composite=1e-4, sequential=True):
+    X = {}
+    for i in single_spaces:
+        sevals, sevecs = np.linalg.eigh(S[slices[i], slices[i]])
+        trunc_indices = np.where(sevals > tol_single)[0]
+        X[i] = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
+    
+    for block in composite_spaces:
+        S_temp = np.block([[S[slices[i], slices[j]] for j in block] for i in block])
+        if sequential:
+            singles_size = 0
+            for i in block:
+                if len(i) <= 2:
+                    singles_size += slices[i].stop - slices[i].start
+            X[block[0]] = sequential_orthogonalization(S_temp, singles_size, tol_composite)
+
+        sevals, sevecs = np.linalg.eigh(S_temp)
+        trunc_indices = np.where(sevals > tol_composite)[0]
+        X[block[0]] = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
+    
+    X_concat = scipy.linalg.block_diag(*X.values())
+    print(f'Number of orthogonalized basis functions: {X_concat.shape[1]}')
+    Hp = X_concat.T @ H @ X_concat
+    eigval, eigvec = np.linalg.eigh(Hp)
+    eigvec = X_concat @ eigvec
+    return eigval, eigvec
+
+def sequential_orthogonalization(ovlp, singles_size, tol):
+    S11 = ovlp[:singles_size, :singles_size].copy()
+    S12 = ovlp[:singles_size, singles_size:].copy()
+    sevals, sevecs = np.linalg.eigh(S11)
+    trunc_indices = np.where(sevals > tol)[0]
+    S_inv_eval = 1.0/(sevals[trunc_indices])
+    sevecs = sevecs[:, trunc_indices]
+    S11inv = functools.reduce(np.dot, (sevecs,np.diag(S_inv_eval),sevecs.T))
+    Y12 = -np.matmul(S11inv, S12)
+    Y = np.identity(ovlp.shape[0])
+    Y[:singles_size, singles_size:] = Y12
+    vec_proj = functools.reduce(np.dot, (Y.T, ovlp, Y))
+    sevals, sevecs = np.linalg.eigh(vec_proj)
+    if np.any(sevals < -tol):
+        raise ValueError("Negative overlap eigenvalues found in {space} space")
+    trunc_indices = np.where(sevals > tol)[0]
+    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
+    return np.matmul(Y, X)

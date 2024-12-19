@@ -1,6 +1,7 @@
 import os
 import functools
 import pickle
+from niupy.eom_tools import eigh_gen_composite
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
     print("Importing cvs_ee_eom_dsrg")
@@ -32,7 +33,7 @@ import time
 davidson = lib.linalg_helper.davidson1
 dgeev1 = lib.linalg_helper.dgeev1
 
-def kernel_full(eom_dsrg):
+def kernel_full(eom_dsrg, sequential=True):
     eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
     
     heff, ovlp = ip_eom_dsrg_full.driver(
@@ -47,10 +48,13 @@ def kernel_full(eom_dsrg):
         eom_dsrg.slices, 
         eom_dsrg.nmos,
         )
-    evals, evecs = eigh_gen(heff, ovlp, eta=1e-3)
-    return evals, evecs
 
-def kernel(eom_dsrg, x0=None):
+    singles = ['C', 'acC', 'acA', 'vcC', 'vaC', 'vcA', 'vaA', 'ACC', 'VCC', 'VCA', 'VAA']
+    composite = [['aaC', 'ACA'], ['A', 'AAA', 'aaA']]
+    eigval, eigvec = eigh_gen_composite(heff, ovlp, singles, composite, eom_dsrg.slices, eom_dsrg.tol_s, eom_dsrg.tol_semi, sequential=sequential)
+    return eigval, eigvec
+
+def kernel(eom_dsrg):
     """
     Main function that sets up the Davidson algorithm, solves it, and determines the spin multiplicity.
 
@@ -68,7 +72,7 @@ def kernel(eom_dsrg, x0=None):
     print("Setting up Davidson algorithm...", flush=True)
 
     # Setup Davidson algorithm
-    apply_M, precond, x0, nop = setup_davidson(eom_dsrg, x0=x0)
+    apply_M, precond, x0, nop = setup_davidson(eom_dsrg)
     print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
     # Davidson algorithm
     conv, e, u = davidson(
@@ -300,7 +304,7 @@ def find_top_values(data, num):
     return results
 
 
-def setup_davidson(eom_dsrg, x0=None):
+def setup_davidson(eom_dsrg):
     """
     Set up parameters and functions required for the Davidson algorithm.
 
@@ -310,7 +314,7 @@ def setup_davidson(eom_dsrg, x0=None):
     Returns:
         apply_M: Function that applies the effective Hamiltonian.
         precond: Preconditioner vector.
-        x0: Initial guess vectors.
+        guess: Initial guess vectors.
         nop: Dimension size.
     """
 
@@ -354,13 +358,12 @@ def setup_davidson(eom_dsrg, x0=None):
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
     
-    if x0 is None:
-        if eom_dsrg.guess == "singles":
-            x0 = compute_guess_vectors_from_singles(eom_dsrg, northo)
-        elif eom_dsrg.guess == "ones":
-            x0 = compute_guess_vectors(eom_dsrg, precond)
-        elif eom_dsrg.guess == "read":
-            x0 = read_guess_vectors(eom_dsrg, nop, northo)
+    if eom_dsrg.guess == "singles":
+        x0 = compute_guess_vectors_from_singles(eom_dsrg, northo)
+    elif eom_dsrg.guess == "ones":
+        x0 = compute_guess_vectors(eom_dsrg, precond)
+    elif eom_dsrg.guess == "read":
+        x0 = read_guess_vectors(eom_dsrg, nop, northo)
         
     return apply_M, precond, x0, nop
 

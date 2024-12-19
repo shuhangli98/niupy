@@ -146,10 +146,9 @@ def generator(abs_path):
     composite_space = [aac, active]
     block_list = single_space + aac + active
 
-    # Define Hbar
     Hbar_op = w.gen_op_ms0("Hbar", 1, "cav", "cav") + w.gen_op_ms0(
-        "Hbar", 2, "cav", "cav"
-    )
+            "Hbar", 2, "cav", "cav"
+        )
 
     # Template C
     index_dict = {
@@ -188,7 +187,7 @@ def generator(abs_path):
     funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize="True")  # HC
     funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize="True")  # SC
     funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
-    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space)
+    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, sequential=True)
     funct_preconditioner = generate_preconditioner(
         mbeq, {}, {}, single_space, composite_space, first_row=False
     )
