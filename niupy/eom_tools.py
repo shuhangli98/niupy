@@ -609,7 +609,7 @@ def generate_S12(mbeq, single_space, composite_space, sequential = True, ea=Fals
             [
                 f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
                 "    print(f'Symmetric: {np.allclose(vec, vec.T)}', flush = True)",
-                f"    sevals, sevecs = np.linalg.eigh(vec)",
+                f"    sevals, sevecs = scipy.linalg.eigh(vec)",
                 f"    if np.any(sevals < -tol):",
                 f'        raise ValueError("Negative overlap eigenvalues found in {space} space")',
                 f"    del vec",
