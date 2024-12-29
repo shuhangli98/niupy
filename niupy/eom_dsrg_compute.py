@@ -240,15 +240,18 @@ def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
                 hole_norm += np.linalg.norm(v)
         if hole_norm > 1e-8:
             return "Doublet"
-        pairs = []
-        cCv = current_vec_dict["cCv"][0,...]
-        CCV = current_vec_dict["CCV"][0,...]
-        ab_sum = cCv.sum()
+
+        pairs = [("cCv","CCV"),("aAa","AAA")]
+        ab_sum = 0.0
         bb_sum = 0.0
-        for i in range(CCV.shape[0]):
-            for j in range(i+1, CCV.shape[1]):
-                for a in range(CCV.shape[2]):
-                    bb_sum += CCV[i,j,a]
+        for p in pairs:
+            ab = current_vec_dict[p[0]][0,...]
+            bb = current_vec_dict[p[1]][0,...]
+            ab_sum += ab.sum()
+            for i in range(bb.shape[0]):
+                for j in range(i+1, bb.shape[1]):
+                    for a in range(bb.shape[2]):
+                        bb_sum += bb[i,j,a]
         if (abs(bb_sum) - abs(ab_sum) < 1e-8):
             return "Quartet"
         else:

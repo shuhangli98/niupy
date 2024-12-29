@@ -16,7 +16,7 @@ irrep_table = {
                "d2": {0:"A", 1:"B1", 2:"B2", 3:"B3"},
                "c2v": {0:"A1", 1:"A2", 2:"B1", 3:"B2"}, 
                "c2h": {0:"Ag", 1:"Bg", 2:"Au", 3:"Bu"},
-               "d2h": {0:"A1g", 1:"B1g", 2:"B2g", 3:"B3g", 4:"A1u", 5:"B1u", 6:"B2u", 7:"B3u"},
+               "d2h": {0:"Ag", 1:"B1g", 2:"B2g", 3:"B3g", 4:"Au", 5:"B1u", 6:"B2u", 7:"B3u"},
                }
 for v in irrep_table.values():
     v.update({"Incorrect symmetry": "Incorrect symmetry"})
