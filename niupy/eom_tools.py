@@ -112,76 +112,6 @@ def increment_index(index):
     """
     return re.sub(r"(\d+)", lambda x: str(int(x.group(0)) + 1), index)
 
-
-def get_matrix_elements(bra, op, ket, inter_general=False, double_comm=False):
-    """
-    This function calculates the matrix elements of an operator
-    between two internally contracted configurations.
-
-    This is achieved by taking the second derivative of the fully
-    contracted expression with respect to the fictitious bra and
-    ket tensor elements.
-    """
-    wt = w.WickTheorem()  # Temporary fix
-    if op is None:
-        if double_comm:
-            expr = w.commutator(bra.adjoint(), ket)
-        else:
-            expr = bra.adjoint() @ ket
-    else:
-        # This option will not be used in two virtual cases.
-        if double_comm:
-            expr = w.commutator(bra.adjoint() @ w.commutator(op, ket)) + w.commutator(
-                w.commutator(bra.adjoint(), op) @ ket
-            )
-        else:
-            expr = bra.adjoint() @ op @ ket
-    label = "S" if op is None else "H"
-    try:
-        mbeq = wt.contract(
-            expr, 0, 0, inter_general=inter_general
-        ).to_manybody_equations(label)["|"]
-    except KeyError:
-        return
-    mbeq_new = []
-    for i in mbeq:
-        eqdict = w.equation_to_dict(i)
-        newdict = {"factor": eqdict["factor"], "lhs": [label, [], []], "rhs": []}
-        lhs_indices = set()
-        rhs_indices = set()
-        for j in eqdict["rhs"]:
-            # The fictitious tensor elements are
-            # {p+ q+ s r} bra^{pq}_{rs}
-            if j[0] == "bra":
-                bra_indices = j[2][::1] + j[1]
-                lhs_indices.update(bra_indices)
-            elif j[0] == "ket":
-                ket_indices = j[1] + j[2][::1]
-                lhs_indices.update(ket_indices)
-            else:
-                newdict["rhs"].append(j)
-                rhs_indices.update(j[1] + j[2])
-
-        if len(bra_indices + ket_indices) > len(lhs_indices):
-            lhs = bra_indices + ket_indices
-            index_pool = lhs_indices | rhs_indices
-            for i in lhs_indices:
-                if lhs.count(i) == 2:
-                    test_index = increment_index(i)
-                    while True:
-                        if test_index not in index_pool:
-                            ket_indices[ket_indices.index(i)] = test_index
-                            index_pool.update([test_index])
-                            newdict["rhs"].append(["delta", [i], [test_index]])
-                            break
-                        test_index = increment_index(test_index)
-
-        newdict["lhs"][1] = ket_indices
-        newdict["lhs"][2] = bra_indices
-        mbeq_new.append(w.dict_to_equation(newdict))
-    return mbeq_new
-
-
 def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
     def _get_space(indices):
         # return 'aAaC' for input ['a4', 'A1', 'a5', 'C1']
@@ -1230,26 +1160,6 @@ def get_matrix_elements(wt, bra, op, ket, inter_general=False, double_comm=False
         newdict['lhs'][2] = bra_indices
         mbeq_new.append(w.dict_to_equation(newdict))
     return mbeq_new
-
-def op_to_index(op):
-    indices = op.split(' ')
-    if (len(indices) == 1):
-        return op
-    cre = []
-    ann = []
-    for i in indices:
-        if '+' in i:
-            cre.append(i)
-        else:
-            ann.append(i)
-    return ' '.join(cre) + ' ' + ' '.join(ann[::-1])
-
-def increment_index(index):
-    """
-    increment a sting like 'a128' to 'a129' using regex
-    """
-    return re.sub(r'(\d+)', lambda x: str(int(x.group(0)) + 1), index)
-
             
 def make_function(key, mbeq, tensor_label):
     fbra = re.sub(r'[^a-zA-Z]', '', key.split('|')[0])
@@ -1408,6 +1318,19 @@ def get_nops(ops, sizes):
             ni *= sizes[j]
         nops += ni
     return nops
+
+def op_to_index(op):
+    indices = op.split(' ')
+    if (len(indices) == 1):
+        return op
+    cre = []
+    ann = []
+    for i in indices:
+        if '+' in i:
+            cre.append(i)
+        else:
+            ann.append(i)
+    return ' '.join(cre) + ' ' + ' '.join(ann[::-1])
 
 def get_slices(ops, sizes):
     nops = get_nops(ops,sizes)
