@@ -30,6 +30,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     
     # # These blocks are computed with the commutator trick.
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
+    print('Commutator trick:', s_comm)
 
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)

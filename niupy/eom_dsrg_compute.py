@@ -1,5 +1,7 @@
 import os
 import functools
+import pickle
+from niupy.eom_tools import eigh_gen_composite
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
     print("Importing cvs_ee_eom_dsrg")
@@ -13,6 +15,9 @@ if os.path.exists("ee_eom_dsrg.py"):
 if os.path.exists("ip_eom_dsrg.py"):
     print("Importing ip_eom_dsrg")
     import ip_eom_dsrg
+if os.path.exists("ip_eom_dsrg_full.py"):
+    print("Importing ip_eom_dsrg_full")
+    import ip_eom_dsrg_full
 import numpy as np
 import copy
 from niupy.eom_tools import (
@@ -28,6 +33,26 @@ import time
 davidson = lib.linalg_helper.davidson1
 dgeev1 = lib.linalg_helper.dgeev1
 
+def kernel_full(eom_dsrg, sequential=True):
+    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
+    
+    heff, ovlp = ip_eom_dsrg_full.driver(
+        eom_dsrg.Hbar, 
+        eom_dsrg.delta, 
+        eom_dsrg.gamma1, 
+        eom_dsrg.eta1, 
+        eom_dsrg.lambda2, 
+        eom_dsrg.lambda3, 
+        eom_dsrg.lambda4, 
+        eom_dsrg.nops, 
+        eom_dsrg.slices, 
+        eom_dsrg.nmos,
+        )
+
+    singles = ['C', 'acC', 'acA', 'vcC', 'vaC', 'vcA', 'vaA', 'ACC', 'VCC', 'VCA', 'VAA']
+    composite = [['aaC', 'ACA'], ['A', 'AAA', 'aaA']]
+    eigval, eigvec = eigh_gen_composite(heff, ovlp, singles, composite, eom_dsrg.slices, eom_dsrg.tol_s, eom_dsrg.tol_semi, sequential=sequential)
+    return eigval, eigvec
 
 def kernel(eom_dsrg):
     """
@@ -62,8 +87,25 @@ def kernel(eom_dsrg):
         tol_residual=eom_dsrg.tol_davidson,
     )
 
+    return conv, e, u, nop
+
+def post_process(eom_dsrg, e, eigvec, eigvec_dict):
     # Get spin multiplicity and process eigenvectors
-    spin, eigvec, symmetry = get_information(eom_dsrg, u, nop)
+    excitation_analysis = find_top_values(eigvec_dict, 3)
+    for key, values in excitation_analysis.items():
+        print(f"Root {key}: {values}")
+
+    spin = []
+    symmetry = []
+
+    for i_idx in range(eom_dsrg.nroots):
+        current_vec = eigvec[:, i_idx]
+        current_vec_dict = vec_to_dict(
+            eom_dsrg.full_template_c, current_vec.reshape(-1, 1)
+        )
+
+        spin.append(assign_spin_multiplicity(eom_dsrg, current_vec_dict))
+        symmetry.append(assign_spatial_symmetry(eom_dsrg, current_vec))
 
     del eom_dsrg.Hbar
 
@@ -78,15 +120,17 @@ def kernel(eom_dsrg):
 
         # Compute oscillator strengths
         spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
-    elif eom_dsrg.method_type in ["ip", "cvs_ip"]:
+    elif "ip" in eom_dsrg.method_type:
         spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
-
-    return conv, e, eigvec, spin, symmetry, spec_info
+    
+    return spin, symmetry, spec_info
 
 def compute_spectroscopic_factors(eom_dsrg, eigvec):
-    assert eom_dsrg.method_type in ["ip", "cvs_ip"]
+    assert "ip" in eom_dsrg.method_type
     if eom_dsrg.method_type == "ip":
         p_compute = ip_eom_dsrg.build_sigma_vector_p
+    elif eom_dsrg.method_type == "ip_full":
+        p_compute = ip_eom_dsrg_full.build_sigma_vector_p
     elif eom_dsrg.method_type == "cvs_ip":
         p_compute = cvs_ip_eom_dsrg.build_sigma_vector_p
     p = np.zeros(eigvec.shape[1])
@@ -163,46 +207,15 @@ def calculate_norms(current_vec_dict):
 
     return subtraction_norms, addition_norms
 
-
-def get_information(eom_dsrg, u, nop, ea=False):
-    """
-    Process vectors to classify their spin multiplicities.
-
-    Parameters:
-        eom_dsrg: Object with a full_template_c attribute, used for vector processing.
-        u: List of eigenvectors.
-        nop: Operation parameter.
-
-    Returns:
-        spin (list): List of spin classifications ("Singlet", "Triplet", or "Incorrect spin").
-        eigvec (np.ndarray): Processed eigenvectors.
-    """
-
+def get_original_basis_evecs(eom_dsrg, u, nop, ea=False):
     eigvec = np.array(
         [eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]
     ).T
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec), ea=ea)
-
-    excitation_analysis = find_top_values(eigvec_dict, 3)
-    for key, values in excitation_analysis.items():
-        print(f"Root {key}: {values}")
-
     eigvec = dict_to_vec(eigvec_dict, len(u))
 
-    spin = []
-    symmetry = []
-
-    for i_idx in range(len(u)):
-        current_vec = eigvec[:, i_idx]
-        current_vec_dict = vec_to_dict(
-            eom_dsrg.full_template_c, current_vec.reshape(-1, 1)
-        )
-
-        spin.append(assign_spin_multiplicity(eom_dsrg, current_vec_dict))
-        symmetry.append(assign_spatial_symmetry(eom_dsrg, current_vec))
+    return eigvec, eigvec_dict
     
-    return spin, eigvec, symmetry
-
 def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
     if "ee" in eom_dsrg.method_type:
         subtraction_norms, addition_norms = calculate_norms(current_vec_dict)
@@ -227,14 +240,18 @@ def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
                 hole_norm += np.linalg.norm(v)
         if hole_norm > 1e-8:
             return "Doublet"
-        cCv = current_vec_dict["cCv"][0,...]
-        CCV = current_vec_dict["CCV"][0,...]
-        ab_sum = cCv.sum()
+
+        pairs = [("cCv","CCV"),("aAa","AAA")]
+        ab_sum = 0.0
         bb_sum = 0.0
-        for i in range(CCV.shape[0]):
-            for j in range(i+1, CCV.shape[1]):
-                for a in range(CCV.shape[2]):
-                    bb_sum += CCV[i,j,a]
+        for p in pairs:
+            ab = current_vec_dict[p[0]][0,...]
+            bb = current_vec_dict[p[1]][0,...]
+            ab_sum += ab.sum()
+            for i in range(bb.shape[0]):
+                for j in range(i+1, bb.shape[1]):
+                    for a in range(bb.shape[2]):
+                        bb_sum += bb[i,j,a]
         if (abs(bb_sum) - abs(ab_sum) < 1e-8):
             return "Quartet"
         else:
@@ -300,7 +317,7 @@ def setup_davidson(eom_dsrg):
     Returns:
         apply_M: Function that applies the effective Hamiltonian.
         precond: Preconditioner vector.
-        x0: Initial guess vectors.
+        guess: Initial guess vectors.
         nop: Dimension size.
     """
 
@@ -348,6 +365,8 @@ def setup_davidson(eom_dsrg):
         x0 = compute_guess_vectors_from_singles(eom_dsrg, northo)
     elif eom_dsrg.guess == "ones":
         x0 = compute_guess_vectors(eom_dsrg, precond)
+    elif eom_dsrg.guess == "read":
+        x0 = read_guess_vectors(eom_dsrg, nop, northo)
         
     return apply_M, precond, x0, nop
 
@@ -388,6 +407,36 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
     XHXt = XHXt.flatten()
     return XHXt
 
+def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
+    print("Reading guess vectors...", flush=True)
+    singles = pickle.load(open(f"{eom_dsrg.abs_file_path}/singles.pkl", "rb"))
+    x0s = []
+    
+    print("Projecting guess vectors...", flush=True)
+    for i in range(eom_dsrg.nroots):
+        x0 = np.zeros((nops, 1))
+        x0 = vec_to_dict(eom_dsrg.full_template_c, x0)
+        for k, v in singles.items():
+            x0[k] = (v[i,...])[np.newaxis,...]
+        HX0_dict = eom_dsrg.build_H(
+            eom_dsrg.einsum,
+            x0,
+            eom_dsrg.Hbar,
+            eom_dsrg.gamma1,
+            eom_dsrg.eta1,
+            eom_dsrg.lambda2,
+            eom_dsrg.lambda3,
+            eom_dsrg.lambda4,
+            eom_dsrg.first_row,
+        )
+
+        HX0_dict = antisymmetrize(HX0_dict, ea=ea)
+        HX0 = dict_to_vec(HX0_dict, 1).flatten()
+        XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HX0, transpose=True)
+        XHXt = XHXt.flatten()
+        x0s.append(XHXt)
+
+    return x0s
 
 def compute_guess_vectors(eom_dsrg, precond, ascending=True):
     """
@@ -497,6 +546,7 @@ def get_templates(eom_dsrg, nlow = 1):
             else None
         ),
         "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
+        "ip_full": ip_eom_dsrg_full.get_template_c if os.path.exists("ip_eom_dsrg_full.py") else None,
         # Additional mappings for other methods can be added here
     }
 
@@ -521,6 +571,8 @@ def get_templates(eom_dsrg, nlow = 1):
 
 def get_sigma_build(eom_dsrg):
     """Get the appropriate sigma build functions based on the method type."""
+    if "full" in eom_dsrg.method_type:
+        return (NotImplemented,) * 7
     # Dictionary mapping method types to the appropriate sigma build functions
     sigma_funcs = {
         "ee": ee_eom_dsrg if os.path.exists("ee_eom_dsrg.py") else None,
@@ -543,8 +595,8 @@ def get_sigma_build(eom_dsrg):
     get_S12 = sigma_module.get_S12
     apply_S12 = sigma_module.apply_S12
     compute_preconditioner = sigma_module.compute_preconditioner
-    build_sigma_vector_Hbar_singles = sigma_module.build_sigma_vector_Hbar_singles
-    build_sigma_vector_s_singles = sigma_module.build_sigma_vector_s_singles
+    # build_sigma_vector_Hbar_singles = sigma_module.build_sigma_vector_Hbar_singles
+    # build_sigma_vector_s_singles = sigma_module.build_sigma_vector_s_singles
 
     return (
         build_first_row,
@@ -554,6 +606,6 @@ def get_sigma_build(eom_dsrg):
         get_S12,
         apply_S12,
         compute_preconditioner,
-        build_sigma_vector_Hbar_singles,
-        build_sigma_vector_s_singles,
+        # build_sigma_vector_Hbar_singles,
+        # build_sigma_vector_s_singles,
     )
