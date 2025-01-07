@@ -73,7 +73,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
             char.islower() for char in i
         )
         label = op_to_tensor_label(i)
-        mbeqs_one_active_two_virtual[label] = get_matrix_elements(bra, Hbar_op, ket, inter_general=inter_general, double_comm=False)
+        mbeqs_one_active_two_virtual[label] = get_matrix_elements(wt, bra, Hbar_op, ket, inter_general=inter_general, double_comm=False)
     for i in no_active:
         bra = w.op("bra", [i])
         ket = w.op("ket", [i])
@@ -81,7 +81,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
             char.islower() for char in i
         )
         label = op_to_tensor_label(i)
-        mbeqs_no_active[label] = get_matrix_elements(bra, Hbar_op, ket, inter_general=inter_general, double_comm=False)
+        mbeqs_no_active[label] = get_matrix_elements(wt, bra, Hbar_op, ket, inter_general=inter_general, double_comm=False)
 
     # Define subspaces. Single first!
     S_half_0 = [
