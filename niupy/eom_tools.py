@@ -37,17 +37,22 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
     if d["rhs"][ket_idx][1] == "aAa":
         factor *= np.sqrt(2)
         
-    if len(d["rhs"][bra_idx][1]) == 4 and d["rhs"][bra_idx][1][0].islower() and d["rhs"][bra_idx][1][1].isupper():
-        if d["rhs"][bra_idx][1][0].lower() == d["rhs"][bra_idx][1][1].lower():
-            factor *= np.sqrt(2)
-        if d["rhs"][bra_idx][1][2].lower() == d["rhs"][bra_idx][1][3].lower():
-            factor *= np.sqrt(2)
+    # This is for cvs_ee
+    bra_key = d["rhs"][bra_idx][1]
+    ket_key = d["rhs"][ket_idx][1]
+    if len(bra_key) == 4 and bra_key[0].islower() and bra_key[1].isupper():
+        if (bra_key.count('a') + bra_key.count('A') > 0):
+            if bra_key[0].lower() == bra_key[1].lower():
+                factor *= np.sqrt(2)
+            if bra_key[2].lower() == bra_key[3].lower():
+                factor *= np.sqrt(2)
             
-    if len(d["rhs"][ket_idx][1]) == 4 and d["rhs"][ket_idx][1][0].islower() and d["rhs"][ket_idx][1][1].isupper():
-        if d["rhs"][ket_idx][1][0].lower() == d["rhs"][ket_idx][1][1].lower():
-            factor *= np.sqrt(2)
-        if d["rhs"][ket_idx][1][2].lower() == d["rhs"][ket_idx][1][3].lower():
-            factor *= np.sqrt(2)
+    if len(ket_key) == 4 and ket_key[0].islower() and ket_key[1].isupper():
+        if (ket_key.count('a') + ket_key.count('A') > 0):
+            if ket_key[0].lower() == ket_key[1].lower():
+                factor *= np.sqrt(2)
+            if ket_key[2].lower() == ket_key[3].lower():
+                factor *= np.sqrt(2)
 
     d["factor"] = float(d["factor"]) * factor
     d["rhs"][ket_idx][2] = "p" + d["rhs"][ket_idx][2]
@@ -71,18 +76,30 @@ def compile_sigma_vector_singles(equation, bra_name="bra", ket_name="c", optimiz
     
     bra = d["rhs"][bra_idx][1]
     ket = d["rhs"][ket_idx][1]
-    if (bra.count('v') + bra.count('V') < 1) or len(bra) == 2:
+    if len(bra) == 2:
         bra_true = True
-    if (ket.count('v') + ket.count('V') < 1) or len(ket) == 2:
+    if len(ket) == 2:
         ket_true = True
     if bra_true and ket_true:
         return compile_sigma_vector(equation, bra_name=bra_name, ket_name=ket_name, optimize=optimize)
 
 def compile_first_row(equation, ket_name="c", optimize="True"):
+    factor = 1.0
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
     for idx, t in enumerate(d["rhs"]):
         if t[0] == ket_name:
             ket_idx = idx
+    
+    # This is for cvs_ee
+    ket_key = d["rhs"][ket_idx][1]
+    if len(ket_key) == 4 and ket_key[0].islower() and ket_key[1].isupper():
+        if (ket_key.count('a') + ket_key.count('A') > 0):
+            if ket_key[0].lower() == ket_key[1].lower():
+                factor *= np.sqrt(2)
+            if ket_key[2].lower() == ket_key[3].lower():
+                factor *= np.sqrt(2)
+                
+    d["factor"] = float(d["factor"]) * factor    
     ket = d["rhs"].pop(ket_idx)
     ket[0] = "sigma"
     d["lhs"] = [ket]
@@ -166,11 +183,33 @@ def get_matrix_elements(bra, op, ket, inter_general=False, double_comm=False):
 
 
 def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
+    def _get_space(indices):
+        # return 'aAaC' for input ['a4', 'A1', 'a5', 'C1']
+        return "".join([i[0] for i in indices])
     indent_spaces = {"once": "    ", "twice": "        "}
     space = indent_spaces.get(indent, "    ")
     einsums = []
     for eq in mbeq:
         eqdict = w.equation_to_dict(eq)
+        
+        factor_scaled = float(eqdict["factor"])
+        bra = _get_space(eqdict["lhs"][1])
+        ket = _get_space(eqdict["lhs"][2])
+        if len(bra) == 4 and bra.count('a')+bra.count('A') > 0:
+            if bra[0].islower() and bra[1].isupper():
+                if bra[0].lower() == bra[1].lower():
+                    factor_scaled *= np.sqrt(2)
+            if bra[2].islower() and bra[3].isupper():
+                if bra[2].lower() == bra[3].lower():
+                    factor_scaled *= np.sqrt(2)
+        if len(ket) == 4 and ket.count('a')+ket.count('A') > 0:
+            if ket[0].islower() and ket[1].isupper():
+                if ket[0].lower() == ket[1].lower():
+                    factor_scaled *= np.sqrt(2)
+            if ket[2].islower() and ket[3].isupper():
+                if ket[2].lower() == ket[3].lower():
+                    factor_scaled *= np.sqrt(2)
+
         eqdict_new = {
             "factor": eqdict["factor"],
             "lhs": [eqdict["lhs"][0], [], []],
@@ -199,7 +238,9 @@ def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
 
         einsum = w.compile_einsum(w.dict_to_equation(eqdict_new), optimize="True")
         lhs = einsum.split(" +=")[0]
+        factor = einsum.split(" += ")[1].split(" * ")[0]
         einsum = einsum.replace(lhs, lhs[0])
+        einsum = einsum.replace(factor, f"{factor_scaled:.8f}")
         einsums.append(f"{space}{einsum}")
 
     func = "\n".join(einsums)
@@ -238,7 +279,7 @@ def generate_sigma_build(mbeq, matrix, first_row=True, optimize="True"):
 def generate_sigma_build_singles(mbeq, matrix, optimize="True"):
     code = [
         f"def build_sigma_vector_{matrix}_singles(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
-        "    sigma = {key: np.zeros(c[key].shape) for key in c.keys() if (key.count('v') + key.count('V') < 1) or len(key) == 2}",
+        "    sigma = {key: np.zeros(c[key].shape) for key in c.keys() if len(key) == 2 or key == 'first'}",
     ]
 
     for eq in mbeq["|"]:
@@ -282,14 +323,26 @@ def generate_first_row(mbeq, optimize="True"):
     return funct
 
 
-def generate_transition_dipole(mbeq, optimize="True"): 
+def generate_transition_dipole(mbeq, ket_name='c',optimize="True"): 
     code = [
         f"def build_transition_dipole(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = 0.0",
     ]
     for eq in mbeq["|"]:
-        code.append(f"    {w.compile_einsum(eq, optimize=optimize)}")
-
+        factor = 1.0
+        _, d = w.compile_einsum(eq, return_eq_dict=True)
+        for idx, t in enumerate(d["rhs"]):
+            if t[0] == ket_name:
+                ket_idx = idx
+        ket_key = d["rhs"][ket_idx][1]
+        if len(ket_key) == 4 and ket_key[0].islower() and ket_key[1].isupper():
+            if (ket_key.count('a') + ket_key.count('A') > 0):
+                if ket_key[0].lower() == ket_key[1].lower():
+                    factor *= np.sqrt(2)
+                if ket_key[2].lower() == ket_key[3].lower():
+                    factor *= np.sqrt(2)
+        d["factor"] = float(d["factor"]) * factor 
+        code.append(f"    {w.dict_to_einsum(d, optimize=optimize)}")
     code.append("    return sigma")
     funct = "\n".join(code)
     return funct
@@ -416,11 +469,15 @@ def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True)
             anti = True
         else:
             anti = False
+            
+        scale = False
+        if key[2].islower() and key[3].isupper():
+            scale = True
 
         code_block.extend(
             [
                 f"    anti = {anti}",
-                f"    ge, gv = np.linalg.eigh({temp_rdm})",
+                f"    ge, gv = np.linalg.eigh({temp_rdm} *2 if {scale} else {temp_rdm})",
                 f"    if np.any(ge < -tol):",
                 f"        raise ValueError('Negative overlap eigenvalues found in {key} block')",
                 f"    trunc_indices = np.where(ge > tol)[0]",
@@ -551,7 +608,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True)
             [
                 f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
                 "    print(f'Symmetric: {np.allclose(vec, vec.T)}', flush = True)",
-                f"    sevals, sevecs = np.linalg.eigh(vec)",
+                f"    sevals, sevecs = scipy.linalg.eigh(vec)",
                 f"    if np.any(sevals < -tol):",
                 f'        raise ValueError("Negative overlap eigenvalues found in {space} space")',
                 f"    del vec",
