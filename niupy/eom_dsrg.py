@@ -72,6 +72,14 @@ class EOM_DSRG:
                           'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
         elif method_type == "cvs_ip":
             cvs_ip.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
+        elif method_type == "cvs_ip_full":
+            self.ops = cvs_ip.generator_full_hbar(self.abs_file_path)
+            self.nmos = {'i': self.ncore, 'c': self.nocc, 'a': self.nact, 'v': self.nvir,
+                         'I': self.ncore, 'C': self.nocc, 'A': self.nact, 'V': self.nvir}
+            self.nops, self.slices = get_slices(self.ops, self.nmos)
+            print(self.slices.keys())
+            self.delta = {'ii':np.eye(self.nmos['i']), 'cc':np.eye(self.nmos['c']), 'vv':np.eye(self.nmos['v']),
+                          'II':np.eye(self.nmos['I']),'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
@@ -149,7 +157,7 @@ class EOM_DSRG:
             self._set_default_symmetry(method_type)
 
     def _set_default_symmetry(self, method_type):
-        if method_type == "cvs_ee" or method_type == "cvs_ip":
+        if method_type == "cvs_ee" or "cvs_ip" in method_type:
             print("Running H2O/6-31g since no wfn and mo_spaces are provided.")
             # 6-31g
             self.point_group = "c2v"

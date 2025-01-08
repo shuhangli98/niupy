@@ -9,6 +9,9 @@ if os.path.exists("cvs_ee_eom_dsrg.py"):
 if os.path.exists("cvs_ip_eom_dsrg.py"):
     print("Importing cvs_ip_eom_dsrg")
     import cvs_ip_eom_dsrg
+if os.path.exists("cvs_ip_eom_dsrg_full.py"):
+    print("Importing cvs_ip_eom_dsrg_full")
+    import cvs_ip_eom_dsrg_full
 if os.path.exists("ee_eom_dsrg.py"):
     print("Importing ee_eom_dsrg")
     import ee_eom_dsrg
@@ -36,7 +39,17 @@ dgeev1 = lib.linalg_helper.dgeev1
 def kernel_full(eom_dsrg, sequential=True):
     eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
     
-    heff, ovlp = ip_eom_dsrg_full.driver(
+    if "cvs" in eom_dsrg.method_type:
+        eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
+        driver = cvs_ip_eom_dsrg_full.driver
+        singles = ["I", "aiC", "acI", "aiI", "aiA", "viC", "vcI","viI", "vaI", "viA", "AIC","AII", "VIC","VII","VIA"]
+        composite = [["aaI", "AIA"]]
+    else:
+        driver = ip_eom_dsrg_full.driver
+        singles = ['C', 'acC', 'acA', 'vcC', 'vaC', 'vcA', 'vaA', 'ACC', 'VCC', 'VCA', 'VAA']
+        composite = [['aaC', 'ACA'], ['A', 'AAA', 'aaA']]
+    
+    heff, ovlp = driver(
         eom_dsrg.Hbar, 
         eom_dsrg.delta, 
         eom_dsrg.gamma1, 
@@ -48,9 +61,7 @@ def kernel_full(eom_dsrg, sequential=True):
         eom_dsrg.slices, 
         eom_dsrg.nmos,
         )
-
-    singles = ['C', 'acC', 'acA', 'vcC', 'vaC', 'vcA', 'vaA', 'ACC', 'VCC', 'VCA', 'VAA']
-    composite = [['aaC', 'ACA'], ['A', 'AAA', 'aaA']]
+    
     eigval, eigvec = eigh_gen_composite(heff, ovlp, singles, composite, eom_dsrg.slices, eom_dsrg.tol_s, eom_dsrg.tol_semi, sequential=sequential)
     return eigval, eigvec
 
@@ -127,6 +138,8 @@ def compute_spectroscopic_factors(eom_dsrg, eigvec):
         p_compute = ip_eom_dsrg_full.build_sigma_vector_p
     elif eom_dsrg.method_type == "cvs_ip":
         p_compute = cvs_ip_eom_dsrg.build_sigma_vector_p
+    elif eom_dsrg.method_type == "cvs_ip_full":
+        p_compute = cvs_ip_eom_dsrg_full.build_sigma_vector_p
     p = np.zeros(eigvec.shape[1])
     for i in range(eigvec.shape[1]):
         current_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec[:, i].reshape(-1, 1))
@@ -229,7 +242,7 @@ def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
         if hole_norm > 1e-8:
             return "Doublet"
 
-        pairs = [("iCa", "ICA"), ("iAa", "IAA"), ("iAv","IAV")] if eom_dsrg.method_type == "cvs_ip" else [("cCv","CCV"),("aAa","AAA")]
+        pairs = [("iCa", "ICA"), ("iAa", "IAA"), ("iAv","IAV")] if "cvs_ip" in eom_dsrg.method_type else [("cCv","CCV"),("aAa","AAA")]
         ab_sum = 0.0
         bb_sum = 0.0
         for p in pairs:
@@ -523,8 +536,9 @@ def get_templates(eom_dsrg, nlow = 1):
     # Dictionary mapping method types to the appropriate template functions
     template_funcs = {
         "ee": ee_eom_dsrg.get_template_c if os.path.exists("ee_eom_dsrg.py") else None,
-        "cvs_ee": (cvs_ee_eom_dsrg.get_template_c if os.path.exists("cvs_ee_eom_dsrg.py") else None),
-        "cvs_ip": (cvs_ip_eom_dsrg.get_template_c if os.path.exists("cvs_ip_eom_dsrg.py") else None),
+        "cvs_ee": cvs_ee_eom_dsrg.get_template_c if os.path.exists("cvs_ee_eom_dsrg.py") else None,
+        "cvs_ip": cvs_ip_eom_dsrg.get_template_c if os.path.exists("cvs_ip_eom_dsrg.py") else None,
+        "cvs_ip_full": cvs_ip_eom_dsrg_full.get_template_c if os.path.exists("cvs_ip_eom_dsrg_full.py") else None,
         "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
         "ip_full": ip_eom_dsrg_full.get_template_c if os.path.exists("ip_eom_dsrg_full.py") else None,
         # Additional mappings for other methods can be added here
