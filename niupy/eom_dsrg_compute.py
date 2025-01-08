@@ -229,7 +229,7 @@ def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
         if hole_norm > 1e-8:
             return "Doublet"
 
-        pairs = [("iCa", "ICA"), ("iAa", "IAA")] if eom_dsrg.method_type == "cvs_ip" else [("cCv","CCV"),("aAa","AAA")]
+        pairs = [("iCa", "ICA"), ("iAa", "IAA"), ("iAv","IAV")] if eom_dsrg.method_type == "cvs_ip" else [("cCv","CCV"),("aAa","AAA")]
         ab_sum = 0.0
         bb_sum = 0.0
         for p in pairs:
