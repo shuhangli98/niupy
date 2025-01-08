@@ -188,9 +188,7 @@ def generator(abs_path):
     funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize="True")  # SC
     funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
     funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, sequential=True)
-    funct_preconditioner = generate_preconditioner(
-        mbeq, {}, {}, single_space, composite_space, first_row=False
-    )
+    funct_preconditioner = generate_preconditioner(mbeq, {}, {}, single_space, composite_space, first_row=False)
     funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=False)
 
     # abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

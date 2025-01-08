@@ -100,10 +100,7 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict):
 
     for i_idx in range(eom_dsrg.nroots):
         current_vec = eigvec[:, i_idx]
-        current_vec_dict = vec_to_dict(
-            eom_dsrg.full_template_c, current_vec.reshape(-1, 1)
-        )
-
+        current_vec_dict = vec_to_dict(eom_dsrg.full_template_c, current_vec.reshape(-1, 1))
         spin.append(assign_spin_multiplicity(eom_dsrg, current_vec_dict))
         symmetry.append(assign_spatial_symmetry(eom_dsrg, current_vec))
 
@@ -114,10 +111,7 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict):
 
     if eom_dsrg.build_transition_dipole is not NotImplemented:
         # Optimize slicing by vectorizing
-        eom_dsrg.Mbar = [
-            slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar
-        ]
-
+        eom_dsrg.Mbar = [slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar]
         # Compute oscillator strengths
         spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
     elif "ip" in eom_dsrg.method_type:
@@ -208,9 +202,7 @@ def calculate_norms(current_vec_dict):
     return subtraction_norms, addition_norms
 
 def get_original_basis_evecs(eom_dsrg, u, nop, ea=False):
-    eigvec = np.array(
-        [eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]
-    ).T
+    eigvec = np.array([eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]).T
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec), ea=ea)
     eigvec = dict_to_vec(eigvec_dict, len(u))
 
@@ -221,12 +213,8 @@ def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
         subtraction_norms, addition_norms = calculate_norms(current_vec_dict)
 
         # Check spin classification based on calculated norms
-        minus = all(
-            norm < 1e-2 for norm in subtraction_norms
-        )  # The parent state is assumed to be singlet.
-        plus = all(norm < 1e-2 for norm in addition_norms) and not all(
-            norm < 1e-2 for norm in subtraction_norms
-        )
+        minus = all(norm < 1e-2 for norm in subtraction_norms)  # The parent state is assumed to be singlet.
+        plus = all(norm < 1e-2 for norm in addition_norms) and not all(norm < 1e-2 for norm in subtraction_norms)
         if plus:
             return "Triplet"
         elif minus:
@@ -241,7 +229,7 @@ def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
         if hole_norm > 1e-8:
             return "Doublet"
 
-        pairs = [("cCv","CCV"),("aAa","AAA")]
+        pairs = [("iCa", "ICA"), ("iAa", "IAA")] if eom_dsrg.method_type == "cvs_ip" else [("cCv","CCV"),("aAa","AAA")]
         ab_sum = 0.0
         bb_sum = 0.0
         for p in pairs:
@@ -535,16 +523,8 @@ def get_templates(eom_dsrg, nlow = 1):
     # Dictionary mapping method types to the appropriate template functions
     template_funcs = {
         "ee": ee_eom_dsrg.get_template_c if os.path.exists("ee_eom_dsrg.py") else None,
-        "cvs_ee": (
-            cvs_ee_eom_dsrg.get_template_c
-            if os.path.exists("cvs_ee_eom_dsrg.py")
-            else None
-        ),
-        "cvs_ip": (
-            cvs_ip_eom_dsrg.get_template_c
-            if os.path.exists("cvs_ip_eom_dsrg.py")
-            else None
-        ),
+        "cvs_ee": (cvs_ee_eom_dsrg.get_template_c if os.path.exists("cvs_ee_eom_dsrg.py") else None),
+        "cvs_ip": (cvs_ip_eom_dsrg.get_template_c if os.path.exists("cvs_ip_eom_dsrg.py") else None),
         "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
         "ip_full": ip_eom_dsrg_full.get_template_c if os.path.exists("ip_eom_dsrg_full.py") else None,
         # Additional mappings for other methods can be added here
@@ -556,9 +536,7 @@ def get_templates(eom_dsrg, nlow = 1):
         raise ValueError(f"Invalid method type: {eom_dsrg.method_type}")
 
     # Generate the template with the specified parameters
-    template = template_func(
-        nlow, eom_dsrg.ncore, eom_dsrg.nocc, eom_dsrg.nact, eom_dsrg.nvir
-    )
+    template = template_func(nlow, eom_dsrg.ncore, eom_dsrg.nocc, eom_dsrg.nact, eom_dsrg.nvir)
 
     # Create a deep copy of the template and adjust its structure
     full_template = copy.deepcopy(template)

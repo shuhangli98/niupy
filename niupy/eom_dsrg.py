@@ -21,16 +21,19 @@ class EOM_DSRG:
         self.verbose = kwargs.get("verbose", 5)
         self.diagonal_type = kwargs.get("diagonal_type", "compute")
         self.ref_sym = kwargs.get("ref_sym", 0)
+        
         if self.ref_sym != 0:
             raise NotImplementedError("Reference symmetry other than 0 is not implemented.")
 
         opt_einsum = kwargs.get("opt_einsum", True)
         mo_spaces = kwargs.get("mo_spaces", None)
         
-        if self.method_type == "cvs_ee":
-            self.guess = kwargs.get("guess", "singles")
-        else:
-            self.guess = kwargs.get("guess", "ones")
+        self.guess = kwargs.get("guess", "ones")
+        
+        # if self.method_type == "cvs_ee":
+        #     self.guess = kwargs.get("guess", "singles")
+        # else:
+        #     self.guess = kwargs.get("guess", "ones")
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
@@ -78,11 +81,7 @@ class EOM_DSRG:
 
             self.einsum = contract
             
-            subprocess.run(
-            [
-                "sed", "-i", "-e","s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g", os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
-            ]
-            )
+            subprocess.run(["sed", "-i", "-e","s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g", os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),])
             
         else:
             self.einsum = np.einsum
