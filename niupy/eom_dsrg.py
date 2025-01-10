@@ -58,15 +58,13 @@ class EOM_DSRG:
         if method_type == "cvs_ee":
             cvs_ee.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         elif method_type == "ip":
-            ip.generator(self.abs_file_path)
-        elif method_type == "ip_full":
-            self.ops = ip.generator_full_hbar(self.abs_file_path)
+            self.ops, self.single_space, self.composite_space = ip.generator_full(self.abs_file_path)
             self.nmos = {'i': self.ncore, 'c': self.nocc, 'a': self.nact, 'v': self.nvir,
                          'I': self.ncore, 'C': self.nocc, 'A': self.nact, 'V': self.nvir}
             self.nops, self.slices = get_slices(self.ops, self.nmos)
-            print(self.slices.keys())
             self.delta = {'cc':np.eye(self.nmos['c']), 'vv':np.eye(self.nmos['v']),
                           'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
+            ip.generator(self.abs_file_path)            
         elif method_type == "cvs_ip":
             cvs_ip.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         else:
@@ -234,7 +232,8 @@ class EOM_DSRG:
         return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
     def kernel_full(self):
-        assert "full" in self.method_type, "The full kernel is only supported for methods ending with '_full'."
+        _available_methods = ["ip"]
+        assert self.method_type in _available_methods, f"Full EOM-DSRG is only supported for {_available_methods}."
         evals, evecs = self.eom_dsrg_compute.kernel_full(self)
         eigvec_dict = full_vec_to_dict(self.full_template_c, self.slices, evecs[:, :self.nroots], self.nmos)
         eigvec = dict_to_vec(eigvec_dict, self.nroots)

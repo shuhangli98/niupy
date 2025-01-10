@@ -1,7 +1,7 @@
 import os
 import functools
 import pickle
-from niupy.eom_tools import eigh_gen_composite
+from niupy.eom_tools import eigh_gen_composite, tensor_label_to_full_tensor_label
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
     print("Importing cvs_ee_eom_dsrg")
@@ -49,8 +49,8 @@ def kernel_full(eom_dsrg, sequential=True):
         eom_dsrg.nmos,
         )
 
-    singles = ['C', 'acC', 'acA', 'vcC', 'vaC', 'vcA', 'vaA', 'ACC', 'VCC', 'VCA', 'VAA']
-    composite = [['aaC', 'ACA'], ['A', 'AAA', 'aaA']]
+    singles = [tensor_label_to_full_tensor_label(_) for _ in eom_dsrg.single_space]
+    composite = [[tensor_label_to_full_tensor_label(_) for _ in __] for __ in eom_dsrg.composite_space]
     eigval, eigvec = eigh_gen_composite(heff, ovlp, singles, composite, eom_dsrg.slices, eom_dsrg.tol_s, eom_dsrg.tol_semi, sequential=sequential)
     return eigval, eigvec
 
