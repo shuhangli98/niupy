@@ -83,7 +83,7 @@ def generator_full(abs_path, blocked_ortho=True):
             if v: f.write(make_function(k, v, 'S')+ '\n')
     return ops, single_space, composite_space
 
-def generator(abs_path, blocked_ortho=True):
+def generator(abs_path, sequential_ortho=True, blocked_ortho=True):
     w.reset_space()
     # alpha
     w.add_space("c", "fermion", "occupied", list("klmn"))
@@ -170,7 +170,7 @@ def generator(abs_path, blocked_ortho=True):
     funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize="True")  # HC
     funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize="True")  # SC
     funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
-    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, sequential=True)
+    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, sequential=sequential_ortho)
     funct_preconditioner = generate_preconditioner(
         mbeq, {}, {}, single_space, composite_space, first_row=False
     )

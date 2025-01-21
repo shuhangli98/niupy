@@ -24,6 +24,10 @@ for v in irrep_table.values():
 
 def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"):
     def _isab(key):
+        """
+        Checks if a string of eithr creation or annihilation operators
+        is of the form 'pQ' where at least one of the operators is active
+        """
         if len(key) == 2 and ('a' in key or 'A' in key):
             if key[0].islower() and key[1].isupper():
                 return key[0].upper() == key[1]
@@ -596,20 +600,23 @@ def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True)
 
     # Add single space code blocks
     for key in single_space:
-        if (
-            len(key) == 4
-            and key[2] in ["v", "V"]
-            and key[3] in ["v", "V"]
-            and (key[0] in ["a", "A"] or key[1] in ["a", "A"])
-        ):
-            if not (key[0] in ["a", "A"] and key[1] in ["a", "A"]):
-                # One active, two virtual
-                code.extend(one_active_two_virtual(key))
-            # else:
-            #     # Two active, two virtual
-            #     code.extend(two_active_two_virtual(key))
-        elif "a" not in key and "A" not in key and len(key) == 4:
-            code.extend(no_active(key))
+        # 2h2p operators need various optimizations due to their size
+        if len(key) == 4: 
+            if (
+                key[2] in ["v", "V"]
+                and key[3] in ["v", "V"]
+                and (key[0] in ["a", "A"] or key[1] in ["a", "A"])
+            ):
+                if not (key[0] in ["a", "A"] and key[1] in ["a", "A"]):
+                    # One active, two virtual
+                    code.extend(one_active_two_virtual(key))
+                # else:
+                #     # Two active, two virtual
+                #     code.extend(two_active_two_virtual(key))
+            elif "a" not in key and "A" not in key:
+                code.extend(no_active(key))
+            else:
+                code.extend(add_single_space_code(key))
         else:
             code.extend(add_single_space_code(key))
         code.append("")  # Blank line for separation
@@ -617,6 +624,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True)
     # Add composite space code blocks
     for space in composite_space:
         if any((len(key) == 1 or len(key) == 2) for key in space) and sequential:
+            print(f"Sequential orthogonalization for {space}")
             code.extend(sequential_orthogonalization(space))
         else:
             code.extend(add_composite_space_code(space))
@@ -1193,10 +1201,14 @@ def make_driver(Hmbeq, Smbeq):
         kann = [_ for _ in ket.split(' ') if '+' not in _]
         return bcre, bann, kcre, kann
 
-    def _isab(ops):
-        if len(ops) == 2:
-            if ops[0].islower() and ops[1].isupper():
-                return ops[0].upper() == ops[1]
+    def _isab(key):
+        """
+        Checks if a string of eithr creation or annihilation operators
+        is of the form 'pQ' where at least one of the operators is active
+        """
+        if len(key) == 2 and ('a' in key or 'A' in key):
+            if key[0].islower() and key[1].isupper():
+                return key[0].upper() == key[1]
         return False
 
     func = 'def driver(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, nops, slices, sizes):\n'
@@ -1413,7 +1425,7 @@ def eigh_gen_composite(H, S, single_spaces, composite_spaces, slices, tol_single
             for i in block:
                 if len(i) <= 2:
                     singles_size += slices[i].stop - slices[i].start
-            X[block[0]] = sequential_orthogonalization(S_temp, singles_size, tol_composite)
+            X[block[0]] = orth_sequential(S_temp, singles_size, tol_composite)
 
         sevals, sevecs = np.linalg.eigh(S_temp)
         trunc_indices = np.where(sevals > tol_composite)[0]
@@ -1426,7 +1438,7 @@ def eigh_gen_composite(H, S, single_spaces, composite_spaces, slices, tol_single
     eigvec = X_concat @ eigvec
     return eigval, eigvec
 
-def sequential_orthogonalization(ovlp, singles_size, tol):
+def orth_sequential(ovlp, singles_size, tol):
     S11 = ovlp[:singles_size, :singles_size].copy()
     S12 = ovlp[:singles_size, singles_size:].copy()
     sevals, sevecs = np.linalg.eigh(S11)

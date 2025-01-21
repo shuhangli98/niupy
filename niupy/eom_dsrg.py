@@ -32,6 +32,7 @@ class EOM_DSRG:
         else:
             self.guess = kwargs.get("guess", "ones")
 
+        self.sequential_ortho = kwargs.get("sequential_ortho", True)
         self.blocked_ortho = kwargs.get("blocked_ortho", True)
 
         # Initialize MO symmetry information
@@ -66,7 +67,7 @@ class EOM_DSRG:
             self.nops, self.slices = get_slices(self.ops, self.nmos)
             self.delta = {'cc':np.eye(self.nmos['c']), 'vv':np.eye(self.nmos['v']),
                           'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
-            ip.generator(self.abs_file_path, blocked_ortho=self.blocked_ortho)            
+            ip.generator(self.abs_file_path, sequential_ortho=self.sequential_ortho, blocked_ortho=self.blocked_ortho)            
         elif method_type == "cvs_ip":
             cvs_ip.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         else:
@@ -236,7 +237,7 @@ class EOM_DSRG:
     def kernel_full(self, dump_vectors=False):
         _available_methods = ["ip"]
         assert self.method_type in _available_methods, f"Full EOM-DSRG is only supported for {_available_methods}."
-        evals, evecs = self.eom_dsrg_compute.kernel_full(self)
+        evals, evecs = self.eom_dsrg_compute.kernel_full(self, sequential=self.sequential_ortho)
         eigvec_dict = full_vec_to_dict(self.full_template_c, self.slices, evecs[:, :self.nroots], self.nmos)
         if dump_vectors:
             pickle.dump(eigvec_dict, open(f"niupy_save.pkl", "wb"))
@@ -244,6 +245,14 @@ class EOM_DSRG:
         e = evals[:self.nroots]
         spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(self, e, eigvec, eigvec_dict)
         self._pretty_print_info(e, spin, symmetry, spec_info)
+
+        if os.path.exists(f"{self.method_type}_eom_dsrg_full.py"):
+            os.remove(f"{self.method_type}_eom_dsrg_full.py")
+        if os.path.exists(f"{self.method_type}_eom_dsrg_full.py-e"):
+            os.remove(f"{self.method_type}_eom_dsrg_full.py-e")
+
+
+
         return e, eigvec, eigvec_dict, spin, symmetry, spec_info
         
     
