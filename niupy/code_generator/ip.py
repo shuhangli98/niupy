@@ -3,7 +3,7 @@ import itertools
 import os
 from niupy.eom_tools import *
 
-def generator_full(abs_path):
+def generator_full(abs_path, blocked_ortho=True):
     # Generates the equations needed for full diagonalization
     w.reset_space()
     w.add_space('c', 'fermion', 'occupied', list('ijklmn'))
@@ -21,6 +21,9 @@ def generator_full(abs_path):
     s = filter_ops_by_ms(s, 1)
 
     single_space, composite_space, block_list = get_subspaces(wt, s)
+    if not blocked_ortho:
+        single_space = []
+        composite_space = [block_list]
     print('Single space:', single_space)
     print('Composite spaces:', composite_space)
 
@@ -80,7 +83,7 @@ def generator_full(abs_path):
             if v: f.write(make_function(k, v, 'S')+ '\n')
     return ops, single_space, composite_space
 
-def generator(abs_path):
+def generator(abs_path, blocked_ortho=True):
     w.reset_space()
     # alpha
     w.add_space("c", "fermion", "occupied", list("klmn"))
@@ -100,6 +103,9 @@ def generator(abs_path):
     s = filter_ops_by_ms(s, 1)
 
     single_space, composite_space, block_list = get_subspaces(wt, s)
+    if not blocked_ortho:
+        single_space = []
+        composite_space = [block_list]
     print('Single space:', single_space)
     print('Composite spaces:', composite_space)
     

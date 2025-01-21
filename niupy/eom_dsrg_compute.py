@@ -409,14 +409,14 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
 
 def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
     print("Reading guess vectors...", flush=True)
-    singles = pickle.load(open(f"{eom_dsrg.abs_file_path}/singles.pkl", "rb"))
+    guess = pickle.load(open(f"{eom_dsrg.abs_file_path}/niupy_save.pkl", "rb"))
     x0s = []
     
     print("Projecting guess vectors...", flush=True)
     for i in range(eom_dsrg.nroots):
         x0 = np.zeros((nops, 1))
         x0 = vec_to_dict(eom_dsrg.full_template_c, x0)
-        for k, v in singles.items():
+        for k, v in guess.items():
             x0[k] = (v[i,...])[np.newaxis,...]
         HX0_dict = eom_dsrg.build_H(
             eom_dsrg.einsum,

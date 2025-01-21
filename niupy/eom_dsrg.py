@@ -32,6 +32,8 @@ class EOM_DSRG:
         else:
             self.guess = kwargs.get("guess", "ones")
 
+        self.blocked_ortho = kwargs.get("blocked_ortho", True)
+
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
 
@@ -58,13 +60,13 @@ class EOM_DSRG:
         if method_type == "cvs_ee":
             cvs_ee.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         elif method_type == "ip":
-            self.ops, self.single_space, self.composite_space = ip.generator_full(self.abs_file_path)
+            self.ops, self.single_space, self.composite_space = ip.generator_full(self.abs_file_path, blocked_ortho=self.blocked_ortho)
             self.nmos = {'i': self.ncore, 'c': self.nocc, 'a': self.nact, 'v': self.nvir,
                          'I': self.ncore, 'C': self.nocc, 'A': self.nact, 'V': self.nvir}
             self.nops, self.slices = get_slices(self.ops, self.nmos)
             self.delta = {'cc':np.eye(self.nmos['c']), 'vv':np.eye(self.nmos['v']),
                           'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
-            ip.generator(self.abs_file_path)            
+            ip.generator(self.abs_file_path, blocked_ortho=self.blocked_ortho)            
         elif method_type == "cvs_ip":
             cvs_ip.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
         else:
@@ -231,11 +233,13 @@ class EOM_DSRG:
 
         return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
-    def kernel_full(self):
+    def kernel_full(self, dump_vectors=False):
         _available_methods = ["ip"]
         assert self.method_type in _available_methods, f"Full EOM-DSRG is only supported for {_available_methods}."
         evals, evecs = self.eom_dsrg_compute.kernel_full(self)
         eigvec_dict = full_vec_to_dict(self.full_template_c, self.slices, evecs[:, :self.nroots], self.nmos)
+        if dump_vectors:
+            pickle.dump(eigvec_dict, open(f"niupy_save.pkl", "wb"))
         eigvec = dict_to_vec(eigvec_dict, self.nroots)
         e = evals[:self.nroots]
         spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(self, e, eigvec, eigvec_dict)
