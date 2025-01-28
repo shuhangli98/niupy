@@ -37,7 +37,7 @@ def generator_full_hbar(abs_path, ncore, nocc, nact, nvir):
     ]
     aac = ["aIa", "IAA"]
     single_space = filter_list(single_space, ncore, nocc, nact, nvir)
-    acc = filter_list(acc, ncore, nocc, nact, nvir)
+    aac = filter_list(aac, ncore, nocc, nact, nvir)
 
     composite_space = [aac]
     block_list = single_space + aac

@@ -68,9 +68,7 @@ class EOM_DSRG:
         elif method_type == "ip":
             ip.generator(self.abs_file_path)
         elif method_type == "ip_full":
-            self.ops = ip.generator_full_hbar(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-            )
+            self.ops = ip.generator_full_hbar(self.abs_file_path)
             self.nmos = {
                 "i": self.ncore,
                 "c": self.nocc,
@@ -94,7 +92,9 @@ class EOM_DSRG:
                 self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
             )
         elif method_type == "cvs_ip_full":
-            self.ops = cvs_ip.generator_full_hbar(self.abs_file_path)
+            self.ops = cvs_ip.generator_full_hbar(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
             self.nmos = {
                 "i": self.ncore,
                 "c": self.nocc,
