@@ -7,6 +7,7 @@ import os
 import subprocess
 from niupy.code_generator import cvs_ee, ee, ip, cvs_ip
 
+
 class EOM_DSRG:
     def __init__(self, method_type, wfn=None, **kwargs):
         self.method_type = method_type
@@ -21,15 +22,17 @@ class EOM_DSRG:
         self.verbose = kwargs.get("verbose", 5)
         self.diagonal_type = kwargs.get("diagonal_type", "compute")
         self.ref_sym = kwargs.get("ref_sym", 0)
-        
+
         if self.ref_sym != 0:
-            raise NotImplementedError("Reference symmetry other than 0 is not implemented.")
+            raise NotImplementedError(
+                "Reference symmetry other than 0 is not implemented."
+            )
 
         opt_einsum = kwargs.get("opt_einsum", True)
         mo_spaces = kwargs.get("mo_spaces", None)
-        
+
         self.guess = kwargs.get("guess", "ones")
-        
+
         # if self.method_type == "cvs_ee":
         #     self.guess = kwargs.get("guess", "singles")
         # else:
@@ -59,27 +62,59 @@ class EOM_DSRG:
         # code_generator_dir = os.path.join(package_dir, "code_generator")
 
         if method_type == "cvs_ee":
-            cvs_ee.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
+            cvs_ee.generator(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
         elif method_type == "ip":
             ip.generator(self.abs_file_path)
         elif method_type == "ip_full":
             self.ops = ip.generator_full_hbar(self.abs_file_path)
-            self.nmos = {'i': self.ncore, 'c': self.nocc, 'a': self.nact, 'v': self.nvir,
-                         'I': self.ncore, 'C': self.nocc, 'A': self.nact, 'V': self.nvir}
+            self.nmos = {
+                "i": self.ncore,
+                "c": self.nocc,
+                "a": self.nact,
+                "v": self.nvir,
+                "I": self.ncore,
+                "C": self.nocc,
+                "A": self.nact,
+                "V": self.nvir,
+            }
             self.nops, self.slices = get_slices(self.ops, self.nmos)
             print(self.slices.keys())
-            self.delta = {'cc':np.eye(self.nmos['c']), 'vv':np.eye(self.nmos['v']),
-                          'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
+            self.delta = {
+                "cc": np.eye(self.nmos["c"]),
+                "vv": np.eye(self.nmos["v"]),
+                "CC": np.eye(self.nmos["C"]),
+                "VV": np.eye(self.nmos["V"]),
+            }
         elif method_type == "cvs_ip":
-            cvs_ip.generator(self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir)
+            cvs_ip.generator(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
         elif method_type == "cvs_ip_full":
-            self.ops = cvs_ip.generator_full_hbar(self.abs_file_path)
-            self.nmos = {'i': self.ncore, 'c': self.nocc, 'a': self.nact, 'v': self.nvir,
-                         'I': self.ncore, 'C': self.nocc, 'A': self.nact, 'V': self.nvir}
+            self.ops = cvs_ip.generator_full_hbar(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
+            self.nmos = {
+                "i": self.ncore,
+                "c": self.nocc,
+                "a": self.nact,
+                "v": self.nvir,
+                "I": self.ncore,
+                "C": self.nocc,
+                "A": self.nact,
+                "V": self.nvir,
+            }
             self.nops, self.slices = get_slices(self.ops, self.nmos)
             print(self.slices.keys())
-            self.delta = {'ii':np.eye(self.nmos['i']), 'cc':np.eye(self.nmos['c']), 'vv':np.eye(self.nmos['v']),
-                          'II':np.eye(self.nmos['I']),'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
+            self.delta = {
+                "ii": np.eye(self.nmos["i"]),
+                "cc": np.eye(self.nmos["c"]),
+                "vv": np.eye(self.nmos["v"]),
+                "II": np.eye(self.nmos["I"]),
+                "CC": np.eye(self.nmos["C"]),
+                "VV": np.eye(self.nmos["V"]),
+            }
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
@@ -88,9 +123,17 @@ class EOM_DSRG:
             from opt_einsum import contract
 
             self.einsum = contract
-            
-            subprocess.run(["sed", "-i", "-e","s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g", os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),])
-            
+
+            subprocess.run(
+                [
+                    "sed",
+                    "-i",
+                    "-e",
+                    "s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g",
+                    os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
+                ]
+            )
+
         else:
             self.einsum = np.einsum
 
@@ -100,7 +143,9 @@ class EOM_DSRG:
         import niupy.eom_dsrg_compute as eom_dsrg_compute
 
         self.eom_dsrg_compute = eom_dsrg_compute
-        self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(self)
+        self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(
+            self
+        )
         self._initialize_sigma_vectors()
         self._get_integrals()
 
@@ -141,14 +186,22 @@ class EOM_DSRG:
         if wfn is not None:
             if mo_spaces is None:
                 psi4_options = psi4.core.get_options()
-                spaces = ["frozen_docc", "restricted_docc", "active", "restricted_uocc", "frozen_uocc"]
+                spaces = [
+                    "frozen_docc",
+                    "restricted_docc",
+                    "active",
+                    "restricted_uocc",
+                    "frozen_uocc",
+                ]
                 mo_spaces = {}
                 for s in spaces:
                     if len(psi4_options.get_int_vector(s)) > 0:
                         mo_spaces[s] = psi4_options.get_int_vector(s)
             nmopi = wfn.nmopi()
             self.point_group = wfn.molecule().point_group().symbol()
-            mo_space_info = forte.make_mo_space_info_from_map(nmopi, self.point_group, mo_spaces)
+            mo_space_info = forte.make_mo_space_info_from_map(
+                nmopi, self.point_group, mo_spaces
+            )
             self.core_sym = np.array(mo_space_info.symmetry("FROZEN_DOCC"))
             self.occ_sym = np.array(mo_space_info.symmetry("RESTRICTED_DOCC"))
             self.act_sym = np.array(mo_space_info.symmetry("ACTIVE"))
@@ -201,6 +254,7 @@ class EOM_DSRG:
                 return ",".join([irrep_table[self.point_group.lower()][i] for i in x])
             else:
                 return irrep_table[self.point_group.lower()][x]
+
         nroot = len(e)
         if "ee" in self.method_type:
             spec = "f"
@@ -211,7 +265,9 @@ class EOM_DSRG:
         print("=" * 85)
         print(f"{'EOM-DSRG summary':^85}")
         print("-" * 85)
-        print(f"{'Root':<5} {'Energy (eV)':<20} {spec:<20} {'Symmetry':<10} {'Spin':<20}")
+        print(
+            f"{'Root':<5} {'Energy (eV)':<20} {spec:<20} {'Symmetry':<10} {'Spin':<20}"
+        )
         print("-" * 85)
         for i in range(nroot):
             print(
@@ -221,7 +277,7 @@ class EOM_DSRG:
 
     def kernel(self):
         conv, e, u, nop = self.eom_dsrg_compute.kernel(self)
-        
+
         if not all(conv):
             unconv = [i for i, c in enumerate(conv) if not c]
             print("Some roots did not converge.")
@@ -229,10 +285,14 @@ class EOM_DSRG:
         else:
             print("All EOM-DSRG roots converged.")
 
-        eigvec, eigvec_dict = self.eom_dsrg_compute.get_original_basis_evecs(self, u, nop)
-        spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(self, e, eigvec, eigvec_dict)
+        eigvec, eigvec_dict = self.eom_dsrg_compute.get_original_basis_evecs(
+            self, u, nop
+        )
+        spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(
+            self, e, eigvec, eigvec_dict
+        )
         self._pretty_print_info(e, spin, symmetry, spec_info)
-            
+
         if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
             os.remove(f"{self.method_type}_eom_dsrg.py")
         if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
@@ -241,13 +301,17 @@ class EOM_DSRG:
         return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
     def kernel_full(self):
-        assert "full" in self.method_type, "The full kernel is only supported for methods ending with '_full'."
+        assert (
+            "full" in self.method_type
+        ), "The full kernel is only supported for methods ending with '_full'."
         evals, evecs = self.eom_dsrg_compute.kernel_full(self)
-        eigvec_dict = full_vec_to_dict(self.full_template_c, self.slices, evecs[:, :self.nroots], self.nmos)
+        eigvec_dict = full_vec_to_dict(
+            self.full_template_c, self.slices, evecs[:, : self.nroots], self.nmos
+        )
         eigvec = dict_to_vec(eigvec_dict, self.nroots)
-        e = evals[:self.nroots]
-        spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(self, e, eigvec, eigvec_dict)
+        e = evals[: self.nroots]
+        spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(
+            self, e, eigvec, eigvec_dict
+        )
         self._pretty_print_info(e, spin, symmetry, spec_info)
         return e, eigvec, eigvec_dict, spin, symmetry, spec_info
-        
-    
