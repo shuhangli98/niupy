@@ -1,7 +1,7 @@
 import os
 import functools
 import pickle
-from niupy.eom_tools import eigh_gen_composite, tensor_label_to_full_tensor_label
+from niupy.eom_tools import eigh_gen_composite, filter_list, tensor_label_to_full_tensor_label
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
     print("Importing cvs_ee_eom_dsrg")
@@ -9,6 +9,9 @@ if os.path.exists("cvs_ee_eom_dsrg.py"):
 if os.path.exists("cvs_ip_eom_dsrg.py"):
     print("Importing cvs_ip_eom_dsrg")
     import cvs_ip_eom_dsrg
+if os.path.exists("cvs_ip_eom_dsrg_full.py"):
+    print("Importing cvs_ip_eom_dsrg_full")
+    import cvs_ip_eom_dsrg_full
 if os.path.exists("ee_eom_dsrg.py"):
     print("Importing ee_eom_dsrg")
     import ee_eom_dsrg
@@ -33,26 +36,77 @@ import time
 davidson = lib.linalg_helper.davidson1
 dgeev1 = lib.linalg_helper.dgeev1
 
+
 def kernel_full(eom_dsrg, sequential=True):
     eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
-    
-    heff, ovlp = ip_eom_dsrg_full.driver(
-        eom_dsrg.Hbar, 
-        eom_dsrg.delta, 
-        eom_dsrg.gamma1, 
-        eom_dsrg.eta1, 
-        eom_dsrg.lambda2, 
-        eom_dsrg.lambda3, 
-        eom_dsrg.lambda4, 
-        eom_dsrg.nops, 
-        eom_dsrg.slices, 
-        eom_dsrg.nmos,
+
+    if "cvs" in eom_dsrg.method_type:
+        eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
+        driver = cvs_ip_eom_dsrg_full.driver
+        singles = [
+            "I",
+            "aiC",
+            "acI",
+            "aiI",
+            "aiA",
+            "viC",
+            "vcI",
+            "viI",
+            "vaI",
+            "viA",
+            "AIC",
+            "AII",
+            "VIC",
+            "VII",
+            "VIA",
+        ]
+        singles = filter_list(
+            singles, eom_dsrg.ncore, eom_dsrg.nocc, eom_dsrg.nact, eom_dsrg.nvir
         )
+        composite = [
+            filter_list(
+                ["aaI", "AIA"],
+                eom_dsrg.ncore,
+                eom_dsrg.nocc,
+                eom_dsrg.nact,
+                eom_dsrg.nvir,
+            )
+        ]
+    else:
+        driver = ip_eom_dsrg_full.driver
+        singles = [
+            "C",
+            "acC",
+            "acA",
+            "vcC",
+            "vaC",
+            "vcA",
+            "vaA",
+            "ACC",
+            "VCC",
+            "VCA",
+            "VAA",
+        ]
+        composite = [["aaC", "ACA"], ["A", "AAA", "aaA"]]
+
+    heff, ovlp = driver(
+        eom_dsrg.Hbar,
+        eom_dsrg.delta,
+        eom_dsrg.gamma1,
+        eom_dsrg.eta1,
+        eom_dsrg.lambda2,
+        eom_dsrg.lambda3,
+        eom_dsrg.lambda4,
+        eom_dsrg.nops,
+        eom_dsrg.slices,
+        eom_dsrg.nmos,
+    )
 
     singles = [tensor_label_to_full_tensor_label(_) for _ in eom_dsrg.single_space]
     composite = [[tensor_label_to_full_tensor_label(_) for _ in __] for __ in eom_dsrg.composite_space]
     eigval, eigvec = eigh_gen_composite(heff, ovlp, singles, composite, eom_dsrg.slices, eom_dsrg.tol_s, eom_dsrg.tol_semi, sequential=sequential)
     return eigval, eigvec
+
 
 def kernel(eom_dsrg):
     """
@@ -89,6 +143,7 @@ def kernel(eom_dsrg):
 
     return conv, e, u, nop
 
+
 def post_process(eom_dsrg, e, eigvec, eigvec_dict):
     # Get spin multiplicity and process eigenvectors
     excitation_analysis = find_top_values(eigvec_dict, 3)
@@ -103,7 +158,6 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict):
         current_vec_dict = vec_to_dict(
             eom_dsrg.full_template_c, current_vec.reshape(-1, 1)
         )
-
         spin.append(assign_spin_multiplicity(eom_dsrg, current_vec_dict))
         symmetry.append(assign_spatial_symmetry(eom_dsrg, current_vec))
 
@@ -117,13 +171,13 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict):
         eom_dsrg.Mbar = [
             slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar
         ]
-
         # Compute oscillator strengths
         spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
     elif "ip" in eom_dsrg.method_type:
         spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
-    
+
     return spin, symmetry, spec_info
+
 
 def compute_spectroscopic_factors(eom_dsrg, eigvec):
     assert "ip" in eom_dsrg.method_type
@@ -133,19 +187,37 @@ def compute_spectroscopic_factors(eom_dsrg, eigvec):
         p_compute = ip_eom_dsrg_full.build_sigma_vector_p
     elif eom_dsrg.method_type == "cvs_ip":
         p_compute = cvs_ip_eom_dsrg.build_sigma_vector_p
+    elif eom_dsrg.method_type == "cvs_ip_full":
+        p_compute = cvs_ip_eom_dsrg_full.build_sigma_vector_p
     p = np.zeros(eigvec.shape[1])
     for i in range(eigvec.shape[1]):
-        current_dict = vec_to_dict(eom_dsrg.full_template_c, eigvec[:, i].reshape(-1, 1))
-        pi = p_compute(eom_dsrg.einsum, current_dict, None, eom_dsrg.gamma1, eom_dsrg.eta1, eom_dsrg.lambda2, eom_dsrg.lambda3, eom_dsrg.lambda4, first_row=False)
+        current_dict = vec_to_dict(
+            eom_dsrg.full_template_c, eigvec[:, i].reshape(-1, 1)
+        )
+        pi = p_compute(
+            eom_dsrg.einsum,
+            current_dict,
+            None,
+            eom_dsrg.gamma1,
+            eom_dsrg.eta1,
+            eom_dsrg.lambda2,
+            eom_dsrg.lambda3,
+            eom_dsrg.lambda4,
+            first_row=False,
+        )
         pi = antisymmetrize(dict_to_vec(pi, 1), ea=False)
         p[i] = (pi**2).sum()
     return p
+
 
 def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
     """
     Compute oscillator strengths for each eigenvector.
     """
-    return [0.0] + [2.0 / 3.0 * (eigval[i] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i]) for i in range(1, eigvec.shape[1])]
+    return [0.0] + [
+        2.0 / 3.0 * (eigval[i] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i])
+        for i in range(1, eigvec.shape[1])
+    ]
 
 
 def compute_dipole(eom_dsrg, current_vec):
@@ -207,6 +279,7 @@ def calculate_norms(current_vec_dict):
 
     return subtraction_norms, addition_norms
 
+
 def get_original_basis_evecs(eom_dsrg, u, nop, ea=False):
     eigvec = np.array(
         [eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]
@@ -215,7 +288,8 @@ def get_original_basis_evecs(eom_dsrg, u, nop, ea=False):
     eigvec = dict_to_vec(eigvec_dict, len(u))
 
     return eigvec, eigvec_dict
-    
+
+
 def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
     if "ee" in eom_dsrg.method_type:
         subtraction_norms, addition_norms = calculate_norms(current_vec_dict)
@@ -235,27 +309,32 @@ def assign_spin_multiplicity(eom_dsrg, current_vec_dict):
             return "Incorrect spin"
     elif "ip" in eom_dsrg.method_type:
         hole_norm = 0.0
-        for k,v in current_vec_dict.items():
+        for k, v in current_vec_dict.items():
             if len(k) == 1:
                 hole_norm += np.linalg.norm(v)
         if hole_norm > 1e-8:
             return "Doublet"
 
-        pairs = [("cCv","CCV"),("aAa","AAA")]
+        pairs = (
+            [("iAa", "IAA"), ("iAv", "IAV")]
+            if "cvs_ip" in eom_dsrg.method_type
+            else [("cCv", "CCV"), ("aAa", "AAA")]
+        )
         ab_sum = 0.0
         bb_sum = 0.0
         for p in pairs:
-            ab = current_vec_dict[p[0]][0,...]
-            bb = current_vec_dict[p[1]][0,...]
+            ab = current_vec_dict[p[0]][0, ...]
+            bb = current_vec_dict[p[1]][0, ...]
             ab_sum += ab.sum()
             for i in range(bb.shape[0]):
-                for j in range(i+1, bb.shape[1]):
+                for j in range(i + 1, bb.shape[1]):
                     for a in range(bb.shape[2]):
-                        bb_sum += bb[i,j,a]
-        if (abs(bb_sum) - abs(ab_sum) < 1e-8):
+                        bb_sum += bb[i, j, a]
+        if abs(bb_sum) - abs(ab_sum) < 1e-8:
             return "Quartet"
         else:
             return "Doublet"
+
 
 def assign_spatial_symmetry(eom_dsrg, current_vec):
     large_indices = np.where(abs(current_vec) > 1e-2)[0]
@@ -272,6 +351,7 @@ def assign_spatial_symmetry(eom_dsrg, current_vec):
                 return irreps
             else:
                 return "Incorrect symmetry"
+
 
 def find_top_values(data, num):
     random_key = next(iter(data))
@@ -360,14 +440,14 @@ def setup_davidson(eom_dsrg):
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
-    
+
     if eom_dsrg.guess == "singles":
         x0 = compute_guess_vectors_from_singles(eom_dsrg, northo)
     elif eom_dsrg.guess == "ones":
         x0 = compute_guess_vectors(eom_dsrg, precond)
     elif eom_dsrg.guess == "read":
         x0 = read_guess_vectors(eom_dsrg, nop, northo)
-        
+
     return apply_M, precond, x0, nop
 
 
@@ -407,11 +487,12 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
     XHXt = XHXt.flatten()
     return XHXt
 
+
 def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
     print("Reading guess vectors...", flush=True)
     guess = pickle.load(open(f"{eom_dsrg.abs_file_path}/niupy_save.pkl", "rb"))
     x0s = []
-    
+
     print("Projecting guess vectors...", flush=True)
     for i in range(eom_dsrg.nroots):
         x0 = np.zeros((nops, 1))
@@ -437,6 +518,7 @@ def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
         x0s.append(XHXt)
 
     return x0s
+
 
 def compute_guess_vectors(eom_dsrg, precond, ascending=True):
     """
@@ -465,40 +547,57 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
         x0s.append(x0[:, p])
     return x0s
 
+
 def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=False):
     start = time.time()
     print("Computing initial guess...", flush=True)
-    
+
     nsingles = 0
     temp_dict = {}
-    
+
     for key, value in eom_dsrg.full_template_c.items():
-        if len(key) == 2 or key == 'first':
+        if len(key) == 2 or key == "first":
             shape_block = value.shape[1:]
             nsingles += np.prod(shape_block)
             print(f"key: {key} is used for initial guess")
     for key, value in eom_dsrg.full_template_c.items():
-        if len(key) == 2 or key == 'first':
+        if len(key) == 2 or key == "first":
             shape_block = value.shape[1:]
             temp_dict[key] = np.zeros((nsingles, *shape_block))
-            
+
     temp_dict_vec = dict_to_vec(temp_dict, nsingles)
     np.fill_diagonal(temp_dict_vec, 1.0)
     temp_dict = vec_to_dict(temp_dict, temp_dict_vec)
     temp_dict = antisymmetrize(temp_dict, ea=ea)
     del temp_dict_vec
-    
+
     _, temp_full_c = get_templates(eom_dsrg, nsingles)
-    
+
     for key, value in temp_full_c.items():
         if key in temp_dict.keys():
             temp_full_c[key] = temp_dict[key].copy()
     temp_full_c_vec = dict_to_vec(temp_full_c, nsingles)
-    
-    H_singles = eom_dsrg.build_sigma_vector_Hbar_singles(eom_dsrg.einsum, temp_full_c, eom_dsrg.Hbar,\
-        eom_dsrg.gamma1,eom_dsrg.eta1,eom_dsrg.lambda2,eom_dsrg.lambda3,eom_dsrg.lambda4)
-    S_singles = eom_dsrg.build_sigma_vector_s_singles(eom_dsrg.einsum, temp_full_c, eom_dsrg.Hbar,\
-        eom_dsrg.gamma1,eom_dsrg.eta1,eom_dsrg.lambda2,eom_dsrg.lambda3,eom_dsrg.lambda4)
+
+    H_singles = eom_dsrg.build_sigma_vector_Hbar_singles(
+        eom_dsrg.einsum,
+        temp_full_c,
+        eom_dsrg.Hbar,
+        eom_dsrg.gamma1,
+        eom_dsrg.eta1,
+        eom_dsrg.lambda2,
+        eom_dsrg.lambda3,
+        eom_dsrg.lambda4,
+    )
+    S_singles = eom_dsrg.build_sigma_vector_s_singles(
+        eom_dsrg.einsum,
+        temp_full_c,
+        eom_dsrg.Hbar,
+        eom_dsrg.gamma1,
+        eom_dsrg.eta1,
+        eom_dsrg.lambda2,
+        eom_dsrg.lambda3,
+        eom_dsrg.lambda4,
+    )
     H_singles = antisymmetrize(H_singles, ea=ea)
     S_singles = antisymmetrize(S_singles, ea=ea)
     H_singles_vec = dict_to_vec(H_singles, nsingles)
@@ -515,22 +614,32 @@ def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=Fals
     unit_vec[0] = 1.0
     x0s = [unit_vec]
     for p in range(eom_dsrg.nroots):
-        Sx = temp_full_c_vec @ eigvec[:, sort_ind[p]].reshape(-1,1)
+        Sx = temp_full_c_vec @ eigvec[:, sort_ind[p]].reshape(-1, 1)
         Sx_dict = vec_to_dict(temp_full_c, Sx)
-        HSx_dict = eom_dsrg.build_H(eom_dsrg.einsum,Sx_dict,eom_dsrg.Hbar,eom_dsrg.gamma1,eom_dsrg.eta1,\
-            eom_dsrg.lambda2,eom_dsrg.lambda3,eom_dsrg.lambda4,eom_dsrg.first_row)
+        HSx_dict = eom_dsrg.build_H(
+            eom_dsrg.einsum,
+            Sx_dict,
+            eom_dsrg.Hbar,
+            eom_dsrg.gamma1,
+            eom_dsrg.eta1,
+            eom_dsrg.lambda2,
+            eom_dsrg.lambda3,
+            eom_dsrg.lambda4,
+            eom_dsrg.first_row,
+        )
         HSx_dict = antisymmetrize(HSx_dict, ea=ea)
         HSx = dict_to_vec(HSx_dict, 1).flatten()
         SHSx = eom_dsrg.apply_S12(eom_dsrg, northo, HSx, transpose=True).flatten()
-        if eigval[sort_ind[p]] > 1.0: # I want to exclude the ground state.
-            x0s.append(SHSx/np.linalg.norm(SHSx))
+        if eigval[sort_ind[p]] > 1.0:  # I want to exclude the ground state.
+            x0s.append(SHSx / np.linalg.norm(SHSx))
         if len(x0s) == eom_dsrg.nroots:
             break
     print("Time(s) for projecting guess vectors: ", time.time() - start, flush=True)
     print("Initial guess done.", flush=True)
     return x0s
 
-def get_templates(eom_dsrg, nlow = 1):
+
+def get_templates(eom_dsrg, nlow=1):
     """Generate the initial and full templates based on the method type."""
     # Dictionary mapping method types to the appropriate template functions
     template_funcs = {
@@ -545,8 +654,17 @@ def get_templates(eom_dsrg, nlow = 1):
             if os.path.exists("cvs_ip_eom_dsrg.py")
             else None
         ),
+        "cvs_ip_full": (
+            cvs_ip_eom_dsrg_full.get_template_c
+            if os.path.exists("cvs_ip_eom_dsrg_full.py")
+            else None
+        ),
         "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
-        "ip_full": ip_eom_dsrg_full.get_template_c if os.path.exists("ip_eom_dsrg_full.py") else None,
+        "ip_full": (
+            ip_eom_dsrg_full.get_template_c
+            if os.path.exists("ip_eom_dsrg_full.py")
+            else None
+        ),
         # Additional mappings for other methods can be added here
     }
 

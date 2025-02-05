@@ -21,16 +21,17 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     # wt.set_max_cumulant(3)
 
     # Define operators
-    s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True) \
-        + w.gen_op( "bra", 2, "avAV", "ciaCIA", only_terms=True)
+    s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True) + w.gen_op(
+        "bra", 2, "avAV", "ciaCIA", only_terms=True
+    )
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 0)
     s = [_ for _ in s if ("I" in _ or "i" in _)]
     s = filter_list(s, ncore, nocc, nact, nvir)
-    
+
     # # These blocks are computed with the commutator trick.
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
-    print('Commutator trick:', s_comm)
+    print("Commutator trick:", s_comm)
 
     T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
@@ -45,7 +46,9 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     T_original = w.op("c", s, unique=True)
 
     # Define Hbar
-    Hbar_op = w.gen_op_ms0("Hbar", 1, 'ciav','ciav') + w.gen_op_ms0("Hbar", 2, 'ciav','ciav')
+    Hbar_op = w.gen_op_ms0("Hbar", 1, "ciav", "ciav") + w.gen_op_ms0(
+        "Hbar", 2, "ciav", "ciav"
+    )
 
     # ============================================================================
 
@@ -73,7 +76,9 @@ def generator(abs_path, ncore, nocc, nact, nvir):
             char.islower() for char in i
         )
         label = op_to_tensor_label(i)
-        mbeqs_one_active_two_virtual[label] = get_matrix_elements(wt, bra, Hbar_op, ket, inter_general=inter_general, double_comm=False)
+        mbeqs_one_active_two_virtual[label] = get_matrix_elements(
+            wt, bra, Hbar_op, ket, inter_general=inter_general, double_comm=False
+        )
     for i in no_active:
         bra = w.op("bra", [i])
         ket = w.op("ket", [i])
@@ -81,7 +86,9 @@ def generator(abs_path, ncore, nocc, nact, nvir):
             char.islower() for char in i
         )
         label = op_to_tensor_label(i)
-        mbeqs_no_active[label] = get_matrix_elements(wt, bra, Hbar_op, ket, inter_general=inter_general, double_comm=False)
+        mbeqs_no_active[label] = get_matrix_elements(
+            wt, bra, Hbar_op, ket, inter_general=inter_general, double_comm=False
+        )
 
     # Define subspaces. Single first!
     S_half_0 = [
@@ -138,7 +145,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         + S_half_1_com_i
         + S_half_1_com_I
     )
-    
+
     single_space = S_half_0 + S_half_1 + S_half_minus_1 + S_half_2
     composite_space = [S_half_0_com_iv, S_half_0_com_IV, S_half_1_com_i, S_half_1_com_I]
 
@@ -157,7 +164,10 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     func_template_c = generate_template_c(block_list, index_dict, function_args)
 
     # Hbar
-    THT_comm = w.rational(1, 2) * (T_comm_adj @ w.commutator(Hbar_op, T_comm)+ w.commutator(T_comm_adj, Hbar_op) @ T_comm)
+    THT_comm = w.rational(1, 2) * (
+        T_comm_adj @ w.commutator(Hbar_op, T_comm)
+        + w.commutator(T_comm_adj, Hbar_op) @ T_comm
+    )
     THT_original = T_original_adj @ Hbar_op @ T_original
     THT_coupling = T_original_adj @ Hbar_op @ T_comm
     THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
@@ -190,11 +200,11 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         composite_space,
     )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space)
-    
+
     # Initial guess
     funct_H_singles = generate_sigma_build_singles(mbeq, "Hbar")
     funct_s_singles = generate_sigma_build_singles(mbeq_s, "s")
-    
+
     # script_dir = os.path.dirname(__file__)
     # rel_path = "../cvs_ee_eom_dsrg.py"
     # abs_file_path = os.path.join(script_dir, rel_path)
@@ -218,4 +228,6 @@ def generator(abs_path, ncore, nocc, nact, nvir):
 
 
 if __name__ == "__main__":
-    generator(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), 1, 1, 1, 1)
+    generator(
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), 1, 1, 1, 1
+    )
