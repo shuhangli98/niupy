@@ -4,7 +4,7 @@ import os
 from niupy.eom_tools import *
 
 
-def generator_full_hbar(abs_path, ncore, nocc, nact, nvir):
+def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -18,29 +18,24 @@ def generator_full_hbar(abs_path, ncore, nocc, nact, nvir):
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
 
-    single_space = [
-        "I",
-        "iCa",
-        "cIa",
-        "iIa",
-        "iAa",
-        "iCv",
-        "cIv",
-        "iIv",
-        "aIv",
-        "iAv",
-        "ICA",
-        "IIA",
-        "ICV",
-        "IIV",
-        "IAV",
-    ]
-    aac = ["aIa", "IAA"]
-    single_space = filter_list(single_space, ncore, nocc, nact, nvir)
-    aac = filter_list(aac, ncore, nocc, nact, nvir)
+    s = w.gen_op("bra", (0, 1), "avAV", "ciaCIA", only_terms=True) + w.gen_op(
+        "bra", (1, 2), "avAV", "ciaCIA", only_terms=True
+    )
+    s = [_.strip() for _ in s]
+    s = filter_ops_by_ms(s, 1)
+    s = [_ for _ in s if ("I" in _ or "i" in _)]
+    s = filter_list(s, ncore, nocc, nact, nvir)
 
-    composite_space = [aac]
-    block_list = single_space + aac
+    single_space, composite_space, block_list = get_subspaces(wt, s)
+    single_space = filter_list(single_space, ncore, nocc, nact, nvir)
+    composite_space = [filter_list(_, ncore, nocc, nact, nvir) for _ in composite_space]
+    block_list = single_space + list(itertools.chain(*composite_space))
+
+    if not blocked_ortho:
+        single_space = []
+        composite_space = [block_list]
+    print('Single space:', single_space)
+    print('Composite spaces:', composite_space)
 
     ops = [tensor_label_to_op(_) for _ in block_list]
 
@@ -110,10 +105,10 @@ def generator_full_hbar(abs_path, ncore, nocc, nact, nvir):
         for k, v in Smbeq.items():
             if v:
                 f.write(make_function(k, v, "S") + "\n")
-    return ops
+    return ops, single_space, composite_space
 
 
-def generator(abs_path, ncore, nocc, nact, nvir):
+def generator(abs_path, ncore, nocc, nact, nvir, sequential_ortho=True, blocked_ortho=True):
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -135,7 +130,16 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     s = [_ for _ in s if ("I" in _ or "i" in _)]
     s = filter_list(s, ncore, nocc, nact, nvir)
 
-    print(f"length of s: {len(s)}")
+    single_space, composite_space, block_list = get_subspaces(wt, s)
+    single_space = filter_list(single_space, ncore, nocc, nact, nvir)
+    composite_space = [filter_list(_, ncore, nocc, nact, nvir) for _ in composite_space]
+    block_list = single_space + list(itertools.chain(*composite_space))
+
+    if not blocked_ortho:
+        single_space = []
+        composite_space = [block_list]
+    print('Single space:', single_space)
+    print('Composite spaces:', composite_space)
 
     # used in spectroscopic amplitudes
     singles = w.gen_op("bra", (0, 1), "avAV", "ciaCIA", only_terms=True)
@@ -152,31 +156,6 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     Hbar_op = w.gen_op_ms0("Hbar", 1, "ciav", "ciav") + w.gen_op_ms0(
         "Hbar", 2, "ciav", "ciav"
     )
-
-    single_space = [
-        "I",
-        "iCa",
-        "cIa",
-        "iIa",
-        "iAa",
-        "iCv",
-        "cIv",
-        "iIv",
-        "aIv",
-        "iAv",
-        "ICA",
-        "IIA",
-        "ICV",
-        "IIV",
-        "IAV",
-    ]
-    aac = ["aIa", "IAA"]
-
-    single_space = filter_list(single_space, ncore, nocc, nact, nvir)
-    aac = filter_list(aac, ncore, nocc, nact, nvir)
-
-    composite_space = [aac]
-    block_list = single_space + aac
 
     print(f"length of block_list: {len(block_list)}")
 
@@ -212,7 +191,7 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize="True")  # HC
     funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize="True")  # SC
     funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
-    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space)
+    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, sequential=sequential_ortho)
     funct_preconditioner = generate_preconditioner(
         mbeq, {}, {}, single_space, composite_space, first_row=False
     )

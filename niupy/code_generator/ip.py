@@ -13,7 +13,6 @@ def generator_full(abs_path, blocked_ortho=True):
     w.add_space('V', 'fermion', 'unoccupied', list('ABCDEF'))
     w.add_space('A', 'fermion', 'general', list('STUVWXYZ'))
     wt = w.WickTheorem()
-    wt.set_max_cumulant(4)
 
     s = w.gen_op("bra", (0, 1), "avAV", "caCA", only_terms=True) \
         + w.gen_op("bra", (1, 2), "avAV", "caCA", only_terms=True)
@@ -94,7 +93,6 @@ def generator(abs_path, sequential_ortho=True, blocked_ortho=True):
     w.add_space("V", "fermion", "unoccupied", list("EFGH"))
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
-    wt.set_max_cumulant(4)
 
     # Define operators
     s = w.gen_op("bra", (0, 1), "avAV", "caCA", only_terms=True) \

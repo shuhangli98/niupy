@@ -69,20 +69,8 @@ class EOM_DSRG:
                 self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
             )
         elif method_type == "ip":
-            self.ops, self.single_space, self.composite_space = ip.generator_full(self.abs_file_path, blocked_ortho=self.blocked_ortho)
-            self.nmos = {'i': self.ncore, 'c': self.nocc, 'a': self.nact, 'v': self.nvir,
-                         'I': self.ncore, 'C': self.nocc, 'A': self.nact, 'V': self.nvir}
-            self.nops, self.slices = get_slices(self.ops, self.nmos)
-            self.delta = {'cc':np.eye(self.nmos['c']), 'vv':np.eye(self.nmos['v']),
-                          'CC':np.eye(self.nmos['C']), 'VV':np.eye(self.nmos['V'])}
-            ip.generator(self.abs_file_path, sequential_ortho=self.sequential_ortho, blocked_ortho=self.blocked_ortho)            
-        elif method_type == "cvs_ip":
-            cvs_ip.generator(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
-            )
-        elif method_type == "cvs_ip_full":
-            self.ops = cvs_ip.generator_full_hbar(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            self.ops, self.single_space, self.composite_space = ip.generator_full(
+                self.abs_file_path, blocked_ortho=self.blocked_ortho
             )
             self.nmos = {
                 "i": self.ncore,
@@ -95,7 +83,37 @@ class EOM_DSRG:
                 "V": self.nvir,
             }
             self.nops, self.slices = get_slices(self.ops, self.nmos)
-            print(self.slices.keys())
+            self.delta = {
+                "cc": np.eye(self.nmos["c"]),
+                "vv": np.eye(self.nmos["v"]),
+                "CC": np.eye(self.nmos["C"]),
+                "VV": np.eye(self.nmos["V"]),
+            }
+            ip.generator(
+                self.abs_file_path,
+                sequential_ortho=self.sequential_ortho,
+                blocked_ortho=self.blocked_ortho,
+            )
+        elif method_type == "cvs_ip":
+            self.ops, self.single_space, self.composite_space = cvs_ip.generator_full(
+                self.abs_file_path,
+                self.ncore,
+                self.nocc,
+                self.nact,
+                self.nvir,
+                blocked_ortho=self.blocked_ortho,
+            )
+            self.nmos = {
+                "i": self.ncore,
+                "c": self.nocc,
+                "a": self.nact,
+                "v": self.nvir,
+                "I": self.ncore,
+                "C": self.nocc,
+                "A": self.nact,
+                "V": self.nvir,
+            }
+            self.nops, self.slices = get_slices(self.ops, self.nmos)
             self.delta = {
                 "ii": np.eye(self.nmos["i"]),
                 "cc": np.eye(self.nmos["c"]),
@@ -104,6 +122,9 @@ class EOM_DSRG:
                 "CC": np.eye(self.nmos["C"]),
                 "VV": np.eye(self.nmos["V"]),
             }
+            cvs_ip.generator(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
@@ -290,10 +311,16 @@ class EOM_DSRG:
         return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
     def kernel_full(self, dump_vectors=False):
-        _available_methods = ["ip"]
-        assert self.method_type in _available_methods, f"Full EOM-DSRG is only supported for {_available_methods}."
-        evals, evecs = self.eom_dsrg_compute.kernel_full(self, sequential=self.sequential_ortho)
-        eigvec_dict = full_vec_to_dict(self.full_template_c, self.slices, evecs[:, :self.nroots], self.nmos)
+        _available_methods = ["ip", "cvs_ip"]
+        assert (
+            self.method_type in _available_methods
+        ), f"Full EOM-DSRG is only supported for {_available_methods}."
+        evals, evecs = self.eom_dsrg_compute.kernel_full(
+            self, sequential=self.sequential_ortho
+        )
+        eigvec_dict = full_vec_to_dict(
+            self.full_template_c, self.slices, evecs[:, : self.nroots], self.nmos
+        )
         if dump_vectors:
             pickle.dump(eigvec_dict, open(f"niupy_save.pkl", "wb"))
         eigvec = dict_to_vec(eigvec_dict, self.nroots)
@@ -307,7 +334,5 @@ class EOM_DSRG:
             os.remove(f"{self.method_type}_eom_dsrg_full.py")
         if os.path.exists(f"{self.method_type}_eom_dsrg_full.py-e"):
             os.remove(f"{self.method_type}_eom_dsrg_full.py-e")
-
-
 
         return e, eigvec, eigvec_dict, spin, symmetry, spec_info
