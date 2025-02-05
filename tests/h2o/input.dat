@@ -1,0 +1,34 @@
+import forte
+import psi4
+
+molecule water{
+O  0.0000  0.0000  0.1173
+H  0.0000  0.7572 -0.4692
+H  0.0000 -0.7572 -0.4692
+symmetry c2v
+}
+
+set globals{
+  basis                   6-31g
+}
+
+set forte{
+  mcscf_reference         true
+  active_space_solver     genci
+  correlation_solver      mrdsrg
+  corr_level              ldsrg2
+  restricted_docc         [2,0,0,1]
+  active                  [2,0,1,1]
+  dsrg_s                  0.5
+  e_convergence           10
+  mcscf_g_convergence     8
+  mcscf_e_convergence     12  
+  full_hbar               true
+  full_mbar               false
+  fourpdc                 mk
+  relax_ref               once
+  semi_canonical          true
+}
+
+energy('forte')
+
