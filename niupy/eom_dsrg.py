@@ -28,15 +28,10 @@ class EOM_DSRG:
                 "Reference symmetry other than 0 is not implemented."
             )
 
-        opt_einsum = kwargs.get("opt_einsum", True)
+        opt_einsum = kwargs.get("opt_einsum", False)
         mo_spaces = kwargs.get("mo_spaces", None)
 
         self.guess = kwargs.get("guess", "ones")
-
-        # if self.method_type == "cvs_ee":
-        #     self.guess = kwargs.get("guess", "singles")
-        # else:
-        #     self.guess = kwargs.get("guess", "ones")
 
         self.sequential_ortho = kwargs.get("sequential_ortho", True)
         self.blocked_ortho = kwargs.get("blocked_ortho", True)
@@ -59,10 +54,6 @@ class EOM_DSRG:
             print(f"nvir: {self.nvir}")
 
         self.abs_file_path = os.getcwd()
-
-        # package_dir = os.path.dirname(os.path.abspath(__file__))
-        # print(f"Package directory: {package_dir}")
-        # code_generator_dir = os.path.join(package_dir, "code_generator")
 
         if method_type == "cvs_ee":
             cvs_ee.generator(
@@ -128,24 +119,27 @@ class EOM_DSRG:
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
-        if opt_einsum:
-            print("Using opt_einsum...")
-            from opt_einsum import contract
+        # Disable opt_einsum for now
+        # if opt_einsum:
+        #     print("Using opt_einsum...")
+        #     from opt_einsum import contract
 
-            self.einsum = contract
+        #     self.einsum = contract
 
-            subprocess.run(
-                [
-                    "sed",
-                    "-i",
-                    "-e",
-                    "s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g",
-                    os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
-                ]
-            )
+        #     subprocess.run(
+        #         [
+        #             "sed",
+        #             "-i",
+        #             "-e",
+        #             "s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g",
+        #             os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
+        #         ]
+        #     )
 
-        else:
-            self.einsum = np.einsum
+        # else:
+        #     self.einsum = np.einsum
+
+        self.einsum = np.einsum
 
         self.S12 = lambda: None
 
@@ -303,10 +297,8 @@ class EOM_DSRG:
         )
         self._pretty_print_info(e, spin, symmetry, spec_info)
 
-        if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
-            os.remove(f"{self.method_type}_eom_dsrg.py")
-        if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
-            os.remove(f"{self.method_type}_eom_dsrg.py-e")
+        # if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
+        #     os.remove(f"{self.method_type}_eom_dsrg.py")
 
         return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
@@ -330,9 +322,7 @@ class EOM_DSRG:
         )
         self._pretty_print_info(e, spin, symmetry, spec_info)
 
-        if os.path.exists(f"{self.method_type}_eom_dsrg_full.py"):
-            os.remove(f"{self.method_type}_eom_dsrg_full.py")
-        if os.path.exists(f"{self.method_type}_eom_dsrg_full.py-e"):
-            os.remove(f"{self.method_type}_eom_dsrg_full.py-e")
+        # if os.path.exists(f"{self.method_type}_eom_dsrg_full.py"):
+        #     os.remove(f"{self.method_type}_eom_dsrg_full.py")
 
         return e, eigvec, eigvec_dict, spin, symmetry, spec_info

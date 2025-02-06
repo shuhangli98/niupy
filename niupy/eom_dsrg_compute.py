@@ -1,7 +1,11 @@
 import os
 import functools
 import pickle
-from niupy.eom_tools import eigh_gen_composite, filter_list, tensor_label_to_full_tensor_label
+from niupy.eom_tools import (
+    eigh_gen_composite,
+    filter_list,
+    tensor_label_to_full_tensor_label,
+)
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
     print("Importing cvs_ee_eom_dsrg")
@@ -43,51 +47,8 @@ def kernel_full(eom_dsrg, sequential=True):
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
         driver = cvs_ip_eom_dsrg_full.driver
-        singles = [
-            "I",
-            "aiC",
-            "acI",
-            "aiI",
-            "aiA",
-            "viC",
-            "vcI",
-            "viI",
-            "vaI",
-            "viA",
-            "AIC",
-            "AII",
-            "VIC",
-            "VII",
-            "VIA",
-        ]
-        singles = filter_list(
-            singles, eom_dsrg.ncore, eom_dsrg.nocc, eom_dsrg.nact, eom_dsrg.nvir
-        )
-        composite = [
-            filter_list(
-                ["aaI", "AIA"],
-                eom_dsrg.ncore,
-                eom_dsrg.nocc,
-                eom_dsrg.nact,
-                eom_dsrg.nvir,
-            )
-        ]
     else:
         driver = ip_eom_dsrg_full.driver
-        singles = [
-            "C",
-            "acC",
-            "acA",
-            "vcC",
-            "vaC",
-            "vcA",
-            "vaA",
-            "ACC",
-            "VCC",
-            "VCA",
-            "VAA",
-        ]
-        composite = [["aaC", "ACA"], ["A", "AAA", "aaA"]]
 
     heff, ovlp = driver(
         eom_dsrg.Hbar,
@@ -101,10 +62,21 @@ def kernel_full(eom_dsrg, sequential=True):
         eom_dsrg.slices,
         eom_dsrg.nmos,
     )
-
     singles = [tensor_label_to_full_tensor_label(_) for _ in eom_dsrg.single_space]
-    composite = [[tensor_label_to_full_tensor_label(_) for _ in __] for __ in eom_dsrg.composite_space]
-    eigval, eigvec = eigh_gen_composite(heff, ovlp, singles, composite, eom_dsrg.slices, eom_dsrg.tol_s, eom_dsrg.tol_semi, sequential=sequential)
+    composite = [
+        [tensor_label_to_full_tensor_label(_) for _ in __]
+        for __ in eom_dsrg.composite_space
+    ]
+    eigval, eigvec = eigh_gen_composite(
+        heff,
+        ovlp,
+        singles,
+        composite,
+        eom_dsrg.slices,
+        eom_dsrg.tol_s,
+        eom_dsrg.tol_semi,
+        sequential=sequential,
+    )
     return eigval, eigvec
 
 
@@ -183,12 +155,8 @@ def compute_spectroscopic_factors(eom_dsrg, eigvec):
     assert "ip" in eom_dsrg.method_type
     if eom_dsrg.method_type == "ip":
         p_compute = ip_eom_dsrg.build_sigma_vector_p
-    elif eom_dsrg.method_type == "ip_full":
-        p_compute = ip_eom_dsrg_full.build_sigma_vector_p
     elif eom_dsrg.method_type == "cvs_ip":
         p_compute = cvs_ip_eom_dsrg.build_sigma_vector_p
-    elif eom_dsrg.method_type == "cvs_ip_full":
-        p_compute = cvs_ip_eom_dsrg_full.build_sigma_vector_p
     p = np.zeros(eigvec.shape[1])
     for i in range(eigvec.shape[1]):
         current_dict = vec_to_dict(
@@ -498,7 +466,7 @@ def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
         x0 = np.zeros((nops, 1))
         x0 = vec_to_dict(eom_dsrg.full_template_c, x0)
         for k, v in guess.items():
-            x0[k] = (v[i,...])[np.newaxis,...]
+            x0[k] = (v[i, ...])[np.newaxis, ...]
         HX0_dict = eom_dsrg.build_H(
             eom_dsrg.einsum,
             x0,
@@ -548,6 +516,7 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
     return x0s
 
 
+# I would like to remove this function.
 def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=False):
     start = time.time()
     print("Computing initial guess...", flush=True)
@@ -654,17 +623,7 @@ def get_templates(eom_dsrg, nlow=1):
             if os.path.exists("cvs_ip_eom_dsrg.py")
             else None
         ),
-        "cvs_ip_full": (
-            cvs_ip_eom_dsrg_full.get_template_c
-            if os.path.exists("cvs_ip_eom_dsrg_full.py")
-            else None
-        ),
         "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
-        "ip_full": (
-            ip_eom_dsrg_full.get_template_c
-            if os.path.exists("ip_eom_dsrg_full.py")
-            else None
-        ),
         # Additional mappings for other methods can be added here
     }
 
