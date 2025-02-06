@@ -23,6 +23,16 @@ for v in irrep_table.values():
 
 
 def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"):
+    def _isab(key):
+        """
+        Checks if a string of eithr creation or annihilation operators
+        is of the form 'pQ' where at least one of the operators is active
+        """
+        if len(key) == 2 and ('a' in key or 'A' in key):
+            if key[0].islower() and key[1].isupper():
+                return key[0].upper() == key[1]
+        return False
+
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
     for idx, t in enumerate(d["rhs"]):
         if t[0] == bra_name:
@@ -30,29 +40,23 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
         if t[0] == ket_name:
             ket_idx = idx
 
-    # this is for the edge case of scaling the 'aAa' operator in spin integrated IP theory
     factor = 1.0
-    if d["rhs"][bra_idx][1] == "aaA":
-        factor *= np.sqrt(2)
-    if d["rhs"][ket_idx][1] == "aAa":
-        factor *= np.sqrt(2)
-        
-    # This is for cvs_ee
     bra_key = d["rhs"][bra_idx][1]
     ket_key = d["rhs"][ket_idx][1]
-    if len(bra_key) == 4 and bra_key[0].islower() and bra_key[1].isupper():
-        if (bra_key.count('a') + bra_key.count('A') > 0):
-            if bra_key[0].lower() == bra_key[1].lower():
-                factor *= np.sqrt(2)
-            if bra_key[2].lower() == bra_key[3].lower():
-                factor *= np.sqrt(2)
-            
-    if len(ket_key) == 4 and ket_key[0].islower() and ket_key[1].isupper():
-        if (ket_key.count('a') + ket_key.count('A') > 0):
-            if ket_key[0].lower() == ket_key[1].lower():
-                factor *= np.sqrt(2)
-            if ket_key[2].lower() == ket_key[3].lower():
-                factor *= np.sqrt(2)
+
+    # This is for ip
+    if len(bra_key) == 3:
+        if _isab(bra_key[1:]): factor *= np.sqrt(2)
+    if len(ket_key) == 3:
+        if _isab(ket_key[:2]): factor *= np.sqrt(2)
+
+    # This is for cvs_ee
+    if len(bra_key) == 4:
+        if _isab(bra_key[:2]): factor *= np.sqrt(2)
+        if _isab(bra_key[2:]): factor *= np.sqrt(2)
+    if len(ket_key) == 4:
+        if _isab(ket_key[:2]): factor *= np.sqrt(2)
+        if _isab(ket_key[2:]): factor *= np.sqrt(2)
 
     d["factor"] = float(d["factor"]) * factor
     d["rhs"][ket_idx][2] = "p" + d["rhs"][ket_idx][2]
@@ -596,20 +600,23 @@ def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True)
 
     # Add single space code blocks
     for key in single_space:
-        if (
-            len(key) == 4
-            and key[2] in ["v", "V"]
-            and key[3] in ["v", "V"]
-            and (key[0] in ["a", "A"] or key[1] in ["a", "A"])
-        ):
-            if not (key[0] in ["a", "A"] and key[1] in ["a", "A"]):
-                # One active, two virtual
-                code.extend(one_active_two_virtual(key))
-            # else:
-            #     # Two active, two virtual
-            #     code.extend(two_active_two_virtual(key))
-        elif "a" not in key and "A" not in key and len(key) == 4:
-            code.extend(no_active(key))
+        # 2h2p operators need various optimizations due to their size
+        if len(key) == 4: 
+            if (
+                key[2] in ["v", "V"]
+                and key[3] in ["v", "V"]
+                and (key[0] in ["a", "A"] or key[1] in ["a", "A"])
+            ):
+                if not (key[0] in ["a", "A"] and key[1] in ["a", "A"]):
+                    # One active, two virtual
+                    code.extend(one_active_two_virtual(key))
+                # else:
+                #     # Two active, two virtual
+                #     code.extend(two_active_two_virtual(key))
+            elif "a" not in key and "A" not in key:
+                code.extend(no_active(key))
+            else:
+                code.extend(add_single_space_code(key))
         else:
             code.extend(add_single_space_code(key))
         code.append("")  # Blank line for separation
@@ -617,6 +624,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True)
     # Add composite space code blocks
     for space in composite_space:
         if any((len(key) == 1 or len(key) == 2) for key in space) and sequential:
+            print(f"Sequential orthogonalization for {space}")
             code.extend(sequential_orthogonalization(space))
         else:
             code.extend(add_composite_space_code(space))
@@ -1184,18 +1192,41 @@ def make_function(key, mbeq, tensor_label):
     return func
 
 def make_driver(Hmbeq, Smbeq):
+    def _parse_key(key):
+        bra = key.split('|')[0]
+        ket = key.split('|')[1]
+        bcre = [_.replace('+','') for _ in bra.split(' ') if '+' in _]
+        bann = [_ for _ in bra.split(' ') if '+' not in _]
+        kcre = [_.replace('+','') for _ in ket.split(' ') if '+' in _]
+        kann = [_ for _ in ket.split(' ') if '+' not in _]
+        return bcre, bann, kcre, kann
+
+    def _isab(key):
+        """
+        Checks if a string of eithr creation or annihilation operators
+        is of the form 'pQ' where at least one of the operators is active
+        """
+        if len(key) == 2 and ('a' in key or 'A' in key):
+            if key[0].islower() and key[1].isupper():
+                return key[0].upper() == key[1]
+        return False
+
     func = 'def driver(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, nops, slices, sizes):\n'
     func += '\theff = np.zeros((nops,nops))\n'
     func += '\tovlp = np.zeros((nops,nops))\n'
     for key in Hmbeq.keys():
-        if 'a A' in key.split('|')[0]:
-            factor = 'np.sqrt(2) * '
-            if 'a A' in key.split('|')[1]:
-                factor = '2 * '
-        elif 'a A' in key.split('|')[1]:
-            factor = 'np.sqrt(2) * '
-        else:
+        bcre, bann, kcre, kann = _parse_key(key)
+        nf = _isab(bcre) + _isab(bann) + _isab(kcre) + _isab(kann)
+        if nf == 0:
             factor = ''
+        elif nf == 1:
+            factor = 'np.sqrt(2) * '
+        elif nf == 2:
+            factor = '2 * '
+        elif nf == 3:
+            factor = '2 * np.sqrt(2) * '
+        elif nf == 4:
+            factor = '4 * '
         fname = key.replace('|','_').replace(' ','').replace('+','')
         bra = key.split('|')[0].replace(' ','').replace('+','')
         ket = key.split('|')[1].replace(' ','').replace('+','')
@@ -1203,14 +1234,18 @@ def make_driver(Hmbeq, Smbeq):
         if bra!=ket:
             func += f"\theff[slices[\'{ket}\'],slices[\'{bra}\']] = heff[slices[\'{bra}\'],slices[\'{ket}\']].T\n"
     for key in Smbeq.keys():
-        if 'a A' in key.split('|')[0]:
-            factor = 'np.sqrt(2) * '
-            if 'a A' in key.split('|')[1]:
-                factor = '2 * '
-        elif 'a A' in key.split('|')[1]:
-            factor = 'np.sqrt(2) * '
-        else:
+        bcre, bann, kcre, kann = _parse_key(key)
+        nf = _isab(bcre) + _isab(bann) + _isab(kcre) + _isab(kann)
+        if nf == 0:
             factor = ''
+        elif nf == 1:
+            factor = 'np.sqrt(2) * '
+        elif nf == 2:
+            factor = '2 * '
+        elif nf == 3:
+            factor = '2 * np.sqrt(2) * '
+        elif nf == 4:
+            factor = '4 * '
         fname = key.replace('|','_').replace(' ','').replace('+','')
         bra = key.split('|')[0].replace(' ','').replace('+','')
         ket = key.split('|')[1].replace(' ','').replace('+','')
@@ -1343,7 +1378,7 @@ def get_slices(ops, sizes):
         slices[op_trimmed] = slice(int(nop), int(nop+op_size))
         nop += op_size
 
-    return nops, slices
+    return nops, slices    
 
 def tensor_label_to_op(tensor_label, ea=False):
     if (len(tensor_label)%2 == 0) or (len(tensor_label)%2 == 1 and ea): # EE or EA type tensor
@@ -1356,6 +1391,9 @@ def tensor_label_to_op(tensor_label, ea=False):
     op = ' '.join(cre) + ' ' + ' '.join(ann[::-1])
     op = op.strip()
     return op
+
+def tensor_label_to_full_tensor_label(tensor_label, ea=False):
+    return op_to_index(tensor_label_to_op(tensor_label, ea)).replace(' ','').replace('+','')
 
 def op_to_tensor_label(op):
     wop = w.op("o", [op])
@@ -1387,7 +1425,7 @@ def eigh_gen_composite(H, S, single_spaces, composite_spaces, slices, tol_single
             for i in block:
                 if len(i) <= 2:
                     singles_size += slices[i].stop - slices[i].start
-            X[block[0]] = sequential_orthogonalization(S_temp, singles_size, tol_composite)
+            X[block[0]] = orth_sequential(S_temp, singles_size, tol_composite)
 
         sevals, sevecs = np.linalg.eigh(S_temp)
         trunc_indices = np.where(sevals > tol_composite)[0]
@@ -1400,7 +1438,7 @@ def eigh_gen_composite(H, S, single_spaces, composite_spaces, slices, tol_single
     eigvec = X_concat @ eigvec
     return eigval, eigvec
 
-def sequential_orthogonalization(ovlp, singles_size, tol):
+def orth_sequential(ovlp, singles_size, tol):
     S11 = ovlp[:singles_size, :singles_size].copy()
     S12 = ovlp[:singles_size, singles_size:].copy()
     sevals, sevecs = np.linalg.eigh(S11)
@@ -1418,3 +1456,44 @@ def sequential_orthogonalization(ovlp, singles_size, tol):
     trunc_indices = np.where(sevals > tol)[0]
     X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
     return np.matmul(Y, X)
+
+def get_subspaces(wt, ops):
+    """
+    Automatically determine which operators belong to single and composite spaces.
+    Single spaces contain operators that are not coupled to other operators.
+    Composite spaces contain sets operators that are coupled to other operators in the set.
+    """
+    def _contraction_exists(wt, bop, kop):
+        bra = w.op('bra', [bop])
+        ket = w.op('ket', [kop])
+        return len(wt.contract(bra.adjoint() @ ket, 0, 0, inter_general=True)) > 0
+    
+    remaining_ops = set(ops)
+    spaces = []
+    for bra in ops:
+        if bra in remaining_ops:
+            remaining_ops.remove(bra)
+        else:
+            continue
+        spaces.append(set([bra]))
+        for ket in ops:
+            if ket in remaining_ops:
+                if _contraction_exists(wt, bra, ket):
+                    spaces[-1].add(ket)
+                    remaining_ops.remove(ket)
+
+    singles_space= []
+    composite_spaces = []
+    for space in spaces:
+        if len(space) == 1:
+            singles_space.append(space.pop())
+        else:
+            composite_spaces.append(sorted(list(space)))
+    singles_space = sorted(singles_space)
+    all_spaces = singles_space + list(itertools.chain.from_iterable(composite_spaces))
+    
+    singles_space = [op_to_tensor_label(op) for op in singles_space]
+    composite_spaces = [[op_to_tensor_label(op) for op in space] for space in composite_spaces]
+    all_spaces = [op_to_tensor_label(op) for op in all_spaces]
+
+    return singles_space, composite_spaces, all_spaces

@@ -28,15 +28,13 @@ class EOM_DSRG:
                 "Reference symmetry other than 0 is not implemented."
             )
 
-        opt_einsum = kwargs.get("opt_einsum", True)
+        opt_einsum = kwargs.get("opt_einsum", False)
         mo_spaces = kwargs.get("mo_spaces", None)
 
         self.guess = kwargs.get("guess", "ones")
 
-        # if self.method_type == "cvs_ee":
-        #     self.guess = kwargs.get("guess", "singles")
-        # else:
-        #     self.guess = kwargs.get("guess", "ones")
+        self.sequential_ortho = kwargs.get("sequential_ortho", True)
+        self.blocked_ortho = kwargs.get("blocked_ortho", True)
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
@@ -57,18 +55,14 @@ class EOM_DSRG:
 
         self.abs_file_path = os.getcwd()
 
-        # package_dir = os.path.dirname(os.path.abspath(__file__))
-        # print(f"Package directory: {package_dir}")
-        # code_generator_dir = os.path.join(package_dir, "code_generator")
-
         if method_type == "cvs_ee":
             cvs_ee.generator(
                 self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
             )
         elif method_type == "ip":
-            ip.generator(self.abs_file_path)
-        elif method_type == "ip_full":
-            self.ops = ip.generator_full_hbar(self.abs_file_path)
+            self.ops, self.single_space, self.composite_space = ip.generator_full(
+                self.abs_file_path, blocked_ortho=self.blocked_ortho
+            )
             self.nmos = {
                 "i": self.ncore,
                 "c": self.nocc,
@@ -80,20 +74,25 @@ class EOM_DSRG:
                 "V": self.nvir,
             }
             self.nops, self.slices = get_slices(self.ops, self.nmos)
-            print(self.slices.keys())
             self.delta = {
                 "cc": np.eye(self.nmos["c"]),
                 "vv": np.eye(self.nmos["v"]),
                 "CC": np.eye(self.nmos["C"]),
                 "VV": np.eye(self.nmos["V"]),
             }
-        elif method_type == "cvs_ip":
-            cvs_ip.generator(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            ip.generator(
+                self.abs_file_path,
+                sequential_ortho=self.sequential_ortho,
+                blocked_ortho=self.blocked_ortho,
             )
-        elif method_type == "cvs_ip_full":
-            self.ops = cvs_ip.generator_full_hbar(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+        elif method_type == "cvs_ip":
+            self.ops, self.single_space, self.composite_space = cvs_ip.generator_full(
+                self.abs_file_path,
+                self.ncore,
+                self.nocc,
+                self.nact,
+                self.nvir,
+                blocked_ortho=self.blocked_ortho,
             )
             self.nmos = {
                 "i": self.ncore,
@@ -106,7 +105,6 @@ class EOM_DSRG:
                 "V": self.nvir,
             }
             self.nops, self.slices = get_slices(self.ops, self.nmos)
-            print(self.slices.keys())
             self.delta = {
                 "ii": np.eye(self.nmos["i"]),
                 "cc": np.eye(self.nmos["c"]),
@@ -115,27 +113,33 @@ class EOM_DSRG:
                 "CC": np.eye(self.nmos["C"]),
                 "VV": np.eye(self.nmos["V"]),
             }
+            cvs_ip.generator(
+                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+            )
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
-        if opt_einsum:
-            print("Using opt_einsum...")
-            from opt_einsum import contract
+        # Disable opt_einsum for now
+        # if opt_einsum:
+        #     print("Using opt_einsum...")
+        #     from opt_einsum import contract
 
-            self.einsum = contract
+        #     self.einsum = contract
 
-            subprocess.run(
-                [
-                    "sed",
-                    "-i",
-                    "-e",
-                    "s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g",
-                    os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
-                ]
-            )
+        #     subprocess.run(
+        #         [
+        #             "sed",
+        #             "-i",
+        #             "-e",
+        #             "s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g",
+        #             os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
+        #         ]
+        #     )
 
-        else:
-            self.einsum = np.einsum
+        # else:
+        #     self.einsum = np.einsum
+
+        self.einsum = np.einsum
 
         self.S12 = lambda: None
 
@@ -293,25 +297,32 @@ class EOM_DSRG:
         )
         self._pretty_print_info(e, spin, symmetry, spec_info)
 
-        if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
-            os.remove(f"{self.method_type}_eom_dsrg.py")
-        if os.path.exists(f"{self.method_type}_eom_dsrg.py-e"):
-            os.remove(f"{self.method_type}_eom_dsrg.py-e")
+        # if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
+        #     os.remove(f"{self.method_type}_eom_dsrg.py")
 
         return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
-    def kernel_full(self):
+    def kernel_full(self, dump_vectors=False):
+        _available_methods = ["ip", "cvs_ip"]
         assert (
-            "full" in self.method_type
-        ), "The full kernel is only supported for methods ending with '_full'."
-        evals, evecs = self.eom_dsrg_compute.kernel_full(self)
+            self.method_type in _available_methods
+        ), f"Full EOM-DSRG is only supported for {_available_methods}."
+        evals, evecs = self.eom_dsrg_compute.kernel_full(
+            self, sequential=self.sequential_ortho
+        )
         eigvec_dict = full_vec_to_dict(
             self.full_template_c, self.slices, evecs[:, : self.nroots], self.nmos
         )
+        if dump_vectors:
+            pickle.dump(eigvec_dict, open(f"niupy_save.pkl", "wb"))
         eigvec = dict_to_vec(eigvec_dict, self.nroots)
         e = evals[: self.nroots]
         spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(
             self, e, eigvec, eigvec_dict
         )
         self._pretty_print_info(e, spin, symmetry, spec_info)
+
+        # if os.path.exists(f"{self.method_type}_eom_dsrg_full.py"):
+        #     os.remove(f"{self.method_type}_eom_dsrg_full.py")
+
         return e, eigvec, eigvec_dict, spin, symmetry, spec_info

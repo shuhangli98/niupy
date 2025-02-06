@@ -3,7 +3,8 @@ import itertools
 import os
 from niupy.eom_tools import *
 
-def generator_full_hbar(abs_path):
+def generator_full(abs_path, blocked_ortho=True):
+    # Generates the equations needed for full diagonalization
     w.reset_space()
     w.add_space('c', 'fermion', 'occupied', list('ijklmn'))
     w.add_space('v', 'fermion', 'unoccupied', list('abcdef'))
@@ -12,25 +13,18 @@ def generator_full_hbar(abs_path):
     w.add_space('V', 'fermion', 'unoccupied', list('ABCDEF'))
     w.add_space('A', 'fermion', 'general', list('STUVWXYZ'))
     wt = w.WickTheorem()
-    wt.set_max_cumulant(4)
-    
-    single_space = [
-        "C",
-        "cCa",
-        "cAa",
-        "cCv",
-        "aCv",
-        "cAv",
-        "aAv",
-        "CCA",
-        "CCV",
-        "CAV",
-        "AAV",
-    ]
-    aac = ["aCa", "CAA"]
-    active = ["A", "AAA", "aAa"]
-    composite_space = [aac, active]
-    block_list = single_space + aac + active
+
+    s = w.gen_op("bra", (0, 1), "avAV", "caCA", only_terms=True) \
+        + w.gen_op("bra", (1, 2), "avAV", "caCA", only_terms=True)
+    s = [_.strip() for _ in s]
+    s = filter_ops_by_ms(s, 1)
+
+    single_space, composite_space, block_list = get_subspaces(wt, s)
+    if not blocked_ortho:
+        single_space = []
+        composite_space = [block_list]
+    print('Single space:', single_space)
+    print('Composite spaces:', composite_space)
 
     ops = [tensor_label_to_op(_) for _ in block_list]
 
@@ -59,8 +53,7 @@ def generator_full_hbar(abs_path):
             ket = w.op('ket', [kop])
             ketind = op_to_index(kop)
             S_mbeq = get_matrix_elements(wt, bra, None, ket, inter_general=True, double_comm=False)
-            if S_mbeq: 
-                Smbeq[f'{braind}|{ketind}'] = S_mbeq
+            if S_mbeq: Smbeq[f'{braind}|{ketind}'] = S_mbeq
             double_comm = (kop.count('a') + kop.count('A') == 3) and (bop.count('a') + bop.count('A') == 3)
             H_mbeq = get_matrix_elements(wt, bra, H, ket, inter_general=True, double_comm=double_comm)
             if H_mbeq: Hmbeq[f'{braind}|{ketind}'] = H_mbeq
@@ -87,9 +80,9 @@ def generator_full_hbar(abs_path):
             if v: f.write(make_function(k, v, 'H')+ '\n')
         for k, v in Smbeq.items():
             if v: f.write(make_function(k, v, 'S')+ '\n')
-    return ops
+    return ops, single_space, composite_space
 
-def generator(abs_path):
+def generator(abs_path, sequential_ortho=True, blocked_ortho=True):
     w.reset_space()
     # alpha
     w.add_space("c", "fermion", "occupied", list("klmn"))
@@ -100,13 +93,20 @@ def generator(abs_path):
     w.add_space("V", "fermion", "unoccupied", list("EFGH"))
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
-    wt.set_max_cumulant(4)
 
     # Define operators
     s = w.gen_op("bra", (0, 1), "avAV", "caCA", only_terms=True) \
         + w.gen_op("bra", (1, 2), "avAV", "caCA", only_terms=True)
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 1)
+
+    single_space, composite_space, block_list = get_subspaces(wt, s)
+    if not blocked_ortho:
+        single_space = []
+        composite_space = [block_list]
+    print('Single space:', single_space)
+    print('Composite spaces:', composite_space)
+    
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
     print('Commutator trick:', s_comm)
 
@@ -126,25 +126,6 @@ def generator(abs_path):
 
     T_original_adj = w.op("bra", s, unique=True).adjoint()
     T_original = w.op("c", s, unique=True)
-
-    # Define subspaces. Single first!
-    single_space = [
-        "C",
-        "cCa",
-        "cAa",
-        "cCv",
-        "aCv",
-        "cAv",
-        "aAv",
-        "CCA",
-        "CCV",
-        "CAV",
-        "AAV",
-    ]
-    aac = ["aCa", "CAA"]
-    active = ["A", "AAA", "aAa"]
-    composite_space = [aac, active]
-    block_list = single_space + aac + active
 
     Hbar_op = w.gen_op_ms0("Hbar", 1, "cav", "cav") + w.gen_op_ms0(
             "Hbar", 2, "cav", "cav"
@@ -187,8 +168,10 @@ def generator(abs_path):
     funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize="True")  # HC
     funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize="True")  # SC
     funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
-    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, sequential=True)
-    funct_preconditioner = generate_preconditioner(mbeq, {}, {}, single_space, composite_space, first_row=False)
+    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, sequential=sequential_ortho)
+    funct_preconditioner = generate_preconditioner(
+        mbeq, {}, {}, single_space, composite_space, first_row=False
+    )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=False)
 
     # abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
