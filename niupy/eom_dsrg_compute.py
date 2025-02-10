@@ -42,16 +42,21 @@ dgeev1 = lib.linalg_helper.dgeev1
 
 
 def kernel_full(eom_dsrg, sequential=True):
-    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
+    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar_first.npz")
+    eom_dsrg.Hbar2 = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
 
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
+        eom_dsrg.Hbar2 = slice_H_core(
+            eom_dsrg.Hbar2, eom_dsrg.core_sym, eom_dsrg.occ_sym
+        )
         driver = cvs_ip_eom_dsrg_full.driver
     else:
         driver = ip_eom_dsrg_full.driver
 
     heff, ovlp = driver(
         eom_dsrg.Hbar,
+        eom_dsrg.Hbar2,
         eom_dsrg.delta,
         eom_dsrg.gamma1,
         eom_dsrg.eta1,
