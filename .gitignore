@@ -41,6 +41,7 @@ CO/
 for_Brian/
 cvs_ee_eom_dsrg.py
 .DS_Store
+backup/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
