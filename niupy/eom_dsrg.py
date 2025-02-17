@@ -186,32 +186,27 @@ class EOM_DSRG:
         else:
             self.Mbar = [None, None, None]
 
-    def _initialize_mo_symmetry(self, wfn, mo_spaces, method_type):
-        if wfn is not None:
-            if mo_spaces is None:
-                psi4_options = psi4.core.get_options()
-                spaces = [
-                    "frozen_docc",
-                    "restricted_docc",
-                    "active",
-                    "restricted_uocc",
-                    "frozen_uocc",
-                ]
-                mo_spaces = {}
-                for s in spaces:
-                    if len(psi4_options.get_int_vector(s)) > 0:
-                        mo_spaces[s] = psi4_options.get_int_vector(s)
-            nmopi = wfn.nmopi()
-            self.point_group = wfn.molecule().point_group().symbol()
-            mo_space_info = forte.make_mo_space_info_from_map(
-                nmopi, self.point_group, mo_spaces
-            )
-            self.core_sym = np.array(mo_space_info.symmetry("FROZEN_DOCC"))
-            self.occ_sym = np.array(mo_space_info.symmetry("RESTRICTED_DOCC"))
-            self.act_sym = np.array(mo_space_info.symmetry("ACTIVE"))
-            self.vir_sym = np.array(mo_space_info.symmetry("VIRTUAL"))
-        else:
+    def _initialize_mo_symmetry(self, method_type, mo_spaces=None):
+        try:
+            mo_space_save = np.load("save_mo_space.npz")
+        except FileNotFoundError:
             self._set_default_symmetry(method_type)
+        nmopi = mo_space_save["nmopi"]
+        self.point_group = mo_space_save["point_group"]
+        if mo_spaces is None:
+            mo_spaces = {}
+            mo_spaces["FROZEN_DOCC"] = mo_space_save["FROZEN_DOCC"]
+            mo_spaces["RESTRICTED_DOCC"] = mo_space_save["RESTRICTED_DOCC"]
+            mo_spaces["ACTIVE"] = mo_space_save["ACTIVE"]
+            mo_spaces["VIRTUAL"] = mo_space_save["VIRTUAL"]
+        mo_space_info = forte.make_mo_space_info_from_map(
+            psi4.core.Dimension(list(nmopi)), self.point_group, mo_spaces
+        )
+        
+        self.core_sym = np.array(mo_space_info.symmetry("FROZEN_DOCC"))
+        self.occ_sym = np.array(mo_space_info.symmetry("RESTRICTED_DOCC"))
+        self.act_sym = np.array(mo_space_info.symmetry("ACTIVE"))
+        self.vir_sym = np.array(mo_space_info.symmetry("VIRTUAL"))
 
     def _set_default_symmetry(self, method_type):
         if method_type == "cvs_ee" or "cvs_ip" in method_type:
