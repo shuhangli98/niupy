@@ -1,8 +1,14 @@
 import niupy
 import numpy as np
 
+mo_spaces = {
+    "FROZEN_DOCC": [1, 0, 0, 0],
+    "RESTRICTED_DOCC": [1, 0, 0, 1],
+    "ACTIVE": [2, 0, 1, 1],
+}
+
 eom_dsrg = niupy.EOM_DSRG(
-    opt_einsum=False,
+    mo_spaces=mo_spaces,
     nroots=10,
     max_cycle=200,
     max_space=200,
