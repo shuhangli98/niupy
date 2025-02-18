@@ -9,7 +9,7 @@ from niupy.code_generator import cvs_ee, ee, ip, cvs_ip
 
 
 class EOM_DSRG:
-    def __init__(self, method_type, wfn=None, **kwargs):
+    def __init__(self, method_type, **kwargs):
         self.method_type = method_type
         # Set defaults
         self.tol_e = kwargs.get("tol_e", 1e-8)
@@ -37,7 +37,7 @@ class EOM_DSRG:
         self.blocked_ortho = kwargs.get("blocked_ortho", True)
 
         # Initialize MO symmetry information
-        self._initialize_mo_symmetry(wfn, mo_spaces, method_type)
+        self._initialize_mo_symmetry(method_type, mo_spaces)
 
         # Print symmetry information
         self._print_symmetry_info()
@@ -189,41 +189,44 @@ class EOM_DSRG:
     def _initialize_mo_symmetry(self, method_type, mo_spaces=None):
         try:
             mo_space_save = np.load("save_mo_space.npz")
+            print("Loading mo_space from save_mo_space.npz")
         except FileNotFoundError:
-            self._set_default_symmetry(method_type)
+            raise FileNotFoundError("No save_mo_space.npz file found.") from None
         nmopi = mo_space_save["nmopi"]
-        self.point_group = mo_space_save["point_group"]
+        self.point_group = str(mo_space_save["point_group"])
         if mo_spaces is None:
             mo_spaces = {}
-            mo_spaces["FROZEN_DOCC"] = mo_space_save["FROZEN_DOCC"]
-            mo_spaces["RESTRICTED_DOCC"] = mo_space_save["RESTRICTED_DOCC"]
-            mo_spaces["ACTIVE"] = mo_space_save["ACTIVE"]
-            mo_spaces["VIRTUAL"] = mo_space_save["VIRTUAL"]
+            mo_spaces["frozen_docc"] = mo_space_save["frozen_docc"]
+            mo_spaces["restricted_docc"] = mo_space_save["restricted_docc"]
+            mo_spaces["active"] = mo_space_save["active"]
+            mo_spaces["virtual"] = mo_space_save["virtual"]
+        else:
+            mo_spaces["virtual"] = mo_space_save["virtual"]
         mo_space_info = forte.make_mo_space_info_from_map(
             psi4.core.Dimension(list(nmopi)), self.point_group, mo_spaces
         )
-        
+
         self.core_sym = np.array(mo_space_info.symmetry("FROZEN_DOCC"))
         self.occ_sym = np.array(mo_space_info.symmetry("RESTRICTED_DOCC"))
         self.act_sym = np.array(mo_space_info.symmetry("ACTIVE"))
         self.vir_sym = np.array(mo_space_info.symmetry("VIRTUAL"))
 
-    def _set_default_symmetry(self, method_type):
-        if method_type == "cvs_ee" or "cvs_ip" in method_type:
-            print("Running H2O/6-31g since no wfn and mo_spaces are provided.")
-            # 6-31g
-            self.point_group = "c2v"
-            self.core_sym = np.array([0])
-            self.occ_sym = np.array([0, 3])
-            self.act_sym = np.array([0, 0, 2, 3])
-            self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
-        elif method_type == "ip":
-            print("Running BeH2/STO-6G since no wfn and mo_spaces are provided.")
-            self.point_group = "c2v"
-            self.core_sym = np.array([])
-            self.occ_sym = np.array([0, 0])
-            self.act_sym = np.array([0, 3])
-            self.vir_sym = np.array([0, 2, 3])
+    # def _set_default_symmetry(self, method_type):
+    #     if method_type == "cvs_ee" or "cvs_ip" in method_type:
+    #         print("Running H2O/6-31g since no save_mo_space file is provided.")
+    #         # 6-31g
+    #         self.point_group = "c2v"
+    #         self.core_sym = np.array([0])
+    #         self.occ_sym = np.array([0, 3])
+    #         self.act_sym = np.array([0, 0, 2, 3])
+    #         self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
+    #     elif method_type == "ip":
+    #         print("Running BeH2/STO-6G since no save_mo_space file is provided.")
+    #         self.point_group = "c2v"
+    #         self.core_sym = np.array([])
+    #         self.occ_sym = np.array([0, 0])
+    #         self.act_sym = np.array([0, 3])
+    #         self.vir_sym = np.array([0, 2, 3])
 
     def _print_symmetry_info(self):
         print("\n")
