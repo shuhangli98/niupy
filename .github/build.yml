@@ -1,0 +1,118 @@
+name: build
+
+on: 
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 15 * * *'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}   
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: 'true'
+
+    - name: Setup Conda
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        activate-environment: niupy
+        environment-file: environment.yml
+        channels: conda-forge
+        show-channel-urls: true
+        python-version: '3.10'
+        auto-activate-base: false
+        add-pip-as-python-dependency: true
+
+    - name: Get ambit cache key
+      id: get-ambit-key
+      run: |
+        echo "key=$(git ls-remote https://github.com/jturney/ambit.git refs/heads/master | awk '{print $1}')" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Restore ambit
+      uses: actions/cache/restore@v4
+      id: cache-restore-ambit
+      with:
+        path: |
+          ~/bin/ambit
+        key: ${{ runner.os }}-${{ runner.arch }}-ambit-${{ steps.get-ambit-key.outputs.key }}
+
+    - name: Install ambit
+      if: steps.cache-restore-ambit.outputs.cache-hit != 'true'
+      run: |
+        conda info
+        conda list
+        cd $HOME
+        git clone https://github.com/jturney/ambit.git
+        cd ambit
+        cmake -H. -Bobjdir -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$HOME/bin/ambit
+        cd objdir
+        make -j4
+        make install
+
+    - name: Cache ambit
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/bin/ambit
+        key: ${{ runner.os }}-${{ runner.arch }}-ambit-${{ steps.get-ambit-key.outputs.key }}
+    
+    - name: Get Psi4 cache key
+      id: get-psi4-key
+      run: |
+        echo "key=$(git ls-remote https://github.com/psi4/psi4.git refs/heads/master | awk '{print $1}')" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Restore Psi4
+      uses: actions/cache/restore@v4
+      id: cache-restore-psi4
+      with:
+        path: |
+          ~/psi4
+        key: ${{ runner.os }}-${{ runner.arch }}-psi4-${{ steps.get-psi4-key.outputs.key }}
+      
+    - name: Compile Psi4
+      if: steps.cache-restore-psi4.outputs.cache-hit != 'true'
+      run: |
+        cd $HOME        
+        git clone https://github.com/psi4/psi4.git
+        cd psi4
+        git pull origin master --tags 
+        git fetch origin "refs/tags/*:refs/tags/*"
+        cmake -H. -Bobjdir -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$HOME/psi4bin -DENABLE_ecpint=ON
+        cd objdir
+        make -j4
+    
+    - name: Cache Psi4
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          ~/psi4
+        key: ${{ runner.os }}-${{ runner.arch }}-psi4-${{ steps.get-psi4-key.outputs.key }}
+
+    - name: Compile Forte
+      id: compile-forte
+      run: |
+        export PYTHONPATH=$PYTHONPATH:$HOME/psi4/objdir/stage/lib:$HOME/bin/ambit/lib
+        export AMBITPATH=$HOME/bin/ambit
+        export PATH=$PATH:$HOME/psi4/objdir/stage/bin
+        ambit_dir=$HOME/bin/ambit/share/cmake/ambit/
+        build_type=Release
+        cd $HOME 
+        git clone -b eom-dsrg https://github.com/evangelistalab/forte.git
+        cd forte
+        cmake_psi4=`psi4 --plugin-compile`
+        $cmake_psi4 \
+          -Dambit_DIR=$ambit_dir \
+          -DCMAKE_BUILD_TYPE=$build_type \
+          -DMAX_DET_ORB=128 \
+          -DPYTHON_EXECUTABLE="${CONDA_PREFIX}/bin/python" \
+          -DENABLE_ForteTests=TRUE 
+        make -j4
