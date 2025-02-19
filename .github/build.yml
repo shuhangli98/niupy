@@ -116,3 +116,19 @@ jobs:
           -DPYTHON_EXECUTABLE="${CONDA_PREFIX}/bin/python" \
           -DENABLE_ForteTests=TRUE 
         make -j4
+    
+    - name: Compile Wicked
+      id: compile-wicked
+      run: |
+        cd $HOME
+        git clone --recurse-submodules https://github.com/fevangelista/wicked.git
+        cd wicked
+        git fetch origin pull/20/head:pr-20
+        git checkout pr-20
+        python setup.py develop
+    
+    - name: Compile Niupy
+      id: compile-niupy
+      run: |
+        cd $HOME/work/niupy
+        pip install -e .
