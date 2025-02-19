@@ -130,5 +130,5 @@ jobs:
     - name: Compile Niupy
       id: compile-niupy
       run: |
-        cd $HOME/work/niupy
+        cd $HOME/work/niupy/niupy
         pip install -e .
