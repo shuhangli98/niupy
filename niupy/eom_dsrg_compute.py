@@ -3,7 +3,6 @@ import functools
 import pickle
 from niupy.eom_tools import (
     eigh_gen_composite,
-    filter_list,
     tensor_label_to_full_tensor_label,
 )
 

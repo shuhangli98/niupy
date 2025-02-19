@@ -37,7 +37,7 @@ class EOM_DSRG:
         self.blocked_ortho = kwargs.get("blocked_ortho", True)
 
         # Initialize MO symmetry information
-        self._initialize_mo_symmetry(method_type, mo_spaces)
+        self._initialize_mo_symmetry(mo_spaces)
 
         # Print symmetry information
         self._print_symmetry_info()
@@ -119,26 +119,6 @@ class EOM_DSRG:
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
 
-        # Disable opt_einsum for now
-        # if opt_einsum:
-        #     print("Using opt_einsum...")
-        #     from opt_einsum import contract
-
-        #     self.einsum = contract
-
-        #     subprocess.run(
-        #         [
-        #             "sed",
-        #             "-i",
-        #             "-e",
-        #             "s/optimize=True/optimize='greedy'/g; s/np\\.einsum/einsum/g",
-        #             os.path.join(self.abs_file_path, f"{method_type}_eom_dsrg.py"),
-        #         ]
-        #     )
-
-        # else:
-        #     self.einsum = np.einsum
-
         self.einsum = np.einsum
 
         self.S12 = lambda: None
@@ -186,7 +166,7 @@ class EOM_DSRG:
         else:
             self.Mbar = [None, None, None]
 
-    def _initialize_mo_symmetry(self, method_type, mo_spaces=None):
+    def _initialize_mo_symmetry(self, mo_spaces=None):
         try:
             mo_space_save = np.load("save_mo_space.npz")
             print("Loading mo_space from save_mo_space.npz")
@@ -210,23 +190,6 @@ class EOM_DSRG:
         self.occ_sym = np.array(mo_space_info.symmetry("RESTRICTED_DOCC"))
         self.act_sym = np.array(mo_space_info.symmetry("ACTIVE"))
         self.vir_sym = np.array(mo_space_info.symmetry("VIRTUAL"))
-
-    # def _set_default_symmetry(self, method_type):
-    #     if method_type == "cvs_ee" or "cvs_ip" in method_type:
-    #         print("Running H2O/6-31g since no save_mo_space file is provided.")
-    #         # 6-31g
-    #         self.point_group = "c2v"
-    #         self.core_sym = np.array([0])
-    #         self.occ_sym = np.array([0, 3])
-    #         self.act_sym = np.array([0, 0, 2, 3])
-    #         self.vir_sym = np.array([0, 0, 0, 2, 3, 3])
-    #     elif method_type == "ip":
-    #         print("Running BeH2/STO-6G since no save_mo_space file is provided.")
-    #         self.point_group = "c2v"
-    #         self.core_sym = np.array([])
-    #         self.occ_sym = np.array([0, 0])
-    #         self.act_sym = np.array([0, 3])
-    #         self.vir_sym = np.array([0, 2, 3])
 
     def _print_symmetry_info(self):
         print("\n")
