@@ -34,8 +34,8 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
-    print('Single space:', single_space)
-    print('Composite spaces:', composite_space)
+    print("Single space:", single_space)
+    print("Composite spaces:", composite_space)
 
     ops = [tensor_label_to_op(_) for _ in block_list]
 
@@ -108,7 +108,9 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     return ops, single_space, composite_space
 
 
-def generator(abs_path, ncore, nocc, nact, nvir, sequential_ortho=True, blocked_ortho=True):
+def generator(
+    abs_path, ncore, nocc, nact, nvir, sequential_ortho=True, blocked_ortho=True
+):
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -138,8 +140,8 @@ def generator(abs_path, ncore, nocc, nact, nvir, sequential_ortho=True, blocked_
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
-    print('Single space:', single_space)
-    print('Composite spaces:', composite_space)
+    print("Single space:", single_space)
+    print("Composite spaces:", composite_space)
 
     # used in spectroscopic amplitudes
     singles = w.gen_op("bra", (0, 1), "avAV", "ciaCIA", only_terms=True)
@@ -191,7 +193,9 @@ def generator(abs_path, ncore, nocc, nact, nvir, sequential_ortho=True, blocked_
     funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize="True")  # HC
     funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize="True")  # SC
     funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
-    funct_S_12 = generate_S12(mbeq_s, single_space, composite_space, sequential=sequential_ortho)
+    funct_S_12 = generate_S12(
+        mbeq_s, single_space, composite_space, sequential=sequential_ortho
+    )
     funct_preconditioner = generate_preconditioner(
         mbeq, {}, {}, single_space, composite_space, first_row=False
     )

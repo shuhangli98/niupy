@@ -173,7 +173,7 @@ def compute_spectroscopic_factors(eom_dsrg, eigvec):
             first_row=False,
         )
         pi = antisymmetrize(dict_to_vec(pi, 1), ea=False)
-        p[i] = (pi**2).sum()
+        p[i] = (pi**2).sum() * 2.0  # Ms = +/- 1/2
     return p
 
 
