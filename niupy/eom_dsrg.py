@@ -57,7 +57,13 @@ class EOM_DSRG:
 
         if method_type == "cvs_ee":
             cvs_ee.generator(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+                self.abs_file_path,
+                self.ncore,
+                self.nocc,
+                self.nact,
+                self.nvir,
+                sequential_ortho=self.sequential_ortho,
+                blocked_ortho=self.blocked_ortho,
             )
         elif method_type == "ip":
             self.ops, self.single_space, self.composite_space = ip.generator_full(
@@ -114,7 +120,13 @@ class EOM_DSRG:
                 "VV": np.eye(self.nmos["V"]),
             }
             cvs_ip.generator(
-                self.abs_file_path, self.ncore, self.nocc, self.nact, self.nvir
+                self.abs_file_path,
+                self.ncore,
+                self.nocc,
+                self.nact,
+                self.nvir,
+                sequential_ortho=self.sequential_ortho,
+                blocked_ortho=self.blocked_ortho,
             )
         else:
             raise ValueError(f"Method type {method_type} is not supported.")

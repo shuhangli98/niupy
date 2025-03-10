@@ -4,7 +4,9 @@ import os
 from niupy.eom_tools import *
 
 
-def generator(abs_path, ncore, nocc, nact, nvir):
+def generator(
+    abs_path, ncore, nocc, nact, nvir, sequential_ortho=True, blocked_ortho=True
+):
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -18,8 +20,6 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
 
-    # wt.set_max_cumulant(3)
-
     # Define operators
     s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True) + w.gen_op(
         "bra", 2, "avAV", "ciaCIA", only_terms=True
@@ -28,6 +28,17 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     s = filter_ops_by_ms(s, 0)
     s = [_ for _ in s if ("I" in _ or "i" in _)]
     s = filter_list(s, ncore, nocc, nact, nvir)
+
+    single_space, composite_space, block_list = get_subspaces(wt, s)
+    single_space = filter_list(single_space, ncore, nocc, nact, nvir)
+    composite_space = [filter_list(_, ncore, nocc, nact, nvir) for _ in composite_space]
+    block_list = single_space + list(itertools.chain(*composite_space))
+
+    if not blocked_ortho:
+        single_space = []
+        composite_space = [block_list]
+    print("Single space:", single_space)
+    print("Composite spaces:", composite_space)
 
     # # These blocks are computed with the commutator trick.
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
@@ -90,65 +101,6 @@ def generator(abs_path, ncore, nocc, nact, nvir):
             wt, bra, Hbar_op, ket, inter_general=inter_general, double_comm=False
         )
 
-    # Define subspaces. Single first!
-    S_half_0 = [
-        "iv",
-        "IV",
-        "iAaV",
-        "aIvA",
-        "icvv",
-        "iCvV",
-        "cIvV",
-        "ICVV",
-        "iivv",
-        "iIvV",
-        "IIVV",
-    ]
-    S_half_1 = [
-        "icva",
-        "iCvA",
-        "iCaV",
-        "cIvA",
-        "cIaV",
-        "ICVA",
-        "iiva",
-        "iIvA",
-        "iIaV",
-        "IIVA",
-    ]
-    S_half_minus_1 = ["iavv", "iAvV", "aIvV", "IAVV"]
-    S_half_2 = ["icaa", "iCaA", "cIaA", "ICAA", "iiaa", "iIaA", "IIAA"]
-
-    S_half_0_com_iv = ["iava", "iAvA"]
-    S_half_0_com_IV = ["aIaV", "IAVA"]
-
-    S_half_1_com_i = ["ia", "iaaa", "iAaA"]
-    S_half_1_com_I = ["IA", "aIaA", "IAAA"]
-
-    S_half_0 = filter_list(S_half_0, ncore, nocc, nact, nvir)
-    S_half_1 = filter_list(S_half_1, ncore, nocc, nact, nvir)
-    S_half_minus_1 = filter_list(S_half_minus_1, ncore, nocc, nact, nvir)
-    S_half_2 = filter_list(S_half_2, ncore, nocc, nact, nvir)
-
-    S_half_0_com_iv = filter_list(S_half_0_com_iv, ncore, nocc, nact, nvir)
-    S_half_0_com_IV = filter_list(S_half_0_com_IV, ncore, nocc, nact, nvir)
-    S_half_1_com_i = filter_list(S_half_1_com_i, ncore, nocc, nact, nvir)
-    S_half_1_com_I = filter_list(S_half_1_com_I, ncore, nocc, nact, nvir)
-
-    block_list = (
-        S_half_0
-        + S_half_1
-        + S_half_minus_1
-        + S_half_2
-        + S_half_0_com_iv
-        + S_half_0_com_IV
-        + S_half_1_com_i
-        + S_half_1_com_I
-    )
-
-    single_space = S_half_0 + S_half_1 + S_half_minus_1 + S_half_2
-    composite_space = [S_half_0_com_iv, S_half_0_com_IV, S_half_1_com_i, S_half_1_com_I]
-
     # Template C
     index_dict = {
         "c": "nocc",
@@ -172,7 +124,6 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     THT_coupling = T_original_adj @ Hbar_op @ T_comm
     THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
     THT = THT_comm + THT_original + THT_coupling + THT_coupling_2
-    # THT = T_adj @ Hbar_op @ T
     expr = wt.contract(THT, 0, 0, inter_general=True)
     mbeq = expr.to_manybody_equation("sigma")
 
@@ -187,23 +138,26 @@ def generator(abs_path, ncore, nocc, nact, nvir):
     mbeq_s = expr_s.to_manybody_equation("sigma")
 
     # Generate wicked contraction
-    funct = generate_sigma_build(mbeq, "Hbar")  # HC
-    funct_s = generate_sigma_build(mbeq_s, "s")  # SC
+    funct = generate_sigma_build(mbeq, "Hbar", first_row=True, optimize="True")  # HC
+    funct_s = generate_sigma_build(mbeq_s, "s", first_row=True, optimize="True")  # SC
     funct_first = generate_first_row(mbeq_first)  # First row/column
     funct_dipole = generate_transition_dipole(mbeq_first)
-    funct_S12 = generate_S12(mbeq_s, single_space, composite_space, sequential=True)
+    funct_S12 = generate_S12(
+        mbeq_s, single_space, composite_space, sequential=sequential_ortho
+    )
     funct_preconditioner = generate_preconditioner(
         mbeq,
         mbeqs_one_active_two_virtual,
         mbeqs_no_active,
         single_space,
         composite_space,
+        first_row=True,
     )
-    funct_apply_S12 = generate_apply_S12(single_space, composite_space)
+    funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=True)
 
     # Initial guess
-    funct_H_singles = generate_sigma_build_singles(mbeq, "Hbar")
-    funct_s_singles = generate_sigma_build_singles(mbeq_s, "s")
+    # funct_H_singles = generate_sigma_build_singles(mbeq, "Hbar")
+    # funct_s_singles = generate_sigma_build_singles(mbeq_s, "s")
 
     # script_dir = os.path.dirname(__file__)
     # rel_path = "../cvs_ee_eom_dsrg.py"
@@ -222,8 +176,8 @@ def generator(abs_path, ncore, nocc, nact, nvir):
         f.write(f"{funct}\n\n")
         f.write(f"{funct_s}\n\n")
         f.write(f"{funct_first}\n\n")
-        f.write(f"{funct_H_singles}\n\n")
-        f.write(f"{funct_s_singles}\n\n")
+        # f.write(f"{funct_H_singles}\n\n")
+        # f.write(f"{funct_s_singles}\n\n")
         f.write(f"{funct_dipole}\n\n")
 
 
