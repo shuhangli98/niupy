@@ -37,7 +37,7 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
         Checks if a string of eithr creation or annihilation operators
         is of the form 'pQ' where at least one of the operators is active
         """
-        if len(key) == 2 and ("a" in key or "A" in key):
+        if len(key) == 2:
             if key[0].islower() and key[1].isupper():
                 return key[0].upper() == key[1]
         return False
@@ -54,20 +54,20 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
     ket_key = d["rhs"][ket_idx][1]
 
     # This is for ip
-    if len(bra_key) == 3:
+    if len(bra_key) == 3 and (bra_key[1:].count("a") + bra_key[1:].count("A") > 0):
         if _isab(bra_key[1:]):
             factor *= np.sqrt(2)
-    if len(ket_key) == 3:
+    if len(ket_key) == 3 and (ket_key[:2].count("a") + ket_key[:2].count("A") > 0):
         if _isab(ket_key[:2]):
             factor *= np.sqrt(2)
 
     # This is for cvs_ee
-    if len(bra_key) == 4:
+    if len(bra_key) == 4 and (bra_key.count("a") + bra_key.count("A") > 0):
         if _isab(bra_key[:2]):
             factor *= np.sqrt(2)
         if _isab(bra_key[2:]):
             factor *= np.sqrt(2)
-    if len(ket_key) == 4:
+    if len(ket_key) == 4 and (ket_key.count("a") + ket_key.count("A") > 0):
         if _isab(ket_key[:2]):
             factor *= np.sqrt(2)
         if _isab(ket_key[2:]):
