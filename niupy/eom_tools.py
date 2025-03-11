@@ -84,30 +84,6 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
     return w.dict_to_einsum(d, optimize=optimize)
 
 
-def compile_sigma_vector_singles(
-    equation, bra_name="bra", ket_name="c", optimize="True"
-):
-    eq, d = w.compile_einsum(equation, return_eq_dict=True)
-    for idx, t in enumerate(d["rhs"]):
-        if t[0] == bra_name:
-            bra_idx = idx
-        if t[0] == ket_name:
-            ket_idx = idx
-    bra_true = False
-    ket_true = False
-
-    bra = d["rhs"][bra_idx][1]
-    ket = d["rhs"][ket_idx][1]
-    if len(bra) == 2:
-        bra_true = True
-    if len(ket) == 2:
-        ket_true = True
-    if bra_true and ket_true:
-        return compile_sigma_vector(
-            equation, bra_name=bra_name, ket_name=ket_name, optimize=optimize
-        )
-
-
 def compile_first_row(equation, ket_name="c", optimize="True"):
     factor = 1.0
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
@@ -234,26 +210,6 @@ def generate_sigma_build(mbeq, matrix, first_row=True, optimize="True"):
     return "\n".join(code)
 
 
-def generate_sigma_build_singles(mbeq, matrix, optimize="True"):
-    code = [
-        f"def build_sigma_vector_{matrix}_singles(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
-        "    sigma = {key: np.zeros(c[key].shape) for key in c.keys() if len(key) == 2 or key == 'first'}",
-    ]
-
-    for eq in mbeq["|"]:
-        line = compile_sigma_vector_singles(eq, optimize=optimize)
-        if line is not None:
-            code.append(f"    {line}")
-
-    if matrix == "Hbar":
-        code.append("    sigma['first'] = np.zeros_like(c['first'])")
-    elif matrix == "s":
-        code.append("    sigma['first'] = c['first'].copy()")
-
-    code.append("    return sigma")
-    return "\n".join(code)
-
-
 def generate_template_c(block_list, index_dict, function_args):
     code = [f"def get_template_c({function_args}):", "    c = {"]
 
@@ -312,6 +268,25 @@ def dict_to_vec(dictionary, n_lowest):
     return vec.T
 
 
+def full_vec_to_dict_singles(dict_template_long, slices_short, vec, nmos):
+    short_template = {}  # A short one
+    dict_template = {}  # A long one
+    keys_temp = slices_short.keys()
+    nroots = vec.shape[1]
+    for kt in keys_temp:
+        if len(kt) == 2:
+            new_key = kt[1] + kt[0]
+            short_template[new_key] = dict_template_long[new_key].copy()
+    temp_template = full_vec_to_dict(short_template, slices_short, vec, nmos)
+
+    for kt in dict_template_long.keys():
+        if len(kt) == 2:
+            dict_template[kt] = temp_template[kt].copy()
+        else:
+            dict_template[kt] = np.zeros((nroots, *dict_template_long[kt].shape[1:]))
+    return dict_template
+
+
 def full_vec_to_dict(dict_template, slices, vec, nmos):
     new_dict = {}
     nroots = vec.shape[1]
@@ -324,7 +299,12 @@ def full_vec_to_dict(dict_template, slices, vec, nmos):
         else:
             shape_full = [nmos[_] for _ in ks]
             temp = vec[slices[ks], :].T.reshape((nroots, *shape_full))
-            new_dict[kt] = temp.swapaxes(1, 3).swapaxes(1, 2)
+            if len(ks) == 2:
+                new_dict[kt] = temp.swapaxes(1, 2)
+            elif len(ks) == 3:
+                new_dict[kt] = temp.swapaxes(1, 3).swapaxes(1, 2)
+            elif len(ks) == 4:
+                new_dict[kt] = temp.swapaxes(1, 3).swapaxes(2, 4)
             assert new_dict[kt].shape[1:] == dict_template[kt].shape[1:]
     return new_dict
 

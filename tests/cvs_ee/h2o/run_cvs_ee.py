@@ -11,11 +11,12 @@ eom_dsrg = niupy.EOM_DSRG(
     mo_spaces=mo_spaces,
     nroots=5,
     max_cycle=200,
-    max_space=200,
+    max_space=20,
     tol_s=1e-10,
     tol_semi=1e-5,
     method_type="cvs_ee",
     diagonal_type="compute",
+    guess="singles",
 )
 
 eom_dsrg.kernel()

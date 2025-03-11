@@ -4,11 +4,19 @@ import pickle
 from niupy.eom_tools import (
     eigh_gen_composite,
     tensor_label_to_full_tensor_label,
+    dict_to_vec,
+    vec_to_dict,
+    full_vec_to_dict_singles,
+    antisymmetrize,
+    slice_H_core,
 )
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
     print("Importing cvs_ee_eom_dsrg")
     import cvs_ee_eom_dsrg
+if os.path.exists("cvs_ee_eom_dsrg_full.py"):
+    print("Importing cvs_ee_eom_dsrg_full")
+    import cvs_ee_eom_dsrg_full
 if os.path.exists("cvs_ip_eom_dsrg.py"):
     print("Importing cvs_ip_eom_dsrg")
     import cvs_ip_eom_dsrg
@@ -26,13 +34,6 @@ if os.path.exists("ip_eom_dsrg_full.py"):
     import ip_eom_dsrg_full
 import numpy as np
 import copy
-from niupy.eom_tools import (
-    dict_to_vec,
-    vec_to_dict,
-    antisymmetrize,
-    slice_H_core,
-    eigh_gen,
-)
 from pyscf import lib
 import time
 
@@ -45,7 +46,11 @@ def kernel_full(eom_dsrg, sequential=True):
 
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
-        driver = cvs_ip_eom_dsrg_full.driver
+        driver = (
+            cvs_ip_eom_dsrg_full.driver
+            if eom_dsrg.method_type == "cvs_ip"
+            else cvs_ee_eom_dsrg_full.driver
+        )
     else:
         driver = ip_eom_dsrg_full.driver
 
@@ -409,11 +414,32 @@ def setup_davidson(eom_dsrg):
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
 
     if eom_dsrg.guess == "singles":
-        x0 = compute_guess_vectors_from_singles(eom_dsrg, northo)
+        print("Computing singles...", flush=True)
+        assert "ee" in eom_dsrg.method_type
+        guess_evals, guess_evecs = eom_dsrg.eom_dsrg_compute.kernel_full(
+            eom_dsrg, sequential=eom_dsrg.sequential_ortho
+        )
+
+        guess_evecs_dict = full_vec_to_dict_singles(
+            eom_dsrg.full_template_c,
+            eom_dsrg.slices,
+            guess_evecs[:, : eom_dsrg.nroots],
+            eom_dsrg.nmos,
+        )
+
+        # full_guess_evecs_dict = copy.deepcopy(guess_evecs_dict)
+        # full_guess_evecs_dict["first"] = np.zeros(eom_dsrg.nroots).reshape(
+        #     eom_dsrg.nroots, 1
+        # )
+        # full_guess_evecs_dict = {
+        #     "first": full_guess_evecs_dict.pop("first"),
+        #     **full_guess_evecs_dict,
+        # }
+
+        pickle.dump(guess_evecs_dict, open(f"niupy_save.pkl", "wb"))
+        x0 = read_guess_vectors(eom_dsrg, nop, northo)
     elif eom_dsrg.guess == "ones":
         x0 = compute_guess_vectors(eom_dsrg, precond)
-    elif eom_dsrg.guess == "read":
-        x0 = read_guess_vectors(eom_dsrg, nop, northo)
 
     return apply_M, precond, x0, nop
 
@@ -460,8 +486,12 @@ def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
     guess = pickle.load(open(f"{eom_dsrg.abs_file_path}/niupy_save.pkl", "rb"))
     x0s = []
 
+    unit_vector = np.zeros(northo)
+    unit_vector[0] = 1.0
+    x0s.append(unit_vector)
+
     print("Projecting guess vectors...", flush=True)
-    for i in range(eom_dsrg.nroots):
+    for i in range(eom_dsrg.nroots - 1):
         x0 = np.zeros((nops, 1))
         x0 = vec_to_dict(eom_dsrg.full_template_c, x0)
         for k, v in guess.items():
@@ -512,98 +542,6 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
     x0s = []
     for p in range(x0.shape[1]):
         x0s.append(x0[:, p])
-    return x0s
-
-
-# I would like to remove this function.
-def compute_guess_vectors_from_singles(eom_dsrg, northo, ascending=True, ea=False):
-    start = time.time()
-    print("Computing initial guess...", flush=True)
-
-    nsingles = 0
-    temp_dict = {}
-
-    for key, value in eom_dsrg.full_template_c.items():
-        if len(key) == 2 or key == "first":
-            shape_block = value.shape[1:]
-            nsingles += np.prod(shape_block)
-            print(f"key: {key} is used for initial guess")
-    for key, value in eom_dsrg.full_template_c.items():
-        if len(key) == 2 or key == "first":
-            shape_block = value.shape[1:]
-            temp_dict[key] = np.zeros((nsingles, *shape_block))
-
-    temp_dict_vec = dict_to_vec(temp_dict, nsingles)
-    np.fill_diagonal(temp_dict_vec, 1.0)
-    temp_dict = vec_to_dict(temp_dict, temp_dict_vec)
-    temp_dict = antisymmetrize(temp_dict, ea=ea)
-    del temp_dict_vec
-
-    _, temp_full_c = get_templates(eom_dsrg, nsingles)
-
-    for key, value in temp_full_c.items():
-        if key in temp_dict.keys():
-            temp_full_c[key] = temp_dict[key].copy()
-    temp_full_c_vec = dict_to_vec(temp_full_c, nsingles)
-
-    H_singles = eom_dsrg.build_sigma_vector_Hbar_singles(
-        eom_dsrg.einsum,
-        temp_full_c,
-        eom_dsrg.Hbar,
-        eom_dsrg.gamma1,
-        eom_dsrg.eta1,
-        eom_dsrg.lambda2,
-        eom_dsrg.lambda3,
-        eom_dsrg.lambda4,
-    )
-    S_singles = eom_dsrg.build_sigma_vector_s_singles(
-        eom_dsrg.einsum,
-        temp_full_c,
-        eom_dsrg.Hbar,
-        eom_dsrg.gamma1,
-        eom_dsrg.eta1,
-        eom_dsrg.lambda2,
-        eom_dsrg.lambda3,
-        eom_dsrg.lambda4,
-    )
-    H_singles = antisymmetrize(H_singles, ea=ea)
-    S_singles = antisymmetrize(S_singles, ea=ea)
-    H_singles_vec = dict_to_vec(H_singles, nsingles)
-    S_singles_vec = dict_to_vec(S_singles, nsingles)
-    print("Time(s) for H, S construction: ", time.time() - start, flush=True)
-    start = time.time()
-    print("Start diagonalization...", flush=True)
-    eigval, eigvec = eigh_gen(H_singles_vec, S_singles_vec, eta=1e-4)
-    print("Time(s) for diagonalization: ", time.time() - start, flush=True)
-    start = time.time()
-    sort_ind = np.argsort(eigval) if ascending else np.argsort(eigval)[::-1]
-    print("Eigval (top ten):", " ".join(f"{val:<.2f}" for val in eigval[sort_ind[:10]]))
-    unit_vec = np.zeros(northo)
-    unit_vec[0] = 1.0
-    x0s = [unit_vec]
-    for p in range(eom_dsrg.nroots):
-        Sx = temp_full_c_vec @ eigvec[:, sort_ind[p]].reshape(-1, 1)
-        Sx_dict = vec_to_dict(temp_full_c, Sx)
-        HSx_dict = eom_dsrg.build_H(
-            eom_dsrg.einsum,
-            Sx_dict,
-            eom_dsrg.Hbar,
-            eom_dsrg.gamma1,
-            eom_dsrg.eta1,
-            eom_dsrg.lambda2,
-            eom_dsrg.lambda3,
-            eom_dsrg.lambda4,
-            eom_dsrg.first_row,
-        )
-        HSx_dict = antisymmetrize(HSx_dict, ea=ea)
-        HSx = dict_to_vec(HSx_dict, 1).flatten()
-        SHSx = eom_dsrg.apply_S12(eom_dsrg, northo, HSx, transpose=True).flatten()
-        if eigval[sort_ind[p]] > 1.0:  # I want to exclude the ground state.
-            x0s.append(SHSx / np.linalg.norm(SHSx))
-        if len(x0s) == eom_dsrg.nroots:
-            break
-    print("Time(s) for projecting guess vectors: ", time.time() - start, flush=True)
-    print("Initial guess done.", flush=True)
     return x0s
 
 
@@ -671,8 +609,6 @@ def get_sigma_build(eom_dsrg):
     get_S12 = sigma_module.get_S12
     apply_S12 = sigma_module.apply_S12
     compute_preconditioner = sigma_module.compute_preconditioner
-    # build_sigma_vector_Hbar_singles = sigma_module.build_sigma_vector_Hbar_singles
-    # build_sigma_vector_s_singles = sigma_module.build_sigma_vector_s_singles
 
     return (
         build_first_row,
@@ -682,6 +618,4 @@ def get_sigma_build(eom_dsrg):
         get_S12,
         apply_S12,
         compute_preconditioner,
-        # build_sigma_vector_Hbar_singles,
-        # build_sigma_vector_s_singles,
     )

@@ -55,7 +55,37 @@ class EOM_DSRG:
 
         self.abs_file_path = os.getcwd()
 
+        self.nmos = {
+            "i": self.ncore,
+            "c": self.nocc,
+            "a": self.nact,
+            "v": self.nvir,
+            "I": self.ncore,
+            "C": self.nocc,
+            "A": self.nact,
+            "V": self.nvir,
+        }
+
         if method_type == "cvs_ee":
+            self.ops, self.single_space, self.composite_space = (
+                cvs_ee.generator_subspace(
+                    self.abs_file_path,
+                    self.ncore,
+                    self.nocc,
+                    self.nact,
+                    self.nvir,
+                    blocked_ortho=self.blocked_ortho,
+                )
+            )
+            self.nops, self.slices = get_slices(self.ops, self.nmos)
+            self.delta = {
+                "ii": np.eye(self.nmos["i"]),
+                "cc": np.eye(self.nmos["c"]),
+                "vv": np.eye(self.nmos["v"]),
+                "II": np.eye(self.nmos["I"]),
+                "CC": np.eye(self.nmos["C"]),
+                "VV": np.eye(self.nmos["V"]),
+            }
             cvs_ee.generator(
                 self.abs_file_path,
                 self.ncore,
@@ -69,16 +99,6 @@ class EOM_DSRG:
             self.ops, self.single_space, self.composite_space = ip.generator_full(
                 self.abs_file_path, blocked_ortho=self.blocked_ortho
             )
-            self.nmos = {
-                "i": self.ncore,
-                "c": self.nocc,
-                "a": self.nact,
-                "v": self.nvir,
-                "I": self.ncore,
-                "C": self.nocc,
-                "A": self.nact,
-                "V": self.nvir,
-            }
             self.nops, self.slices = get_slices(self.ops, self.nmos)
             self.delta = {
                 "cc": np.eye(self.nmos["c"]),
@@ -100,16 +120,6 @@ class EOM_DSRG:
                 self.nvir,
                 blocked_ortho=self.blocked_ortho,
             )
-            self.nmos = {
-                "i": self.ncore,
-                "c": self.nocc,
-                "a": self.nact,
-                "v": self.nvir,
-                "I": self.ncore,
-                "C": self.nocc,
-                "A": self.nact,
-                "V": self.nvir,
-            }
             self.nops, self.slices = get_slices(self.ops, self.nmos)
             self.delta = {
                 "ii": np.eye(self.nmos["i"]),
@@ -130,7 +140,6 @@ class EOM_DSRG:
             )
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
-
         self.einsum = np.einsum
 
         self.S12 = lambda: None
@@ -221,8 +230,6 @@ class EOM_DSRG:
             self.get_S12,
             self.apply_S12,
             self.compute_preconditioner,
-            # self.build_sigma_vector_Hbar_singles,
-            # self.build_sigma_vector_s_singles
         ) = self.eom_dsrg_compute.get_sigma_build(self)
 
     def _pretty_print_info(self, e, spin, symmetry, spec_info):
@@ -284,12 +291,17 @@ class EOM_DSRG:
             self, sequential=self.sequential_ortho
         )
         eigvec_dict = full_vec_to_dict(
-            self.full_template_c, self.slices, evecs[:, : self.nroots], self.nmos
+            self.template_c, self.slices, evecs[:, : self.nroots], self.nmos
         )
         if dump_vectors:
             pickle.dump(eigvec_dict, open(f"niupy_save.pkl", "wb"))
         eigvec = dict_to_vec(eigvec_dict, self.nroots)
         e = evals[: self.nroots]
+        # if self.method_type == "cvs_ee":
+        #     zero_row = np.zeros((1, tempvec.shape[1]))
+        #     eigvec = np.vstack((zero_row, tempvec))
+        # else:
+        #     eigvec = tempvec
         spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(
             self, e, eigvec, eigvec_dict
         )
