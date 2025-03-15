@@ -28,7 +28,18 @@ class EOM_DSRG:
                 "Reference symmetry other than 0 is not implemented."
             )
 
-        opt_einsum = kwargs.get("opt_einsum", False)
+        opt_einsum = kwargs.get("opt_einsum", True)
+
+        if opt_einsum:
+            print("Using opt_einsum...")
+            from opt_einsum import contract
+
+            self.einsum = contract
+            self.einsum_type = "'greedy'"
+        else:
+            self.einsum = np.einsum
+            self.einsum_type = "True"
+
         mo_spaces = kwargs.get("mo_spaces", None)
 
         self.guess = kwargs.get("guess", "ones")
@@ -92,6 +103,7 @@ class EOM_DSRG:
                 self.nocc,
                 self.nact,
                 self.nvir,
+                self.einsum_type,
                 sequential_ortho=self.sequential_ortho,
                 blocked_ortho=self.blocked_ortho,
             )
@@ -108,6 +120,7 @@ class EOM_DSRG:
             }
             ip.generator(
                 self.abs_file_path,
+                self.einsum_type,
                 sequential_ortho=self.sequential_ortho,
                 blocked_ortho=self.blocked_ortho,
             )
@@ -135,12 +148,12 @@ class EOM_DSRG:
                 self.nocc,
                 self.nact,
                 self.nvir,
+                self.einsum_type,
                 sequential_ortho=self.sequential_ortho,
                 blocked_ortho=self.blocked_ortho,
             )
         else:
             raise ValueError(f"Method type {method_type} is not supported.")
-        self.einsum = np.einsum
 
         self.S12 = lambda: None
 

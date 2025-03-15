@@ -89,7 +89,9 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     PT = P_adj @ T
     expr_p = wt.contract(PT, 0, 0, inter_general=True)
     mbeq_p = expr_p.to_manybody_equation("sigma")
-    funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
+    funct_p = generate_sigma_build(
+        mbeq_p, "p", first_row=False, einsum_type="'optimal'"
+    )
 
     print(f"Code generator: Writing to {abs_path}")
 
@@ -109,7 +111,14 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
 
 
 def generator(
-    abs_path, ncore, nocc, nact, nvir, sequential_ortho=True, blocked_ortho=True
+    abs_path,
+    ncore,
+    nocc,
+    nact,
+    nvir,
+    einsum_type,
+    sequential_ortho=True,
+    blocked_ortho=True,
 ):
     w.reset_space()
     # alpha
@@ -190,14 +199,30 @@ def generator(
     mbeq_p = expr_p.to_manybody_equation("sigma")
 
     # Generate wicked contraction
-    funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize="True")  # HC
-    funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize="True")  # SC
-    funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
+    funct = generate_sigma_build(
+        mbeq, "Hbar", first_row=False, einsum_type=einsum_type
+    )  # HC
+    funct_s = generate_sigma_build(
+        mbeq_s, "s", first_row=False, einsum_type=einsum_type
+    )  # SC
+    funct_p = generate_sigma_build(
+        mbeq_p, "p", first_row=False, einsum_type=einsum_type
+    )
     funct_S_12 = generate_S12(
-        mbeq_s, single_space, composite_space, sequential=sequential_ortho
+        mbeq_s,
+        single_space,
+        composite_space,
+        sequential=sequential_ortho,
+        einsum_type=einsum_type,
     )
     funct_preconditioner = generate_preconditioner(
-        mbeq, {}, {}, single_space, composite_space, first_row=False
+        mbeq,
+        {},
+        {},
+        single_space,
+        composite_space,
+        first_row=False,
+        einsum_type=einsum_type,
     )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=False)
 
@@ -217,9 +242,3 @@ def generator(
         f.write(f"{funct_apply_S12}\n\n")
         f.write(f"build_first_row = NotImplemented\n")
         f.write(f"build_transition_dipole = NotImplemented\n")
-
-
-if __name__ == "__main__":
-    generator(
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), 1, 1, 1, 1
-    )

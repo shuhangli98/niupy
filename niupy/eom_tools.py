@@ -31,7 +31,9 @@ for v in irrep_table.values():
     v.update({"Incorrect symmetry": "Incorrect symmetry"})
 
 
-def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"):
+def compile_sigma_vector(
+    equation, bra_name="bra", ket_name="c", einsum_type="'greedy'", no_np=True
+):
     def _isab(key):
         """
         Checks if a string of eithr creation or annihilation operators
@@ -81,10 +83,10 @@ def compile_sigma_vector(equation, bra_name="bra", ket_name="c", optimize="True"
     bra[2] = "p" + bra[2][nbody:] + bra[2][:nbody]
     bra[1] = bra[1][nbody:] + bra[1][:nbody]
     d["lhs"] = [bra]
-    return w.dict_to_einsum(d, optimize=optimize)
+    return w.dict_to_einsum(d, optimize=einsum_type, no_np=no_np)
 
 
-def compile_first_row(equation, ket_name="c", optimize="True"):
+def compile_first_row(equation, ket_name="c", einsum_type="'greedy'", no_np=True):
     factor = 1.0
     eq, d = w.compile_einsum(equation, return_eq_dict=True)
     for idx, t in enumerate(d["rhs"]):
@@ -104,7 +106,7 @@ def compile_first_row(equation, ket_name="c", optimize="True"):
     ket = d["rhs"].pop(ket_idx)
     ket[0] = "sigma"
     d["lhs"] = [ket]
-    return w.dict_to_einsum(d, optimize=optimize)
+    return w.dict_to_einsum(d, optimize=einsum_type, no_np=no_np)
 
 
 def increment_index(index):
@@ -114,7 +116,7 @@ def increment_index(index):
     return re.sub(r"(\d+)", lambda x: str(int(x.group(0)) + 1), index)
 
 
-def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
+def matrix_elements_to_diag(mbeq, indent="once", einsum_type="'greedy'", no_np=True):
     def _get_space(indices):
         # return 'aAaC' for input ['a4', 'A1', 'a5', 'C1']
         return "".join([i[0] for i in indices])
@@ -169,7 +171,9 @@ def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
                     t[2][i] = deltas[l]
             eqdict_new["rhs"].append(t)
 
-        einsum = w.compile_einsum(w.dict_to_equation(eqdict_new), optimize="True")
+        einsum = w.compile_einsum(
+            w.dict_to_equation(eqdict_new), optimize=einsum_type, no_np=no_np
+        )
         lhs = einsum.split(" +=")[0]
         factor = einsum.split(" += ")[1].split(" * ")[0]
         einsum = einsum.replace(lhs, lhs[0])
@@ -180,14 +184,18 @@ def matrix_elements_to_diag(mbeq, indent="once", optimize="True"):
     return func
 
 
-def generate_sigma_build(mbeq, matrix, first_row=True, optimize="True"):
+def generate_sigma_build(
+    mbeq, matrix, first_row=True, einsum_type="'greedy'", no_np=True
+):
     code = [
         f"def build_sigma_vector_{matrix}(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
         "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}",
     ]
 
     for eq in mbeq["|"]:
-        code.append(f"    {compile_sigma_vector(eq, optimize=optimize)}")
+        code.append(
+            f"    {compile_sigma_vector(eq, einsum_type=einsum_type, no_np=no_np)}"
+        )
 
     if matrix == "Hbar" and first_row:
         code.extend(
@@ -200,7 +208,7 @@ def generate_sigma_build(mbeq, matrix, first_row=True, optimize="True"):
                 "        sigma[key] += tmp",
                 "    c_vec = dict_to_vec(c, c[list(c.keys())[0]].shape[0])",
                 "    first_row_vec = dict_to_vec(first_row, 1)",
-                "    sigma['first'] += np.einsum('ik, ij->jk', first_row_vec, c_vec[1:, :], optimize=True)",
+                f"    sigma['first'] += einsum('ik, ij->jk', first_row_vec, c_vec[1:, :], optimize={einsum_type})",
             ]
         )
     elif matrix == "s" and first_row:
@@ -224,20 +232,22 @@ def generate_template_c(block_list, index_dict, function_args):
     return code
 
 
-def generate_first_row(mbeq, optimize="True"):
+def generate_first_row(mbeq, einsum_type="'greedy'", no_np=True):
     code = [
         f"def build_first_row(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = {key: np.zeros((1, *tensor.shape[1:])) for key, tensor in c.items() if key != 'first'}",
     ]
     for eq in mbeq["|"]:
-        code.append(f"    {compile_first_row(eq, ket_name='c', optimize=optimize)}")
+        code.append(
+            f"    {compile_first_row(eq, ket_name='c', einsum_type=einsum_type, no_np=no_np)}"
+        )
 
     code.append("    return sigma")
     funct = "\n".join(code)
     return funct
 
 
-def generate_transition_dipole(mbeq, ket_name="c", optimize="True"):
+def generate_transition_dipole(mbeq, ket_name="c", einsum_type="'greedy'", no_np=True):
     code = [
         f"def build_transition_dipole(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4):",
         "    sigma = 0.0",
@@ -256,7 +266,7 @@ def generate_transition_dipole(mbeq, ket_name="c", optimize="True"):
                 if ket_key[2].lower() == ket_key[3].lower():
                     factor *= np.sqrt(2)
         d["factor"] = float(d["factor"]) * factor
-        code.append(f"    {w.dict_to_einsum(d, optimize=optimize)}")
+        code.append(f"    {w.dict_to_einsum(d, optimize=einsum_type, no_np=no_np)}")
     code.append("    return sigma")
     funct = "\n".join(code)
     return funct
@@ -330,8 +340,9 @@ def generate_block_contraction(
     indent="once",
     bra_name="bra",
     ket_name="c",
-    optimize="True",
+    einsum_type="'greedy'",
     ea=False,
+    no_np=True,
 ):
     indent_spaces = {"once": "    ", "twice": "        "}
     space = indent_spaces.get(indent, "    ")
@@ -357,7 +368,7 @@ def generate_block_contraction(
 
         if correct_contraction:
             code.append(
-                f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name, optimize=optimize)}"
+                f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name, einsum_type=einsum_type, no_np=no_np)}"
             )
 
     code.append(f"{space}sigma = antisymmetrize(sigma, ea={ea})")
@@ -366,7 +377,15 @@ def generate_block_contraction(
     return func
 
 
-def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True):
+def generate_S12(
+    mbeq,
+    single_space,
+    composite_space,
+    ea=False,
+    sequential=True,
+    einsum_type="'greedy'",
+    no_np=True,
+):
     """
     single_space: a list of strings.
     composite_space: a list of lists of strings.
@@ -376,6 +395,7 @@ def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True)
     code = [
         f"def get_S12(eom_dsrg):",
         "    einsum = eom_dsrg.einsum",
+        "    einsum_type = eom_dsrg.einsum_type",
         "    template_c = eom_dsrg.template_c",
         "    gamma1 = eom_dsrg.gamma1",
         "    eta1 = eom_dsrg.eta1",
@@ -486,7 +506,13 @@ def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True)
             f"    c = antisymmetrize(c, ea={ea})",
             f"    if eom_dsrg.verbose: print('Starts contraction')",
             generate_block_contraction(
-                key, mbeq, block_type="single", indent="once", ea=ea
+                key,
+                mbeq,
+                block_type="single",
+                indent="once",
+                ea=ea,
+                einsum_type=einsum_type,
+                no_np=no_np,
             ),
             f"    c.clear()",
             f"    vec = dict_to_vec(sigma, shape_size)",
@@ -538,6 +564,8 @@ def generate_S12(mbeq, single_space, composite_space, ea=False, sequential=True)
                 block_type="composite",
                 indent="once",
                 ea=ea,
+                einsum_type=einsum_type,
+                no_np=no_np,
             )
         )
         code_block.extend(
@@ -658,6 +686,8 @@ def generate_preconditioner(
     composite_space,
     first_row=True,
     ea=False,
+    einsum_type="'greedy'",
+    no_np=True,
 ):
     """
     mbeqs_one_active and mbeqs_no_active are dictionaries.
@@ -690,7 +720,13 @@ def generate_preconditioner(
             f"        c = vec_to_dict(c, eom_dsrg.S12.{key})",
             f"        c = antisymmetrize(c, ea={ea})",
             generate_block_contraction(
-                key, mbeq, block_type="single", indent="twice", ea=ea
+                key,
+                mbeq,
+                block_type="single",
+                indent="twice",
+                ea=ea,
+                einsum_type=einsum_type,
+                no_np=no_np,
             ),
             f"        c.clear()",
             f"        vec = dict_to_vec(sigma, northo)",
@@ -718,7 +754,13 @@ def generate_preconditioner(
                 f"        c = vec_to_dict(c, eom_dsrg.S12.{space[0]})",
                 f"        c = antisymmetrize(c, ea={ea})",
                 generate_block_contraction(
-                    space, mbeq, block_type="composite", indent="twice", ea=ea
+                    space,
+                    mbeq,
+                    block_type="composite",
+                    indent="twice",
+                    ea=ea,
+                    einsum_type=einsum_type,
+                    no_np=no_np,
                 ),
                 f"        c.clear()",
                 f"        vec = dict_to_vec(sigma, northo)",
@@ -748,13 +790,15 @@ def generate_preconditioner(
             [
                 f"    nocc, nact, nvir = template_c['{key}'].shape[{space_order['noact']+1}], template_c['{key}'].shape[{space_order['act']+1}], template_c['{key}'].shape[3]",
                 "    H = np.zeros((nocc, nvir, nvir, nact, nact))",
-                matrix_elements_to_diag(mbeqs_one_active[key]),
+                matrix_elements_to_diag(
+                    mbeqs_one_active[key], einsum_type=einsum_type, no_np=no_np
+                ),
             ]
         )
 
         code_block.extend(
             [
-                f"    H = np.einsum('xu, MeFxy, yu -> MeFu', eom_dsrg.S12.{key}, H, eom_dsrg.S12.{key}, optimize=True)",
+                f"    H = einsum('xu, MeFxy, yu -> MeFu', eom_dsrg.S12.{key}, H, eom_dsrg.S12.{key}, optimize={einsum_type})",
                 f"    H = H.reshape(-1, eom_dsrg.S12.{key}.shape[1])",
                 f"    zero_mask = eom_dsrg.S12.position_{key} == 0",
                 f"    H = np.delete(H, zero_mask, axis=0)",
@@ -773,7 +817,9 @@ def generate_preconditioner(
             [
                 f"    shape_block = template_c['{key}'].shape[1:]",
                 "    H = np.zeros(shape_block)",
-                matrix_elements_to_diag(mbeqs_no_active[key]),
+                matrix_elements_to_diag(
+                    mbeqs_no_active[key], einsum_type=einsum_type, no_np=no_np
+                ),
             ]
         )
 

@@ -99,7 +99,14 @@ def generator_subspace(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
 
 
 def generator(
-    abs_path, ncore, nocc, nact, nvir, sequential_ortho=True, blocked_ortho=True
+    abs_path,
+    ncore,
+    nocc,
+    nact,
+    nvir,
+    einsum_type,
+    sequential_ortho=True,
+    blocked_ortho=True,
 ):
     w.reset_space()
     # alpha
@@ -232,12 +239,22 @@ def generator(
     mbeq_s = expr_s.to_manybody_equation("sigma")
 
     # Generate wicked contraction
-    funct = generate_sigma_build(mbeq, "Hbar", first_row=True, optimize="True")  # HC
-    funct_s = generate_sigma_build(mbeq_s, "s", first_row=True, optimize="True")  # SC
-    funct_first = generate_first_row(mbeq_first)  # First row/column
-    funct_dipole = generate_transition_dipole(mbeq_first)
+    funct = generate_sigma_build(
+        mbeq, "Hbar", first_row=True, einsum_type=einsum_type
+    )  # HC
+    funct_s = generate_sigma_build(
+        mbeq_s, "s", first_row=True, einsum_type=einsum_type
+    )  # SC
+    funct_first = generate_first_row(
+        mbeq_first, einsum_type=einsum_type
+    )  # First row/column
+    funct_dipole = generate_transition_dipole(mbeq_first, einsum_type=einsum_type)
     funct_S12 = generate_S12(
-        mbeq_s, single_space, composite_space, sequential=sequential_ortho
+        mbeq_s,
+        single_space,
+        composite_space,
+        sequential=sequential_ortho,
+        einsum_type=einsum_type,
     )
     funct_preconditioner = generate_preconditioner(
         mbeq,
@@ -246,6 +263,7 @@ def generator(
         single_space,
         composite_space,
         first_row=True,
+        einsum_type=einsum_type,
     )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=True)
 
@@ -267,9 +285,3 @@ def generator(
         f.write(f"{funct_s}\n\n")
         f.write(f"{funct_first}\n\n")
         f.write(f"{funct_dipole}\n\n")
-
-
-if __name__ == "__main__":
-    generator(
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), 1, 1, 1, 1
-    )

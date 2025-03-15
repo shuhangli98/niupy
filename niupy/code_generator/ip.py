@@ -76,7 +76,9 @@ def generator_full(abs_path, blocked_ortho=True):
     PT = P_adj @ T
     expr_p = wt.contract(PT, 0, 0, inter_general=True)
     mbeq_p = expr_p.to_manybody_equation("sigma")
-    funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
+    funct_p = generate_sigma_build(
+        mbeq_p, "p", first_row=False, einsum_type="'optimal'"
+    )
 
     print(f"Code generator: Writing to {abs_path}")
 
@@ -95,7 +97,7 @@ def generator_full(abs_path, blocked_ortho=True):
     return ops, single_space, composite_space
 
 
-def generator(abs_path, sequential_ortho=True, blocked_ortho=True):
+def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
     w.reset_space()
     # alpha
     w.add_space("c", "fermion", "occupied", list("klmn"))
@@ -179,14 +181,26 @@ def generator(abs_path, sequential_ortho=True, blocked_ortho=True):
     mbeq_p = expr_p.to_manybody_equation("sigma")
 
     # Generate wicked contraction
-    funct = generate_sigma_build(mbeq, "Hbar", first_row=False, optimize="True")  # HC
-    funct_s = generate_sigma_build(mbeq_s, "s", first_row=False, optimize="True")  # SC
-    funct_p = generate_sigma_build(mbeq_p, "p", first_row=False, optimize="True")
+    funct = generate_sigma_build(
+        mbeq, "Hbar", first_row=False, einsum_type=einsum_type
+    )  # HC
+    funct_s = generate_sigma_build(
+        mbeq_s, "s", first_row=False, einsum_type=einsum_type
+    )  # SC
+    funct_p = generate_sigma_build(
+        mbeq_p, "p", first_row=False, einsum_type=einsum_type
+    )
     funct_S_12 = generate_S12(
         mbeq_s, single_space, composite_space, sequential=sequential_ortho
     )
     funct_preconditioner = generate_preconditioner(
-        mbeq, {}, {}, single_space, composite_space, first_row=False
+        mbeq,
+        {},
+        {},
+        single_space,
+        composite_space,
+        first_row=False,
+        einsum_type=einsum_type,
     )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=False)
 

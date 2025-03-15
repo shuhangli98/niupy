@@ -8,6 +8,7 @@ mo_spaces = {
 }
 
 eom_dsrg = niupy.EOM_DSRG(
+    opt_einsum=True,
     mo_spaces=mo_spaces,
     nroots=5,
     max_cycle=200,

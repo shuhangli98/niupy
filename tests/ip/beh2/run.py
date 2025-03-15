@@ -4,6 +4,7 @@ import niupy
 import numpy as np
 
 eom_dsrg = niupy.EOM_DSRG(
+    opt_einsum=False,
     nroots=5,
     max_cycle=200,
     max_space=200,
@@ -13,7 +14,7 @@ eom_dsrg = niupy.EOM_DSRG(
     diagonal_type="compute",
     verbose=5,
 )
-eom_dsrg.kernel_full()
+eom_dsrg.kernel()
 
 # =====================================================================================
 #                                   EOM-DSRG summary

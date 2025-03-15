@@ -38,7 +38,6 @@ from pyscf import lib
 import time
 
 davidson = lib.linalg_helper.davidson1
-dgeev1 = lib.linalg_helper.dgeev1
 
 
 def kernel_full(eom_dsrg, sequential=True):
@@ -46,12 +45,11 @@ def kernel_full(eom_dsrg, sequential=True):
 
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
-        driver = (
-            cvs_ip_eom_dsrg_full.driver
-            if eom_dsrg.method_type == "cvs_ip"
-            else cvs_ee_eom_dsrg_full.driver
-        )
-    else:
+        if eom_dsrg.method_type == "cvs_ip":
+            driver = cvs_ip_eom_dsrg_full.driver
+        elif eom_dsrg.method_type == "cvs_ee":
+            driver = cvs_ee_eom_dsrg_full.driver
+    elif eom_dsrg.method_type == "ip":
         driver = ip_eom_dsrg_full.driver
 
     heff, ovlp = driver(
@@ -415,7 +413,7 @@ def setup_davidson(eom_dsrg):
 
     if eom_dsrg.guess == "singles":
         print("Computing singles...", flush=True)
-        assert "ee" in eom_dsrg.method_type
+        assert eom_dsrg.method_type == "cvs_ee"
         guess_evals, guess_evecs = eom_dsrg.eom_dsrg_compute.kernel_full(
             eom_dsrg, sequential=eom_dsrg.sequential_ortho
         )
@@ -426,15 +424,6 @@ def setup_davidson(eom_dsrg):
             guess_evecs[:, : eom_dsrg.nroots],
             eom_dsrg.nmos,
         )
-
-        # full_guess_evecs_dict = copy.deepcopy(guess_evecs_dict)
-        # full_guess_evecs_dict["first"] = np.zeros(eom_dsrg.nroots).reshape(
-        #     eom_dsrg.nroots, 1
-        # )
-        # full_guess_evecs_dict = {
-        #     "first": full_guess_evecs_dict.pop("first"),
-        #     **full_guess_evecs_dict,
-        # }
 
         pickle.dump(guess_evecs_dict, open(f"niupy_save.pkl", "wb"))
         x0 = read_guess_vectors(eom_dsrg, nop, northo)
