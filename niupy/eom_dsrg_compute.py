@@ -6,7 +6,7 @@ from niupy.eom_tools import (
     tensor_label_to_full_tensor_label,
     dict_to_vec,
     vec_to_dict,
-    full_vec_to_dict_singles,
+    full_vec_to_dict_short,
     antisymmetrize,
     slice_H_core,
 )
@@ -417,9 +417,14 @@ def setup_davidson(eom_dsrg):
         guess_evals, guess_evecs = eom_dsrg.eom_dsrg_compute.kernel_full(
             eom_dsrg, sequential=eom_dsrg.sequential_ortho
         )
-
-        guess_evecs_dict = full_vec_to_dict_singles(
+        dict_template_short = {}
+        for kt in eom_dsrg.slices.keys():
+            half_kt = len(kt) // 2
+            new_key = kt[half_kt:] + kt[:half_kt]
+            dict_template_short[new_key] = eom_dsrg.full_template_c[new_key].copy()
+        guess_evecs_dict = full_vec_to_dict_short(
             eom_dsrg.full_template_c,
+            dict_template_short,
             eom_dsrg.slices,
             guess_evecs[:, : eom_dsrg.nroots],
             eom_dsrg.nmos,
@@ -471,6 +476,7 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
 
 
 def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
+    assert eom_dsrg.method_type == "cvs_ee"
     print("Reading guess vectors...", flush=True)
     guess = pickle.load(open(f"{eom_dsrg.abs_file_path}/niupy_save.pkl", "rb"))
     x0s = []

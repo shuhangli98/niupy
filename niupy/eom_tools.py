@@ -278,19 +278,15 @@ def dict_to_vec(dictionary, n_lowest):
     return vec.T
 
 
-def full_vec_to_dict_singles(dict_template_long, slices_short, vec, nmos):
-    short_template = {}  # A short one
-    dict_template = {}  # A long one
-    keys_temp = slices_short.keys()
+def full_vec_to_dict_short(
+    dict_template_long, dict_template_short, slices_short, vec, nmos
+):
+    dict_template = {}  # Final dictionary. A long one.
     nroots = vec.shape[1]
-    for kt in keys_temp:
-        if len(kt) == 2:
-            new_key = kt[1] + kt[0]
-            short_template[new_key] = dict_template_long[new_key].copy()
-    temp_template = full_vec_to_dict(short_template, slices_short, vec, nmos)
+    temp_template = full_vec_to_dict(dict_template_short, slices_short, vec, nmos)
 
     for kt in dict_template_long.keys():
-        if len(kt) == 2:
+        if kt in temp_template.keys():
             dict_template[kt] = temp_template[kt].copy()
         else:
             dict_template[kt] = np.zeros((nroots, *dict_template_long[kt].shape[1:]))

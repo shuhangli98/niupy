@@ -19,6 +19,7 @@ def generator_subspace(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     wt = w.WickTheorem()
 
     s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True)
+    # s.extend(["a+ a+ a i", "a+ A+ A i", "A+ A+ A I", "a+ A+ I a"])
     # + w.gen_op(
     #     "bra", 2, "avAV", "ciaCIA", only_terms=True
     # )
@@ -39,6 +40,7 @@ def generator_subspace(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     print("Composite spaces:", composite_space)
 
     ops = [tensor_label_to_op(_) for _ in block_list]
+    print("Operators:", ops)
 
     index_dict = {
         "c": "nocc",
