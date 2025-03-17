@@ -32,7 +32,12 @@ for v in irrep_table.values():
 
 
 def compile_sigma_vector(
-    equation, bra_name="bra", ket_name="c", einsum_type="'greedy'", no_np=True
+    equation,
+    bra_name="bra",
+    ket_name="c",
+    einsum_type="'greedy'",
+    no_np=True,
+    return_key=False,
 ):
     def _isab(key):
         """
@@ -50,6 +55,10 @@ def compile_sigma_vector(
             bra_idx = idx
         if t[0] == ket_name:
             ket_idx = idx
+        if return_key and t[0] == "Hbar":
+            Hbar_key = t[1]
+            t[0] = "Hbar_key"
+            t[1] = ""
 
     factor = 1.0
     bra_key = d["rhs"][bra_idx][1]
@@ -83,6 +92,9 @@ def compile_sigma_vector(
     bra[2] = "p" + bra[2][nbody:] + bra[2][:nbody]
     bra[1] = bra[1][nbody:] + bra[1][:nbody]
     d["lhs"] = [bra]
+
+    if return_key:
+        return Hbar_key, w.dict_to_einsum(d, optimize=einsum_type, no_np=no_np)
     return w.dict_to_einsum(d, optimize=einsum_type, no_np=no_np)
 
 
@@ -187,17 +199,43 @@ def matrix_elements_to_diag(mbeq, indent="once", einsum_type="'greedy'", no_np=T
 def generate_sigma_build(
     mbeq, matrix, first_row=True, einsum_type="'greedy'", no_np=True
 ):
-    code = [
-        f"def build_sigma_vector_{matrix}(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
-        "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}",
-    ]
-
-    for eq in mbeq["|"]:
-        code.append(
-            f"    {compile_sigma_vector(eq, einsum_type=einsum_type, no_np=no_np)}"
-        )
 
     if matrix == "Hbar" and first_row:
+
+        code = []
+
+        code_dict = {}
+        for eq in mbeq["|"]:
+            key, einsum = compile_sigma_vector(
+                eq, einsum_type=einsum_type, no_np=no_np, return_key=True
+            )
+            if key not in code_dict:
+                code_dict[key] = []
+                code_dict[key].append(einsum)
+            else:
+                code_dict[key].append(einsum)
+        for key in code_dict.keys():
+            code.append(
+                f"def {key}_sigma(einsum, c, sigma, Hbar_key, gamma1, eta1, lambda2, lambda3, lambda4):"
+            )
+            for eq in code_dict[key]:
+                code.append(f"    {eq}")
+            code.append("")
+            # code.append(
+            #     f"    {key}_sigma(c, sigma, Hbar['{key}'], gamma1, eta1, lambda2, lambda3, lambda4)"
+            # )
+
+        code.extend(
+            [
+                f"def build_sigma_vector_{matrix}(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
+                "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}",
+            ]
+        )
+        for key in code_dict.keys():
+            code.append(
+                f"    {key}_sigma(einsum, c, sigma, Hbar['{key}'], gamma1, eta1, lambda2, lambda3, lambda4)"
+            )
+
         code.extend(
             [
                 "    for key in first_row.keys():",
@@ -212,8 +250,27 @@ def generate_sigma_build(
             ]
         )
     elif matrix == "s" and first_row:
+        code = [
+            f"def build_sigma_vector_{matrix}(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
+            "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}",
+        ]
+
+        for eq in mbeq["|"]:
+            code.append(
+                f"    {compile_sigma_vector(eq, einsum_type=einsum_type, no_np=no_np, return_key=False)}"
+            )
         code.append("    sigma['first'] = c['first'].copy()")
 
+    else:
+        code = [
+            f"def build_sigma_vector_{matrix}(einsum, c, Hbar, gamma1, eta1, lambda2, lambda3, lambda4, first_row):",
+            "    sigma = {key: np.zeros(c[key].shape) for key in c.keys()}",
+        ]
+
+        for eq in mbeq["|"]:
+            code.append(
+                f"    {compile_sigma_vector(eq, einsum_type=einsum_type, no_np=no_np, return_key=False)}"
+            )
     code.append("    return sigma")
     return "\n".join(code)
 
@@ -368,7 +425,7 @@ def generate_block_contraction(
 
         if correct_contraction:
             code.append(
-                f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name, einsum_type=einsum_type, no_np=no_np)}"
+                f"{space}{compile_sigma_vector(eq, bra_name=bra_name, ket_name=ket_name, einsum_type=einsum_type, no_np=no_np, return_key=False)}"
             )
 
     code.append(f"{space}sigma = antisymmetrize(sigma, ea={ea})")
