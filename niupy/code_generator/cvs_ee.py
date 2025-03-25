@@ -165,6 +165,43 @@ def generator(
     )
 
     # ============================================================================
+    # 1. Generate block S functions for single and composite spaces.
+    single_ops = [tensor_label_to_op(_) for _ in single_space]
+    print("Single space operators:", single_ops)
+    Smbeq = {}
+    for iop in range(len(single_ops)):
+        sop = single_ops[iop]
+        bra = w.op("bra", [sop])
+        braind = op_to_index(sop)
+        ket = w.op("ket", [sop])
+        ketind = op_to_index(sop)
+        S_mbeq = get_matrix_elements(
+            wt, bra, None, ket, inter_general=True, double_comm=False
+        )
+        if S_mbeq:
+            Smbeq[f"{braind}|{ketind}"] = S_mbeq
+
+    drivers = []
+    for icomp in range(len(composite_space)):
+        Smbeq_comp = {}
+        composite_ops = [tensor_label_to_op(_) for _ in composite_space[icomp]]
+        print(f"Composite space {icomp} operators:", composite_ops)
+        for ibra in range(len(composite_ops)):
+            bop = composite_ops[ibra]
+            bra = w.op("bra", [bop])
+            braind = op_to_index(bop)
+            for iket in range(ibra + 1):
+                kop = composite_ops[iket]
+                ket = w.op("ket", [kop])
+                ketind = op_to_index(kop)
+                S_mbeq = get_matrix_elements(
+                    wt, bra, None, ket, inter_general=True, double_comm=False
+                )
+                if S_mbeq:
+                    Smbeq[f"{braind}|{ketind}"] = S_mbeq
+                    Smbeq_comp[f"{braind}|{ketind}"] = S_mbeq
+
+        drivers.append(make_driver_composite(Smbeq_comp, composite_space[icomp]))
 
     one_active_two_virtual = []
     no_active = []
@@ -280,6 +317,27 @@ def generator(
             "import numpy as np\nimport scipy\nimport time\n\nfrom functools import reduce\n\nfrom niupy.eom_tools import *\n\n"
         )
         f.write(f"{func_template_c}\n\n")
+        for k, v in Smbeq.items():
+            if v:
+                if len(k) == 19:
+                    trans = (2, 3, 0, 1, 6, 7, 4, 5)
+                elif len(k) == 14:
+                    trans = (2, 3, 0, 1, 5, 4)
+                elif len(k) == 9:
+                    trans = (1, 0, 3, 2)
+                f.write(
+                    make_function(
+                        k,
+                        v,
+                        "S",
+                        trans=trans,
+                        with_Hbar=False,
+                        transpose=True,
+                    )
+                    + "\n"
+                )
+        for i in range(len(drivers)):
+            f.write(drivers[i] + "\n")
         f.write(f"{funct_S12}\n\n")
         f.write(f"{funct_preconditioner}\n\n")
         f.write(f"{funct_apply_S12}\n\n")

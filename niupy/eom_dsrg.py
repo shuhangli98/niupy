@@ -77,6 +77,15 @@ class EOM_DSRG:
             "V": self.nvir,
         }
 
+        self.delta = {
+            "ii": np.eye(self.nmos["i"]),
+            "cc": np.eye(self.nmos["c"]),
+            "vv": np.eye(self.nmos["v"]),
+            "II": np.eye(self.nmos["I"]),
+            "CC": np.eye(self.nmos["C"]),
+            "VV": np.eye(self.nmos["V"]),
+        }
+
         if method_type == "cvs_ee":
             self.ops, self.single_space, self.composite_space = (
                 cvs_ee.generator_subspace(
@@ -89,14 +98,6 @@ class EOM_DSRG:
                 )
             )
             self.nops, self.slices = get_slices(self.ops, self.nmos)
-            self.delta = {
-                "ii": np.eye(self.nmos["i"]),
-                "cc": np.eye(self.nmos["c"]),
-                "vv": np.eye(self.nmos["v"]),
-                "II": np.eye(self.nmos["I"]),
-                "CC": np.eye(self.nmos["C"]),
-                "VV": np.eye(self.nmos["V"]),
-            }
             cvs_ee.generator(
                 self.abs_file_path,
                 self.ncore,
@@ -112,12 +113,6 @@ class EOM_DSRG:
                 self.abs_file_path, blocked_ortho=self.blocked_ortho
             )
             self.nops, self.slices = get_slices(self.ops, self.nmos)
-            self.delta = {
-                "cc": np.eye(self.nmos["c"]),
-                "vv": np.eye(self.nmos["v"]),
-                "CC": np.eye(self.nmos["C"]),
-                "VV": np.eye(self.nmos["V"]),
-            }
             ip.generator(
                 self.abs_file_path,
                 self.einsum_type,
@@ -134,14 +129,6 @@ class EOM_DSRG:
                 blocked_ortho=self.blocked_ortho,
             )
             self.nops, self.slices = get_slices(self.ops, self.nmos)
-            self.delta = {
-                "ii": np.eye(self.nmos["i"]),
-                "cc": np.eye(self.nmos["c"]),
-                "vv": np.eye(self.nmos["v"]),
-                "II": np.eye(self.nmos["I"]),
-                "CC": np.eye(self.nmos["C"]),
-                "VV": np.eye(self.nmos["V"]),
-            }
             cvs_ip.generator(
                 self.abs_file_path,
                 self.ncore,
