@@ -176,7 +176,13 @@ def generator(
         ket = w.op("ket", [sop])
         ketind = op_to_index(sop)
         S_mbeq = get_matrix_elements(
-            wt, bra, None, ket, inter_general=True, double_comm=False
+            wt,
+            bra,
+            None,
+            ket,
+            inter_general=True,
+            double_comm=False,
+            # to_eq=False,
         )
         if S_mbeq:
             Smbeq[f"{braind}|{ketind}"] = S_mbeq
@@ -195,7 +201,13 @@ def generator(
                 ket = w.op("ket", [kop])
                 ketind = op_to_index(kop)
                 S_mbeq = get_matrix_elements(
-                    wt, bra, None, ket, inter_general=True, double_comm=False
+                    wt,
+                    bra,
+                    None,
+                    ket,
+                    inter_general=True,
+                    double_comm=False,
+                    # to_eq=False,
                 )
                 if S_mbeq:
                     Smbeq[f"{braind}|{ketind}"] = S_mbeq

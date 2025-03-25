@@ -516,6 +516,7 @@ def generate_S12(
             f'    if eom_dsrg.verbose: print("Starts {space} composite block", flush = True)',
             f"    space = {space}",
             f"    vec = driver_{space[0]}(delta, gamma1, eta1, lambda2, lambda3, lambda4, space, sizes)",
+            f"    print(vec.shape)",
         ]
         return code_block
 
@@ -525,7 +526,7 @@ def generate_S12(
             [
                 f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
                 "    print(f'Symmetric: {np.allclose(vec, vec.T)}', flush = True)",
-                f"    sevals, sevecs = scipy.linalg.eigh(vec)",
+                f"    sevals, sevecs = np.linalg.eigh(vec)",
                 f"    if np.any(sevals < -tol):",
                 f'        raise ValueError("Negative overlap eigenvalues found in {space} space")',
                 f"    del vec",
@@ -1122,7 +1123,9 @@ def eigh_gen(A, S, eta=1e-10):
     return eigval, eigvec
 
 
-def get_matrix_elements(wt, bra, op, ket, inter_general=False, double_comm=False):
+def get_matrix_elements(
+    wt, bra, op, ket, inter_general=False, double_comm=False, to_eq=True
+):
     """
     This function calculates the matrix elements of an operator
     between two internally contracted configurations.
@@ -1181,7 +1184,10 @@ def get_matrix_elements(wt, bra, op, ket, inter_general=False, double_comm=False
 
         newdict["lhs"][1] = ket_indices
         newdict["lhs"][2] = bra_indices
-        mbeq_new.append(w.dict_to_equation(newdict))
+        if to_eq:
+            mbeq_new.append(w.dict_to_equation(newdict))
+        else:
+            mbeq_new.append(newdict)
     return mbeq_new
 
 
