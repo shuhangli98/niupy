@@ -78,17 +78,31 @@ class EOM_DSRG:
         }
 
         if method_type == "cvs_ee":
-            self.ops, self.single_space, self.composite_space = (
-                cvs_ee.generator_subspace(
-                    self.abs_file_path,
-                    self.ncore,
-                    self.nocc,
-                    self.nact,
-                    self.nvir,
-                    blocked_ortho=self.blocked_ortho,
-                )
+            # self.ops, self.single_space, self.composite_space = (
+            #     cvs_ee.generator_subspace(
+            #         self.abs_file_path,
+            #         self.ncore,
+            #         self.nocc,
+            #         self.nact,
+            #         self.nvir,
+            #         blocked_ortho=self.blocked_ortho,
+            #     )
+            # )
+            # self.nops, self.slices = get_slices(self.ops, self.nmos)
+            # self.delta = {
+            #     "ii": np.eye(self.nmos["i"]),
+            #     "cc": np.eye(self.nmos["c"]),
+            #     "vv": np.eye(self.nmos["v"]),
+            #     "II": np.eye(self.nmos["I"]),
+            #     "CC": np.eye(self.nmos["C"]),
+            #     "VV": np.eye(self.nmos["V"]),
+            # }
+            self.ops, self.single_space, self.composite_space = cvs_ee.generator_full(
+                self.abs_file_path, blocked_ortho=self.blocked_ortho
             )
             self.nops, self.slices = get_slices(self.ops, self.nmos)
+            print(self.ops)
+            print(self.slices)
             self.delta = {
                 "ii": np.eye(self.nmos["i"]),
                 "cc": np.eye(self.nmos["c"]),
@@ -296,7 +310,7 @@ class EOM_DSRG:
         return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
     def kernel_full(self, dump_vectors=False):
-        _available_methods = ["ip", "cvs_ip"]
+        _available_methods = ["ip", "cvs_ip", "cvs_ee"]
         assert (
             self.method_type in _available_methods
         ), f"Full EOM-DSRG is only supported for {_available_methods}."
@@ -310,6 +324,7 @@ class EOM_DSRG:
             pickle.dump(eigvec_dict, open(f"niupy_save.pkl", "wb"))
         eigvec = dict_to_vec(eigvec_dict, self.nroots)
         e = evals[: self.nroots]
+        print(e)
         # if self.method_type == "cvs_ee":
         #     zero_row = np.zeros((1, tempvec.shape[1]))
         #     eigvec = np.vstack((zero_row, tempvec))
