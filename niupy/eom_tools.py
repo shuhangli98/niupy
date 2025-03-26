@@ -374,13 +374,9 @@ def generate_block_contraction(
 
 
 def generate_S12(
-    mbeq,
     single_space,
     composite_space,
-    ea=False,
     sequential=True,
-    einsum_type="'greedy'",
-    no_np=True,
 ):
     """
     single_space: a list of strings.
@@ -393,6 +389,7 @@ def generate_S12(
         "    einsum = eom_dsrg.einsum",
         "    einsum_type = eom_dsrg.einsum_type",
         "    template_c = eom_dsrg.template_c",
+        "    Hbar = eom_dsrg.Hbar",
         "    gamma1 = eom_dsrg.gamma1",
         "    eta1 = eom_dsrg.eta1",
         "    lambda2 = eom_dsrg.lambda2",
@@ -403,8 +400,6 @@ def generate_S12(
         "    tol = eom_dsrg.tol_s",
         "    tol_semi = eom_dsrg.tol_semi",
         "    num_ortho = 0",
-        "    sigma = {}",
-        "    c = {}",
     ]
 
     def one_active_two_virtual(key):
@@ -497,7 +492,7 @@ def generate_S12(
         return [
             f"    # {key} block",
             f'    if eom_dsrg.verbose: print("Starts {key} block")',
-            f"    {make_block_single(subspace_key)}",
+            f"    {make_block_single(subspace_key, 'S')}",
             f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
             f"    sevals, sevecs = np.linalg.eigh(vec)",
             f"    if np.any(sevals < -tol):",
@@ -515,7 +510,7 @@ def generate_S12(
             f"    # {space} composite block",
             f'    if eom_dsrg.verbose: print("Starts {space} composite block", flush = True)',
             f"    space = {space}",
-            f"    vec = driver_{space[0]}(delta, gamma1, eta1, lambda2, lambda3, lambda4, space, sizes)",
+            f"    vec = driver_S{space[0]}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, space, sizes)",
             f"    print(vec.shape)",
         ]
         return code_block
@@ -638,6 +633,7 @@ def generate_preconditioner(
     code = [
         f"def compute_preconditioner(eom_dsrg):",
         "    einsum = eom_dsrg.einsum",
+        "    einsum_type = eom_dsrg.einsum_type",
         "    template_c = eom_dsrg.template_c",
         "    Hbar = eom_dsrg.Hbar",
         "    gamma1 = eom_dsrg.gamma1",
@@ -645,74 +641,35 @@ def generate_preconditioner(
         "    lambda2 = eom_dsrg.lambda2",
         "    lambda3 = eom_dsrg.lambda3",
         "    lambda4 = eom_dsrg.lambda4",
-        "    sigma = {}",
-        "    c = {}",
-        "    delta = {'ii': np.identity(eom_dsrg.ncore), 'II': np.identity(eom_dsrg.ncore), 'cc': np.identity(eom_dsrg.nocc), 'CC': np.identity(eom_dsrg.nocc), 'aa': np.identity(eom_dsrg.nact), 'AA': np.identity(eom_dsrg.nact), 'vv': np.identity(eom_dsrg.nvir), 'VV': np.identity(eom_dsrg.nvir)}",
+        "    sizes = eom_dsrg.nmos",
+        "    delta = eom_dsrg.delta",
         f"    diagonal = [{'np.array([0.0])' if first_row else ''}]",
     ]
 
     def add_single_space_code(key):
+        op = tensor_label_to_op(key)
+        braind = op_to_index(op)
+        ketind = op_to_index(op)
+        subspace_key = f"{braind}|{ketind}"
         return [
             f"    # {key} block",
             f'    if eom_dsrg.verbose: print("Starts {key} block precond")',
-            f"    shape_block = template_c['{key}'].shape[1:]",
-            f"    northo = eom_dsrg.S12.{key}.shape[1]",
-            f"    if northo != 0:",
-            f"        c['{key}'] = np.zeros((northo, *shape_block))",
-            f"        sigma['{key}'] = np.zeros((northo, *shape_block))",
-            f"        c = vec_to_dict(c, eom_dsrg.S12.{key})",
-            f"        c = antisymmetrize(c, ea={ea})",
-            generate_block_contraction(
-                key,
-                mbeq,
-                block_type="single",
-                indent="twice",
-                ea=ea,
-                einsum_type=einsum_type,
-                no_np=no_np,
-            ),
-            f"        c.clear()",
-            f"        vec = dict_to_vec(sigma, northo)",
-            f"        sigma.clear()",
-            f"        vmv = eom_dsrg.S12.{key}.T @ vec",
-            f"        diagonal.append(vmv.diagonal())",
-            f"        del vec, vmv",
+            f"    {make_block_single(subspace_key, 'H')}",
+            f"    vmv = einsum('pq,py,qx->yx', vec, eom_dsrg.S12.{key}, eom_dsrg.S12.{key}, optimize = {einsum_type}) ",
+            f"    diagonal.append(vmv.diagonal())",
+            f"    del vec, vmv",
         ]
 
     def add_composite_space_code(space):
         code_block = [
             f"    # {space} composite block",
             f'    if eom_dsrg.verbose: print("Starts {space} composite block precond")',
-            f"    northo = eom_dsrg.S12.{space[0]}.shape[1]",
-            f"    if northo != 0:",
-            f"        vmv = np.zeros((northo, northo))",
+            f"    space = {space}",
+            f"    vec = driver_H{space[0]}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, space, sizes)",
+            f"    vmv = einsum('pq,py,qx->yx', vec, eom_dsrg.S12.{space[0]}, eom_dsrg.S12.{space[0]}, optimize = {einsum_type}) ",
+            f"    diagonal.append(vmv.diagonal())",
+            f"    del vec, vmv",
         ]
-
-        code_block.extend(
-            [
-                f"        for key in {space}:",
-                f"            shape_block = template_c[key].shape[1:]",
-                f"            c[key] = np.zeros((northo, *shape_block))",
-                f"            sigma[key] = np.zeros((northo, *shape_block))",
-                f"        c = vec_to_dict(c, eom_dsrg.S12.{space[0]})",
-                f"        c = antisymmetrize(c, ea={ea})",
-                generate_block_contraction(
-                    space,
-                    mbeq,
-                    block_type="composite",
-                    indent="twice",
-                    ea=ea,
-                    einsum_type=einsum_type,
-                    no_np=no_np,
-                ),
-                f"        c.clear()",
-                f"        vec = dict_to_vec(sigma, northo)",
-                f"        sigma.clear()",
-                f"        vmv = eom_dsrg.S12.{space[0]}.T @ vec",
-                f"        diagonal.append(vmv.diagonal())",
-                f"        del vec, vmv",
-            ]
-        )
 
         return code_block
 
@@ -1191,14 +1148,11 @@ def get_matrix_elements(
     return mbeq_new
 
 
-def make_function(key, mbeq, tensor_label, trans=None, with_Hbar=True, transpose=False):
+def make_function(key, mbeq, tensor_label, trans=None, transpose=False):
     fbra = re.sub(r"[^a-zA-Z]", "", key.split("|")[0])
     fket = re.sub(r"[^a-zA-Z]", "", key.split("|")[1])
     fname = f"{fbra}_{fket}"
-    if with_Hbar:
-        func = f"def make_{tensor_label}{fname}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes):\n"
-    else:
-        func = f"def make_{tensor_label}{fname}(delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes):\n"
+    func = f"def make_{tensor_label}{fname}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes):\n"
     func += f"\t{tensor_label}{fbra+fket} = np.zeros((list((sizes[_] for _ in '{fbra+fket}'))))\n\n"
 
     for eq in mbeq:
@@ -1286,7 +1240,7 @@ def make_driver(Hmbeq, Smbeq):
     return func
 
 
-def make_block_single(key):
+def make_block_single(key, tensor_label):
     # For operators that do not have coupling with other operators
     def _parse_key(key):
         bra = key.split("|")[0]
@@ -1337,11 +1291,11 @@ def make_block_single(key):
     elif nf == 4:
         factor = "4 * "
     fname = key.replace("|", "_").replace(" ", "").replace("+", "")
-    func = f"vec = {factor}make_S{fname}(delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes)\n"
+    func = f"vec = {factor}make_{tensor_label}{fname}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes)\n"
     return func
 
 
-def make_driver_composite(Smbeq_comp, space_list):
+def make_driver_composite(mbeq_comp, space_list, tensor_label):
     def _parse_key(key):
         bra = key.split("|")[0]
         ket = key.split("|")[1]
@@ -1361,11 +1315,11 @@ def make_driver_composite(Smbeq_comp, space_list):
                 return key[0].upper() == key[1]
         return False
 
-    func = f"def driver_{space_list[0]}(delta, gamma1, eta1, lambda2, lambda3, lambda4, space_list, sizes):\n"
+    func = f"def driver_{tensor_label}{space_list[0]}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, space_list, sizes):\n"
     func += "\tops = [tensor_label_to_op(_) for _ in space_list]\n"
     func += "\tnops, slices = get_slices(ops, sizes)\n"
     func += "\tovlp = np.zeros((nops,nops))\n"
-    for key in Smbeq_comp.keys():
+    for key in mbeq_comp.keys():
         bcre, bann, kcre, kann = _parse_key(key)
         nf = 0
         if (
@@ -1397,7 +1351,7 @@ def make_driver_composite(Smbeq_comp, space_list):
         fname = key.replace("|", "_").replace(" ", "").replace("+", "")
         bra = key.split("|")[0].replace(" ", "").replace("+", "")
         ket = key.split("|")[1].replace(" ", "").replace("+", "")
-        func += f"\tovlp[slices['{bra}'],slices['{ket}']] = {factor}make_S{fname}(delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes)\n"
+        func += f"\tovlp[slices['{bra}'],slices['{ket}']] = {factor}make_{tensor_label}{fname}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, sizes)\n"
         if bra != ket:
             func += f"\tovlp[slices['{ket}'],slices['{bra}']] = ovlp[slices['{bra}'],slices['{ket}']].T\n"
     func += "\treturn ovlp\n"

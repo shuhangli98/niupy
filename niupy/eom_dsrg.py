@@ -225,7 +225,6 @@ class EOM_DSRG:
         (
             self.build_first_row,
             self.build_sigma_vector_Hbar,
-            self.build_sigma_vector_s,
             self.build_transition_dipole,
             self.get_S12,
             self.apply_S12,

@@ -370,15 +370,14 @@ def setup_davidson(eom_dsrg):
         guess: Initial guess vectors.
         nop: Dimension size.
     """
+    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
+    if "cvs" in eom_dsrg.method_type:
+        eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
     start = time.time()
     print("Starting S12...", flush=True)
     eom_dsrg.get_S12(eom_dsrg)
     print("Time(s) for S12: ", time.time() - start, flush=True)
-
-    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
-    if "cvs" in eom_dsrg.method_type:
-        eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
     if eom_dsrg.build_first_row is NotImplemented:
         eom_dsrg.first_row = None
@@ -394,7 +393,6 @@ def setup_davidson(eom_dsrg):
             eom_dsrg.lambda4,
         )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
-    eom_dsrg.build_S = eom_dsrg.build_sigma_vector_s
 
     # Compute Preconditioner
     start = time.time()
@@ -599,7 +597,6 @@ def get_sigma_build(eom_dsrg):
     # Extract the specific functions from the module
     build_first_row = sigma_module.build_first_row
     build_sigma_vector_Hbar = sigma_module.build_sigma_vector_Hbar
-    build_sigma_vector_s = sigma_module.build_sigma_vector_s
     build_transition_dipole = sigma_module.build_transition_dipole
     get_S12 = sigma_module.get_S12
     apply_S12 = sigma_module.apply_S12
@@ -608,7 +605,6 @@ def get_sigma_build(eom_dsrg):
     return (
         build_first_row,
         build_sigma_vector_Hbar,
-        build_sigma_vector_s,
         build_transition_dipole,
         get_S12,
         apply_S12,
