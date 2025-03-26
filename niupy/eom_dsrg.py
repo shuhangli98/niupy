@@ -46,6 +46,7 @@ class EOM_DSRG:
 
         self.sequential_ortho = kwargs.get("sequential_ortho", True)
         self.blocked_ortho = kwargs.get("blocked_ortho", True)
+        self.first_row = kwargs.get("first_row", False)
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(mo_spaces)
@@ -106,6 +107,7 @@ class EOM_DSRG:
                 self.einsum_type,
                 sequential_ortho=self.sequential_ortho,
                 blocked_ortho=self.blocked_ortho,
+                first_row=self.first_row,
             )
         elif method_type == "ip":
             self.ops, self.single_space, self.composite_space = ip.generator_full(

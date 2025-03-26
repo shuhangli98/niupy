@@ -214,7 +214,10 @@ def compute_dipole(eom_dsrg, current_vec):
             eom_dsrg.lambda3,
             eom_dsrg.lambda4,
         )
-        HT_first = HT + current_vec_dict["first"][0, 0] * eom_dsrg.Mbar0[i]
+        if eom_dsrg.first_row:
+            HT_first = HT + current_vec_dict["first"][0, 0] * eom_dsrg.Mbar0[i]
+        else:
+            HT_first = HT
         dipole_sum_squared += HT_first**2
 
     return dipole_sum_squared
@@ -571,7 +574,7 @@ def get_templates(eom_dsrg, nlow=1):
 
     # Create a deep copy of the template and adjust its structure
     full_template = copy.deepcopy(template)
-    if eom_dsrg.method_type == "cvs_ee":
+    if eom_dsrg.method_type == "cvs_ee" and eom_dsrg.first_row:
         full_template["first"] = np.zeros(nlow).reshape(nlow, 1)
         full_template = {"first": full_template.pop("first"), **full_template}
 
