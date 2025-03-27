@@ -77,97 +77,7 @@ class EOM_DSRG:
             "V": self.nvir,
         }
 
-        if method_type == "cvs_ee":
-            # self.ops, self.single_space, self.composite_space = (
-            #     cvs_ee.generator_subspace(
-            #         self.abs_file_path,
-            #         self.ncore,
-            #         self.nocc,
-            #         self.nact,
-            #         self.nvir,
-            #         blocked_ortho=self.blocked_ortho,
-            #     )
-            # )
-            # self.nops, self.slices = get_slices(self.ops, self.nmos)
-            # self.delta = {
-            #     "ii": np.eye(self.nmos["i"]),
-            #     "cc": np.eye(self.nmos["c"]),
-            #     "vv": np.eye(self.nmos["v"]),
-            #     "II": np.eye(self.nmos["I"]),
-            #     "CC": np.eye(self.nmos["C"]),
-            #     "VV": np.eye(self.nmos["V"]),
-            # }
-            self.ops, self.single_space, self.composite_space = cvs_ee.generator_full(
-                self.abs_file_path, blocked_ortho=self.blocked_ortho
-            )
-            self.nops, self.slices = get_slices(self.ops, self.nmos)
-            print(self.ops)
-            print(self.slices)
-            self.delta = {
-                "ii": np.eye(self.nmos["i"]),
-                "cc": np.eye(self.nmos["c"]),
-                "vv": np.eye(self.nmos["v"]),
-                "II": np.eye(self.nmos["I"]),
-                "CC": np.eye(self.nmos["C"]),
-                "VV": np.eye(self.nmos["V"]),
-            }
-            cvs_ee.generator(
-                self.abs_file_path,
-                self.ncore,
-                self.nocc,
-                self.nact,
-                self.nvir,
-                self.einsum_type,
-                sequential_ortho=self.sequential_ortho,
-                blocked_ortho=self.blocked_ortho,
-            )
-        elif method_type == "ip":
-            self.ops, self.single_space, self.composite_space = ip.generator_full(
-                self.abs_file_path, blocked_ortho=self.blocked_ortho
-            )
-            self.nops, self.slices = get_slices(self.ops, self.nmos)
-            self.delta = {
-                "cc": np.eye(self.nmos["c"]),
-                "vv": np.eye(self.nmos["v"]),
-                "CC": np.eye(self.nmos["C"]),
-                "VV": np.eye(self.nmos["V"]),
-            }
-            ip.generator(
-                self.abs_file_path,
-                self.einsum_type,
-                sequential_ortho=self.sequential_ortho,
-                blocked_ortho=self.blocked_ortho,
-            )
-        elif method_type == "cvs_ip":
-            self.ops, self.single_space, self.composite_space = cvs_ip.generator_full(
-                self.abs_file_path,
-                self.ncore,
-                self.nocc,
-                self.nact,
-                self.nvir,
-                blocked_ortho=self.blocked_ortho,
-            )
-            self.nops, self.slices = get_slices(self.ops, self.nmos)
-            self.delta = {
-                "ii": np.eye(self.nmos["i"]),
-                "cc": np.eye(self.nmos["c"]),
-                "vv": np.eye(self.nmos["v"]),
-                "II": np.eye(self.nmos["I"]),
-                "CC": np.eye(self.nmos["C"]),
-                "VV": np.eye(self.nmos["V"]),
-            }
-            cvs_ip.generator(
-                self.abs_file_path,
-                self.ncore,
-                self.nocc,
-                self.nact,
-                self.nvir,
-                self.einsum_type,
-                sequential_ortho=self.sequential_ortho,
-                blocked_ortho=self.blocked_ortho,
-            )
-        else:
-            raise ValueError(f"Method type {method_type} is not supported.")
+        self._generate_code()
 
         self.S12 = lambda: None
 
@@ -190,6 +100,104 @@ class EOM_DSRG:
             self.vir_sym,
         )
         self.sym_vec = dict_to_vec(self.sym, 1).flatten()
+
+    def _generate_code(self):
+        match self.method_type:
+            case "cvs_ee":
+                # self.ops, self.single_space, self.composite_space = (
+                #     cvs_ee.generator_subspace(
+                #         self.abs_file_path,
+                #         self.ncore,
+                #         self.nocc,
+                #         self.nact,
+                #         self.nvir,
+                #         blocked_ortho=self.blocked_ortho,
+                #     )
+                # )
+                # self.nops, self.slices = get_slices(self.ops, self.nmos)
+                # self.delta = {
+                #     "ii": np.eye(self.nmos["i"]),
+                #     "cc": np.eye(self.nmos["c"]),
+                #     "vv": np.eye(self.nmos["v"]),
+                #     "II": np.eye(self.nmos["I"]),
+                #     "CC": np.eye(self.nmos["C"]),
+                #     "VV": np.eye(self.nmos["V"]),
+                # }
+                self.ops, self.single_space, self.composite_space = (
+                    cvs_ee.generator_full(
+                        self.abs_file_path, blocked_ortho=self.blocked_ortho
+                    )
+                )
+                self.nops, self.slices = get_slices(self.ops, self.nmos)
+                print(self.ops)
+                print(self.slices)
+                self.delta = {
+                    "ii": np.eye(self.nmos["i"]),
+                    "cc": np.eye(self.nmos["c"]),
+                    "vv": np.eye(self.nmos["v"]),
+                    "II": np.eye(self.nmos["I"]),
+                    "CC": np.eye(self.nmos["C"]),
+                    "VV": np.eye(self.nmos["V"]),
+                }
+                cvs_ee.generator(
+                    self.abs_file_path,
+                    self.ncore,
+                    self.nocc,
+                    self.nact,
+                    self.nvir,
+                    self.einsum_type,
+                    sequential_ortho=self.sequential_ortho,
+                    blocked_ortho=self.blocked_ortho,
+                )
+            case "ip":
+                self.ops, self.single_space, self.composite_space = ip.generator_full(
+                    self.abs_file_path, blocked_ortho=self.blocked_ortho
+                )
+                self.nops, self.slices = get_slices(self.ops, self.nmos)
+                self.delta = {
+                    "cc": np.eye(self.nmos["c"]),
+                    "vv": np.eye(self.nmos["v"]),
+                    "CC": np.eye(self.nmos["C"]),
+                    "VV": np.eye(self.nmos["V"]),
+                }
+                ip.generator(
+                    self.abs_file_path,
+                    self.einsum_type,
+                    sequential_ortho=self.sequential_ortho,
+                    blocked_ortho=self.blocked_ortho,
+                )
+            case "cvs_ip":
+                self.ops, self.single_space, self.composite_space = (
+                    cvs_ip.generator_full(
+                        self.abs_file_path,
+                        self.ncore,
+                        self.nocc,
+                        self.nact,
+                        self.nvir,
+                        blocked_ortho=self.blocked_ortho,
+                    )
+                )
+                self.nops, self.slices = get_slices(self.ops, self.nmos)
+                self.delta = {
+                    "ii": np.eye(self.nmos["i"]),
+                    "cc": np.eye(self.nmos["c"]),
+                    "vv": np.eye(self.nmos["v"]),
+                    "II": np.eye(self.nmos["I"]),
+                    "CC": np.eye(self.nmos["C"]),
+                    "VV": np.eye(self.nmos["V"]),
+                }
+                cvs_ip.generator(
+                    self.abs_file_path,
+                    self.ncore,
+                    self.nocc,
+                    self.nact,
+                    self.nvir,
+                    self.einsum_type,
+                    sequential_ortho=self.sequential_ortho,
+                    blocked_ortho=self.blocked_ortho,
+                )
+            case _:
+                raise ValueError(f"Method type {self.method_type} is not supported.")
 
     def _get_integrals(self):
         self.gamma1 = np.load(f"{self.abs_file_path}/save_gamma1.npz")
@@ -309,7 +317,7 @@ class EOM_DSRG:
 
         return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
-    def kernel_full(self, dump_vectors=False):
+    def kernel_full(self, dump_vectors=False, skip_spec=False):
         _available_methods = ["ip", "cvs_ip", "cvs_ee"]
         assert (
             self.method_type in _available_methods
@@ -331,7 +339,7 @@ class EOM_DSRG:
         # else:
         #     eigvec = tempvec
         spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(
-            self, e, eigvec, eigvec_dict
+            self, e, eigvec, eigvec_dict, skip_spec=skip_spec
         )
         self._pretty_print_info(e, spin, symmetry, spec_info)
 

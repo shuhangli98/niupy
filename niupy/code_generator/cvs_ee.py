@@ -18,7 +18,7 @@ def generator_full(abs_path, blocked_ortho=True):
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
 
-    s = [""] # first row
+    s = []
     s += w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True)
     s += w.gen_op("bra", 2, "avAV", "ciaCIA", only_terms=True)
     s = [_.strip() for _ in s]
@@ -330,14 +330,14 @@ def generator(
 
     # Generate wicked contraction
     funct = generate_sigma_build(
-        mbeq, "Hbar", first_row=True, einsum_type=einsum_type
+        mbeq, "Hbar", first_row=False, einsum_type=einsum_type
     )  # HC
     funct_s = generate_sigma_build(
-        mbeq_s, "s", first_row=True, einsum_type=einsum_type
+        mbeq_s, "s", first_row=False, einsum_type=einsum_type
     )  # SC
-    funct_first = generate_first_row(
-        mbeq_first, einsum_type=einsum_type
-    )  # First row/column
+    # funct_first = generate_first_row(
+    #     mbeq_first, einsum_type=einsum_type
+    # )  # First row/column
     funct_dipole = generate_transition_dipole(mbeq_first, einsum_type=einsum_type)
     funct_S12 = generate_S12(
         mbeq_s,
@@ -352,10 +352,10 @@ def generator(
         mbeqs_no_active,
         single_space,
         composite_space,
-        first_row=True,
+        first_row=False,
         einsum_type=einsum_type,
     )
-    funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=True)
+    funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=False)
 
     # script_dir = os.path.dirname(__file__)
     # rel_path = "../cvs_ee_eom_dsrg.py"
@@ -373,5 +373,6 @@ def generator(
         f.write(f"{funct_apply_S12}\n\n")
         f.write(f"{funct}\n\n")
         f.write(f"{funct_s}\n\n")
-        f.write(f"{funct_first}\n\n")
+        # f.write(f"{funct_first}\n\n")
+        f.write("build_first_row = NotImplemented\n")
         f.write(f"{funct_dipole}\n\n")
