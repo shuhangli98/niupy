@@ -18,7 +18,7 @@ def generator_full(abs_path, blocked_ortho=True):
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
 
-    s = [""] # first row
+    s = [""]  # first row
     s += w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True)
     s += w.gen_op("bra", 2, "avAV", "ciaCIA", only_terms=True)
     s = [_.strip() for _ in s]
