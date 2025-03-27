@@ -4,7 +4,7 @@ import os
 from niupy.eom_tools import *
 
 
-def generator_full(abs_path, blocked_ortho=True):
+def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -18,14 +18,20 @@ def generator_full(abs_path, blocked_ortho=True):
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
 
-    s = [""]  # first row
-    s += w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True)
-    s += w.gen_op("bra", 2, "avAV", "ciaCIA", only_terms=True)
+    # s = [""]  # first row
+    s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True) + w.gen_op(
+        "bra", 2, "avAV", "ciaCIA", only_terms=True
+    )
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 0)
     s = [_ for _ in s if ("I" in _ or "i" in _)]
+    s = filter_list(s, ncore, nocc, nact, nvir)
 
     single_space, composite_space, block_list = get_subspaces(wt, s)
+    single_space = filter_list(single_space, ncore, nocc, nact, nvir)
+    composite_space = [filter_list(_, ncore, nocc, nact, nvir) for _ in composite_space]
+    block_list = single_space + list(itertools.chain(*composite_space))
+
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
@@ -33,6 +39,7 @@ def generator_full(abs_path, blocked_ortho=True):
     print("Composite spaces:", composite_space)
 
     ops = [tensor_label_to_op(_) for _ in block_list]
+    print("Operators:", ops)
 
     index_dict = {
         "c": "nocc",

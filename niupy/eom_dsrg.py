@@ -99,14 +99,6 @@ class EOM_DSRG:
             #     )
             # )
             # self.nops, self.slices = get_slices(self.ops, self.nmos)
-            # self.delta = {
-            #     "ii": np.eye(self.nmos["i"]),
-            #     "cc": np.eye(self.nmos["c"]),
-            #     "vv": np.eye(self.nmos["v"]),
-            #     "II": np.eye(self.nmos["I"]),
-            #     "CC": np.eye(self.nmos["C"]),
-            #     "VV": np.eye(self.nmos["V"]),
-            # }
             self.ops, self.single_space, self.composite_space = cvs_ee.generator_full(
                 self.abs_file_path, blocked_ortho=self.blocked_ortho
             )
