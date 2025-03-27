@@ -46,12 +46,13 @@ def kernel_full(eom_dsrg, sequential=True):
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
-    if eom_dsrg.method_type == "cvs_ip":
-        driver = cvs_ip_eom_dsrg_full.driver
-    elif eom_dsrg.method_type == "cvs_ee":
-        driver = cvs_ee_eom_dsrg_full.driver
-    elif eom_dsrg.method_type == "ip":
-        driver = ip_eom_dsrg_full.driver
+    match eom_dsrg.method_type:
+        case "cvs_ip":
+            driver = cvs_ip_eom_dsrg_full.driver
+        case "cvs_ee":
+            driver = cvs_ee_eom_dsrg_full.driver
+        case "ip":
+            driver = ip_eom_dsrg_full.driver
 
     heff, ovlp = driver(
         eom_dsrg.Hbar,
@@ -121,7 +122,7 @@ def kernel(eom_dsrg):
     return conv, e, u, nop
 
 
-def post_process(eom_dsrg, e, eigvec, eigvec_dict):
+def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
     # Get spin multiplicity and process eigenvectors
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
@@ -143,20 +144,20 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict):
     # # Get spin multiplicity and process eigenvectors
     # spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
 
-    if eom_dsrg.build_transition_dipole is not NotImplemented:
-        # Optimize slicing by vectorizing
-        eom_dsrg.Mbar = [
-            slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar
-        ]
-        # Compute oscillator strengths
-        spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
-    elif "ip" in eom_dsrg.method_type:
-        spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
-    else:
-        print(
-            f"Warning: Spectroscopic info not implemented for kernel_full of {eom_dsrg.method_type}!"
-        )
+    if skip_spec:
+        print("Warning: Spectroscopic info skipped !")
         spec_info = np.zeros(eom_dsrg.nroots)
+    else:
+        if eom_dsrg.build_transition_dipole is not NotImplemented:
+            # Optimize slicing by vectorizing
+            eom_dsrg.Mbar = [
+                slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym)
+                for M in eom_dsrg.Mbar
+            ]
+            # Compute oscillator strengths
+            spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
+        elif "ip" in eom_dsrg.method_type:
+            spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
 
     return spin, symmetry, spec_info
 

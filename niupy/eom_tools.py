@@ -1233,7 +1233,7 @@ def make_driver(Hmbeq, Smbeq):
         Checks if a string of eithr creation or annihilation operators
         is of the form 'pQ' where at least one of the operators is active
         """
-        if len(key) == 2 and ("a" in key or "A" in key):
+        if len(key) == 2:
             if key[0].islower() and key[1].isupper():
                 return key[0].upper() == key[1]
         return False
@@ -1243,7 +1243,18 @@ def make_driver(Hmbeq, Smbeq):
     func += "\tovlp = np.zeros((nops,nops))\n"
     for key in Hmbeq.keys():
         bcre, bann, kcre, kann = _parse_key(key)
-        nf = _isab(bcre) + _isab(bann) + _isab(kcre) + _isab(kann)
+        nf = 0
+        if (bcre + bann).count("A") + (bcre + bann).count("a") > 0:
+            if _isab(bcre):
+                nf += 1
+            if _isab(bann):
+                nf += 1
+        if (kcre + kann).count("A") + (kcre + kann).count("a") > 0:
+            if _isab(kcre):
+                nf += 1
+            if _isab(kann):
+                nf += 1
+
         if nf == 0:
             factor = ""
         elif nf == 1:
@@ -1262,7 +1273,17 @@ def make_driver(Hmbeq, Smbeq):
             func += f"\theff[slices['{ket}'],slices['{bra}']] = heff[slices['{bra}'],slices['{ket}']].T\n"
     for key in Smbeq.keys():
         bcre, bann, kcre, kann = _parse_key(key)
-        nf = _isab(bcre) + _isab(bann) + _isab(kcre) + _isab(kann)
+        nf = 0
+        if (bcre + bann).count("A") + (bcre + bann).count("a") > 0:
+            if _isab(bcre):
+                nf += 1
+            if _isab(bann):
+                nf += 1
+        if (kcre + kann).count("A") + (kcre + kann).count("a") > 0:
+            if _isab(kcre):
+                nf += 1
+            if _isab(kann):
+                nf += 1
         if nf == 0:
             factor = ""
         elif nf == 1:
@@ -1601,13 +1622,20 @@ def eigh_gen_composite(
             for i in block:
                 if len(i) <= 2:
                     singles_size += slices[i].stop - slices[i].start
-            X[block[0]] = orth_sequential(S_temp, singles_size, tol_composite)
-
-        sevals, sevecs = np.linalg.eigh(S_temp)
-        trunc_indices = np.where(sevals > tol_composite)[0]
-        X[block[0]] = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
+            if singles_size == 0: # for composite spaces w/o singles
+                sevals, sevecs = np.linalg.eigh(S_temp)
+                trunc_indices = np.where(sevals > tol_single)[0]
+                X[block[0]] = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
+            else:
+                X[block[0]] = orth_sequential(S_temp, singles_size, tol_composite)
+        else:
+            sevals, sevecs = np.linalg.eigh(S_temp)
+            trunc_indices = np.where(sevals > tol_single)[0]
+            X[block[0]] = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])
 
     X_concat = scipy.linalg.block_diag(*X.values())
+    for k,v in X.items():
+        print(f"Number of orthogonalized basis functions for {k}: {v.shape[1]}")
     print(f"Number of orthogonalized basis functions: {X_concat.shape[1]}")
     Hp = X_concat.T @ H @ X_concat
     eigval, eigvec = np.linalg.eigh(Hp)
