@@ -45,10 +45,11 @@ def kernel_full(eom_dsrg, sequential=True):
 
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
-        if eom_dsrg.method_type == "cvs_ip":
-            driver = cvs_ip_eom_dsrg_full.driver
-        elif eom_dsrg.method_type == "cvs_ee":
-            driver = cvs_ee_eom_dsrg_full.driver
+
+    if eom_dsrg.method_type == "cvs_ip":
+        driver = cvs_ip_eom_dsrg_full.driver
+    elif eom_dsrg.method_type == "cvs_ee":
+        driver = cvs_ee_eom_dsrg_full.driver
     elif eom_dsrg.method_type == "ip":
         driver = ip_eom_dsrg_full.driver
 
@@ -69,6 +70,8 @@ def kernel_full(eom_dsrg, sequential=True):
         [tensor_label_to_full_tensor_label(_) for _ in __]
         for __ in eom_dsrg.composite_space
     ]
+    print(singles)
+    print(composite)
     eigval, eigvec = eigh_gen_composite(
         heff,
         ovlp,
@@ -149,6 +152,11 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict):
         spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
     elif "ip" in eom_dsrg.method_type:
         spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
+    else:
+        print(
+            f"Warning: Spectroscopic info not implemented for kernel_full of {eom_dsrg.method_type}!"
+        )
+        spec_info = np.zeros(eom_dsrg.nroots)
 
     return spin, symmetry, spec_info
 
