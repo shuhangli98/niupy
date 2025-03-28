@@ -422,6 +422,7 @@ def setup_davidson(eom_dsrg):
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
 
     if eom_dsrg.guess == "singles":
+        raise NotImplementedError
         print("Computing singles...", flush=True)
         assert eom_dsrg.method_type == "cvs_ee"
         guess_evals, guess_evecs = eom_dsrg.eom_dsrg_compute.kernel_full(
