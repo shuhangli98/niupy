@@ -6,7 +6,7 @@ dependencies:
     - pybind11
     - cxx-compiler
     - mkl
-    - cmake > 3.10
+    - cmake=3.21
     - numpy
     - scipy
     - eigen
