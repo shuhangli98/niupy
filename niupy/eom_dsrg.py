@@ -114,18 +114,6 @@ class EOM_DSRG:
     def _generate_code(self):
         match self.method_type:
             case "cvs_ee":
-                # Disable guess singles.
-                # self.ops, self.single_space, self.composite_space = (
-                #     cvs_ee.generator_subspace(
-                #         self.abs_file_path,
-                #         self.ncore,
-                #         self.nocc,
-                #         self.nact,
-                #         self.nvir,
-                #         blocked_ortho=self.blocked_ortho,
-                #     )
-                # )
-                # self.nops, self.slices = get_slices(self.ops, self.nmos)
                 self.ops, self.single_space, self.composite_space = (
                     cvs_ee.generator_full(
                         self.abs_file_path,
@@ -146,6 +134,7 @@ class EOM_DSRG:
                     self.einsum_type,
                     sequential_ortho=self.sequential_ortho,
                     blocked_ortho=self.blocked_ortho,
+                    first_row=self.first_row,
                 )
             case "ip":
                 self.ops, self.single_space, self.composite_space = ip.generator_full(
@@ -316,11 +305,6 @@ class EOM_DSRG:
         eigvec = dict_to_vec(eigvec_dict, self.nroots)
         e = evals[: self.nroots]
         print(e)
-        # if self.method_type == "cvs_ee":
-        #     zero_row = np.zeros((1, tempvec.shape[1]))
-        #     eigvec = np.vstack((zero_row, tempvec))
-        # else:
-        #     eigvec = tempvec
         spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(
             self, e, eigvec, eigvec_dict, skip_spec=skip_spec
         )

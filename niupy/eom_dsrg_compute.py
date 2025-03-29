@@ -1,12 +1,10 @@
 import os
-import functools
 import pickle
 from niupy.eom_tools import (
     eigh_gen_composite,
     tensor_label_to_full_tensor_label,
     dict_to_vec,
     vec_to_dict,
-    full_vec_to_dict_short,
     antisymmetrize,
     slice_H_core,
 )
@@ -71,8 +69,6 @@ def kernel_full(eom_dsrg, sequential=True):
         [tensor_label_to_full_tensor_label(_) for _ in __]
         for __ in eom_dsrg.composite_space
     ]
-    print(singles)
-    print(composite)
     eigval, eigvec = eigh_gen_composite(
         heff,
         ovlp,
@@ -106,6 +102,7 @@ def kernel(eom_dsrg):
     # Setup Davidson algorithm
     apply_M, precond, x0, nop = setup_davidson(eom_dsrg)
     print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
+
     # Davidson algorithm
     conv, e, u = davidson(
         lambda xs: [apply_M(x) for x in xs],
@@ -141,11 +138,8 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
 
     del eom_dsrg.Hbar
 
-    # # Get spin multiplicity and process eigenvectors
-    # spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
-
     if skip_spec:
-        print("Warning: Spectroscopic info skipped !")
+        print("Warning: Spectroscopic info skipped!")
         spec_info = np.zeros(eom_dsrg.nroots)
     else:
         if eom_dsrg.build_transition_dipole is not NotImplemented:
@@ -193,10 +187,18 @@ def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
     """
     Compute oscillator strengths for each eigenvector.
     """
-    return [0.0] + [
-        2.0 / 3.0 * (eigval[i] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i])
-        for i in range(1, eigvec.shape[1])
-    ]
+
+    if eom_dsrg.first_row:
+        oscillator = [0.0] + [
+            2.0 / 3.0 * (eigval[i] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i])
+            for i in range(1, eigvec.shape[1])
+        ]
+    else:
+        oscillator = [
+            2.0 / 3.0 * (eigval[i]) * compute_dipole(eom_dsrg, eigvec[:, i])
+            for i in range(eigvec.shape[1])
+        ]
+    return oscillator
 
 
 def compute_dipole(eom_dsrg, current_vec):
@@ -423,26 +425,6 @@ def setup_davidson(eom_dsrg):
 
     if eom_dsrg.guess == "singles":
         raise NotImplementedError
-        print("Computing singles...", flush=True)
-        assert eom_dsrg.method_type == "cvs_ee"
-        guess_evals, guess_evecs = eom_dsrg.eom_dsrg_compute.kernel_full(
-            eom_dsrg, sequential=eom_dsrg.sequential_ortho
-        )
-        dict_template_short = {}
-        for kt in eom_dsrg.slices.keys():
-            half_kt = len(kt) // 2
-            new_key = kt[half_kt:] + kt[:half_kt]
-            dict_template_short[new_key] = eom_dsrg.full_template_c[new_key].copy()
-        guess_evecs_dict = full_vec_to_dict_short(
-            eom_dsrg.full_template_c,
-            dict_template_short,
-            eom_dsrg.slices,
-            guess_evecs[:, : eom_dsrg.nroots],
-            eom_dsrg.nmos,
-        )
-
-        pickle.dump(guess_evecs_dict, open(f"niupy_save.pkl", "wb"))
-        x0 = read_guess_vectors(eom_dsrg, nop, northo)
     elif eom_dsrg.guess == "ones":
         x0 = compute_guess_vectors(eom_dsrg, precond)
 
