@@ -4,7 +4,7 @@ import os
 from niupy.eom_tools import *
 
 
-def generator_subspace(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
+def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -18,11 +18,10 @@ def generator_subspace(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
 
-    s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True)
-    # s.extend(["a+ a+ a i", "a+ A+ A i", "A+ A+ A I", "a+ A+ I a"])
-    # + w.gen_op(
-    #     "bra", 2, "avAV", "ciaCIA", only_terms=True
-    # )
+    # s = [""]  # first row
+    s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True) + w.gen_op(
+        "bra", 2, "avAV", "ciaCIA", only_terms=True
+    )
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 0)
     s = [_ for _ in s if ("I" in _ or "i" in _)]
@@ -109,6 +108,7 @@ def generator(
     einsum_type,
     sequential_ortho=True,
     blocked_ortho=True,
+    first_row=False,
 ):
     w.reset_space()
     # alpha
@@ -165,6 +165,74 @@ def generator(
     )
 
     # ============================================================================
+    # 1. Generate block S functions for single and composite spaces.
+    single_ops = [tensor_label_to_op(_) for _ in single_space]
+    print("Single space operators:", single_ops)
+    Smbeq = {}
+    Hmbeq = {}
+    for iop in range(len(single_ops)):
+        sop = single_ops[iop]
+        bra = w.op("bra", [sop])
+        braind = op_to_index(sop)
+        ket = w.op("ket", [sop])
+        ketind = op_to_index(sop)
+        S_mbeq = get_matrix_elements(
+            wt,
+            bra,
+            None,
+            ket,
+            inter_general=True,
+            double_comm=False,
+            # to_eq=False,
+        )
+        if S_mbeq:
+            Smbeq[f"{braind}|{ketind}"] = S_mbeq
+        double_comm = sop.count("a") + sop.count("A") == 3
+        H_mbeq = get_matrix_elements(
+            wt, bra, Hbar_op, ket, inter_general=True, double_comm=double_comm
+        )
+        if H_mbeq:
+            Hmbeq[f"{braind}|{ketind}"] = H_mbeq
+
+    drivers = []
+    drivers_H = []
+    for icomp in range(len(composite_space)):
+        Smbeq_comp = {}
+        Hmbeq_comp = {}
+        composite_ops = [tensor_label_to_op(_) for _ in composite_space[icomp]]
+        print(f"Composite space {icomp} operators:", composite_ops)
+        for ibra in range(len(composite_ops)):
+            bop = composite_ops[ibra]
+            bra = w.op("bra", [bop])
+            braind = op_to_index(bop)
+            for iket in range(ibra + 1):
+                kop = composite_ops[iket]
+                ket = w.op("ket", [kop])
+                ketind = op_to_index(kop)
+                S_mbeq = get_matrix_elements(
+                    wt,
+                    bra,
+                    None,
+                    ket,
+                    inter_general=True,
+                    double_comm=False,
+                    # to_eq=False,
+                )
+                if S_mbeq:
+                    Smbeq[f"{braind}|{ketind}"] = S_mbeq
+                    Smbeq_comp[f"{braind}|{ketind}"] = S_mbeq
+                double_comm = (kop.count("a") + kop.count("A") == 3) and (
+                    bop.count("a") + bop.count("A") == 3
+                )
+                H_mbeq = get_matrix_elements(
+                    wt, bra, Hbar_op, ket, inter_general=True, double_comm=double_comm
+                )
+                if H_mbeq:
+                    Hmbeq[f"{braind}|{ketind}"] = H_mbeq
+                    Hmbeq_comp[f"{braind}|{ketind}"] = H_mbeq
+
+        drivers_H.append(make_driver_composite(Hmbeq_comp, composite_space[icomp], "H"))
+        drivers.append(make_driver_composite(Smbeq_comp, composite_space[icomp], "S"))
 
     one_active_two_virtual = []
     no_active = []
@@ -235,28 +303,19 @@ def generator(
     expr_first = wt.contract(HT, 0, 0, inter_general=True)
     mbeq_first = expr_first.to_manybody_equation("sigma")
 
-    # S
-    TT = T_adj @ T
-    expr_s = wt.contract(TT, 0, 0, inter_general=True)
-    mbeq_s = expr_s.to_manybody_equation("sigma")
-
     # Generate wicked contraction
     funct = generate_sigma_build(
-        mbeq, "Hbar", first_row=True, einsum_type=einsum_type
+        mbeq, "Hbar", first_row=first_row, einsum_type=einsum_type
     )  # HC
-    funct_s = generate_sigma_build(
-        mbeq_s, "s", first_row=True, einsum_type=einsum_type
-    )  # SC
-    funct_first = generate_first_row(
-        mbeq_first, einsum_type=einsum_type
-    )  # First row/column
+    if first_row:
+        funct_first = generate_first_row(
+            mbeq_first, einsum_type=einsum_type
+        )  # First row/column
     funct_dipole = generate_transition_dipole(mbeq_first, einsum_type=einsum_type)
     funct_S12 = generate_S12(
-        mbeq_s,
         single_space,
         composite_space,
         sequential=sequential_ortho,
-        einsum_type=einsum_type,
     )
     funct_preconditioner = generate_preconditioner(
         mbeq,
@@ -264,10 +323,12 @@ def generator(
         mbeqs_no_active,
         single_space,
         composite_space,
-        first_row=True,
+        first_row=first_row,
         einsum_type=einsum_type,
     )
-    funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=True)
+    funct_apply_S12 = generate_apply_S12(
+        single_space, composite_space, first_row=first_row
+    )
 
     # script_dir = os.path.dirname(__file__)
     # rel_path = "../cvs_ee_eom_dsrg.py"
@@ -280,10 +341,52 @@ def generator(
             "import numpy as np\nimport scipy\nimport time\n\nfrom functools import reduce\n\nfrom niupy.eom_tools import *\n\n"
         )
         f.write(f"{func_template_c}\n\n")
+        for k, v in Smbeq.items():
+            if v:
+                if len(k) == 19:
+                    trans = (2, 3, 0, 1, 6, 7, 4, 5)
+                elif len(k) == 14:
+                    trans = (2, 3, 0, 1, 5, 4)
+                elif len(k) == 9:
+                    trans = (1, 0, 3, 2)
+                f.write(
+                    make_function(
+                        k,
+                        v,
+                        "S",
+                        trans=trans,
+                        transpose=True,
+                    )
+                    + "\n"
+                )
+        for k, v in Hmbeq.items():
+            if v:
+                if len(k) == 19:
+                    trans = (2, 3, 0, 1, 6, 7, 4, 5)
+                elif len(k) == 14:
+                    trans = (2, 3, 0, 1, 5, 4)
+                elif len(k) == 9:
+                    trans = (1, 0, 3, 2)
+                f.write(
+                    make_function(
+                        k,
+                        v,
+                        "H",
+                        trans=trans,
+                        transpose=True,
+                    )
+                    + "\n"
+                )
+        for i in range(len(drivers)):
+            f.write(drivers[i] + "\n")
+        for i in range(len(drivers_H)):
+            f.write(drivers_H[i] + "\n")
         f.write(f"{funct_S12}\n\n")
         f.write(f"{funct_preconditioner}\n\n")
         f.write(f"{funct_apply_S12}\n\n")
         f.write(f"{funct}\n\n")
-        f.write(f"{funct_s}\n\n")
-        f.write(f"{funct_first}\n\n")
+        if first_row:
+            f.write(f"{funct_first}\n\n")
+        else:
+            f.write(f"build_first_row = NotImplemented\n")
         f.write(f"{funct_dipole}\n\n")

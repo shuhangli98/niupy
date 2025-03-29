@@ -1,12 +1,10 @@
 import os
-import functools
 import pickle
 from niupy.eom_tools import (
     eigh_gen_composite,
     tensor_label_to_full_tensor_label,
     dict_to_vec,
     vec_to_dict,
-    full_vec_to_dict_short,
     antisymmetrize,
     slice_H_core,
 )
@@ -45,12 +43,14 @@ def kernel_full(eom_dsrg, sequential=True):
 
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
-        if eom_dsrg.method_type == "cvs_ip":
+
+    match eom_dsrg.method_type:
+        case "cvs_ip":
             driver = cvs_ip_eom_dsrg_full.driver
-        elif eom_dsrg.method_type == "cvs_ee":
+        case "cvs_ee":
             driver = cvs_ee_eom_dsrg_full.driver
-    elif eom_dsrg.method_type == "ip":
-        driver = ip_eom_dsrg_full.driver
+        case "ip":
+            driver = ip_eom_dsrg_full.driver
 
     heff, ovlp = driver(
         eom_dsrg.Hbar,
@@ -102,6 +102,7 @@ def kernel(eom_dsrg):
     # Setup Davidson algorithm
     apply_M, precond, x0, nop = setup_davidson(eom_dsrg)
     print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
+
     # Davidson algorithm
     conv, e, u = davidson(
         lambda xs: [apply_M(x) for x in xs],
@@ -118,7 +119,7 @@ def kernel(eom_dsrg):
     return conv, e, u, nop
 
 
-def post_process(eom_dsrg, e, eigvec, eigvec_dict):
+def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
     # Get spin multiplicity and process eigenvectors
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
@@ -137,18 +138,20 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict):
 
     del eom_dsrg.Hbar
 
-    # # Get spin multiplicity and process eigenvectors
-    # spin, eigvec = get_spin_multiplicity(eom_dsrg, u, nop, S_12)
-
-    if eom_dsrg.build_transition_dipole is not NotImplemented:
-        # Optimize slicing by vectorizing
-        eom_dsrg.Mbar = [
-            slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym) for M in eom_dsrg.Mbar
-        ]
-        # Compute oscillator strengths
-        spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
-    elif "ip" in eom_dsrg.method_type:
-        spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
+    if skip_spec:
+        print("Warning: Spectroscopic info skipped!")
+        spec_info = np.zeros(eom_dsrg.nroots)
+    else:
+        if eom_dsrg.build_transition_dipole is not NotImplemented:
+            # Optimize slicing by vectorizing
+            eom_dsrg.Mbar = [
+                slice_H_core(M, eom_dsrg.core_sym, eom_dsrg.occ_sym)
+                for M in eom_dsrg.Mbar
+            ]
+            # Compute oscillator strengths
+            spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
+        elif "ip" in eom_dsrg.method_type:
+            spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
 
     return spin, symmetry, spec_info
 
@@ -184,10 +187,18 @@ def compute_oscillator_strength(eom_dsrg, eigval, eigvec):
     """
     Compute oscillator strengths for each eigenvector.
     """
-    return [0.0] + [
-        2.0 / 3.0 * (eigval[i] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i])
-        for i in range(1, eigvec.shape[1])
-    ]
+
+    if eom_dsrg.first_row:
+        oscillator = [0.0] + [
+            2.0 / 3.0 * (eigval[i] - eigval[0]) * compute_dipole(eom_dsrg, eigvec[:, i])
+            for i in range(1, eigvec.shape[1])
+        ]
+    else:
+        oscillator = [
+            2.0 / 3.0 * (eigval[i]) * compute_dipole(eom_dsrg, eigvec[:, i])
+            for i in range(eigvec.shape[1])
+        ]
+    return oscillator
 
 
 def compute_dipole(eom_dsrg, current_vec):
@@ -214,7 +225,10 @@ def compute_dipole(eom_dsrg, current_vec):
             eom_dsrg.lambda3,
             eom_dsrg.lambda4,
         )
-        HT_first = HT + current_vec_dict["first"][0, 0] * eom_dsrg.Mbar0[i]
+        if eom_dsrg.first_row:
+            HT_first = HT + current_vec_dict["first"][0, 0] * eom_dsrg.Mbar0[i]
+        else:
+            HT_first = HT
         dipole_sum_squared += HT_first**2
 
     return dipole_sum_squared
@@ -370,15 +384,14 @@ def setup_davidson(eom_dsrg):
         guess: Initial guess vectors.
         nop: Dimension size.
     """
+    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
+    if "cvs" in eom_dsrg.method_type:
+        eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
     start = time.time()
     print("Starting S12...", flush=True)
     eom_dsrg.get_S12(eom_dsrg)
     print("Time(s) for S12: ", time.time() - start, flush=True)
-
-    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
-    if "cvs" in eom_dsrg.method_type:
-        eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
     if eom_dsrg.build_first_row is NotImplemented:
         eom_dsrg.first_row = None
@@ -394,7 +407,6 @@ def setup_davidson(eom_dsrg):
             eom_dsrg.lambda4,
         )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
-    eom_dsrg.build_S = eom_dsrg.build_sigma_vector_s
 
     # Compute Preconditioner
     start = time.time()
@@ -412,26 +424,7 @@ def setup_davidson(eom_dsrg):
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
 
     if eom_dsrg.guess == "singles":
-        print("Computing singles...", flush=True)
-        assert eom_dsrg.method_type == "cvs_ee"
-        guess_evals, guess_evecs = eom_dsrg.eom_dsrg_compute.kernel_full(
-            eom_dsrg, sequential=eom_dsrg.sequential_ortho
-        )
-        dict_template_short = {}
-        for kt in eom_dsrg.slices.keys():
-            half_kt = len(kt) // 2
-            new_key = kt[half_kt:] + kt[:half_kt]
-            dict_template_short[new_key] = eom_dsrg.full_template_c[new_key].copy()
-        guess_evecs_dict = full_vec_to_dict_short(
-            eom_dsrg.full_template_c,
-            dict_template_short,
-            eom_dsrg.slices,
-            guess_evecs[:, : eom_dsrg.nroots],
-            eom_dsrg.nmos,
-        )
-
-        pickle.dump(guess_evecs_dict, open(f"niupy_save.pkl", "wb"))
-        x0 = read_guess_vectors(eom_dsrg, nop, northo)
+        raise NotImplementedError
     elif eom_dsrg.guess == "ones":
         x0 = compute_guess_vectors(eom_dsrg, precond)
 
@@ -571,7 +564,7 @@ def get_templates(eom_dsrg, nlow=1):
 
     # Create a deep copy of the template and adjust its structure
     full_template = copy.deepcopy(template)
-    if eom_dsrg.method_type == "cvs_ee":
+    if eom_dsrg.method_type == "cvs_ee" and eom_dsrg.first_row:
         full_template["first"] = np.zeros(nlow).reshape(nlow, 1)
         full_template = {"first": full_template.pop("first"), **full_template}
 
@@ -599,7 +592,6 @@ def get_sigma_build(eom_dsrg):
     # Extract the specific functions from the module
     build_first_row = sigma_module.build_first_row
     build_sigma_vector_Hbar = sigma_module.build_sigma_vector_Hbar
-    build_sigma_vector_s = sigma_module.build_sigma_vector_s
     build_transition_dipole = sigma_module.build_transition_dipole
     get_S12 = sigma_module.get_S12
     apply_S12 = sigma_module.apply_S12
@@ -608,7 +600,6 @@ def get_sigma_build(eom_dsrg):
     return (
         build_first_row,
         build_sigma_vector_Hbar,
-        build_sigma_vector_s,
         build_transition_dipole,
         get_S12,
         apply_S12,
