@@ -147,6 +147,72 @@ def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
         "Hbar", 2, "cav", "cav"
     )
 
+    # ============================================================================
+    # Generate block S functions for single and composite spaces.
+    single_ops = [tensor_label_to_op(_) for _ in single_space]
+    print("Single space operators:", single_ops)
+    Smbeq = {}
+    Hmbeq = {}
+    for iop in range(len(single_ops)):
+        sop = single_ops[iop]
+        bra = w.op("bra", [sop])
+        braind = op_to_index(sop)
+        ket = w.op("ket", [sop])
+        ketind = op_to_index(sop)
+        S_mbeq = get_matrix_elements(
+            wt,
+            bra,
+            None,
+            ket,
+            inter_general=True,
+            double_comm=False,
+            # to_eq=False,
+        )
+        if S_mbeq:
+            Smbeq[f"{braind}|{ketind}"] = S_mbeq
+        H_mbeq = get_matrix_elements(
+            wt, bra, Hbar_op, ket, inter_general=True, double_comm=False
+        )
+        if H_mbeq:
+            Hmbeq[f"{braind}|{ketind}"] = H_mbeq
+
+    drivers = []
+    drivers_H = []
+    for icomp in range(len(composite_space)):
+        Smbeq_comp = {}
+        Hmbeq_comp = {}
+        composite_ops = [tensor_label_to_op(_) for _ in composite_space[icomp]]
+        print(f"Composite space {icomp} operators:", composite_ops)
+        for ibra in range(len(composite_ops)):
+            bop = composite_ops[ibra]
+            bra = w.op("bra", [bop])
+            braind = op_to_index(bop)
+            for iket in range(ibra + 1):
+                kop = composite_ops[iket]
+                ket = w.op("ket", [kop])
+                ketind = op_to_index(kop)
+                S_mbeq = get_matrix_elements(
+                    wt,
+                    bra,
+                    None,
+                    ket,
+                    inter_general=True,
+                    double_comm=False,
+                    # to_eq=False,
+                )
+                if S_mbeq:
+                    Smbeq[f"{braind}|{ketind}"] = S_mbeq
+                    Smbeq_comp[f"{braind}|{ketind}"] = S_mbeq
+                H_mbeq = get_matrix_elements(
+                    wt, bra, Hbar_op, ket, inter_general=True, double_comm=False
+                )
+                if H_mbeq:
+                    Hmbeq[f"{braind}|{ketind}"] = H_mbeq
+                    Hmbeq_comp[f"{braind}|{ketind}"] = H_mbeq
+
+        drivers_H.append(make_driver_composite(Hmbeq_comp, composite_space[icomp], "H"))
+        drivers.append(make_driver_composite(Smbeq_comp, composite_space[icomp], "S"))
+
     # Template C
     index_dict = {
         "c": "nocc",
@@ -171,11 +237,6 @@ def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
     expr = wt.contract(THT, 0, 0, inter_general=True)
     mbeq = expr.to_manybody_equation("sigma")
 
-    # S
-    TT = T_adj @ T
-    expr_s = wt.contract(TT, 0, 0, inter_general=True)
-    mbeq_s = expr_s.to_manybody_equation("sigma")
-
     PT = P_adj @ T
     expr_p = wt.contract(PT, 0, 0, inter_general=True)
     mbeq_p = expr_p.to_manybody_equation("sigma")
@@ -184,14 +245,13 @@ def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
     funct = generate_sigma_build(
         mbeq, "Hbar", first_row=False, einsum_type=einsum_type
     )  # HC
-    funct_s = generate_sigma_build(
-        mbeq_s, "s", first_row=False, einsum_type=einsum_type
-    )  # SC
     funct_p = generate_sigma_build(
         mbeq_p, "p", first_row=False, einsum_type=einsum_type
     )
     funct_S_12 = generate_S12(
-        mbeq_s, single_space, composite_space, sequential=sequential_ortho
+        single_space,
+        composite_space,
+        sequential=sequential_ortho,
     )
     funct_preconditioner = generate_preconditioner(
         mbeq,
@@ -203,8 +263,6 @@ def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
         einsum_type=einsum_type,
     )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=False)
-
-    # abs_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     print(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "ip_eom_dsrg.py"), "w") as f:
@@ -212,15 +270,51 @@ def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
             "import numpy as np\nimport scipy\nimport time\n\nfrom functools import reduce\n\nfrom niupy.eom_tools import *\n\n"
         )
         f.write(f"{func_template_c}\n\n")
+        for k, v in Smbeq.items():
+            if v:
+                transpose = False
+                if len(k) == 13:
+                    trans = (1, 2, 0, 4, 5, 3)
+                    transpose = True
+                if len(k) == 8:
+                    trans = (1, 2, 0, 3)
+                    transpose = True
+                f.write(
+                    make_function(
+                        k,
+                        v,
+                        "S",
+                        trans=trans,
+                        transpose=transpose,
+                    )
+                    + "\n"
+                )
+        for k, v in Hmbeq.items():
+            if v:
+                transpose = False
+                if len(k) == 13:
+                    trans = (1, 2, 0, 4, 5, 3)
+                    transpose = True
+                if len(k) == 8:
+                    trans = (1, 2, 0, 3)
+                f.write(
+                    make_function(
+                        k,
+                        v,
+                        "H",
+                        trans=trans,
+                        transpose=transpose,
+                    )
+                    + "\n"
+                )
+        for i in range(len(drivers)):
+            f.write(drivers[i] + "\n")
+        for i in range(len(drivers_H)):
+            f.write(drivers_H[i] + "\n")
         f.write(f"{funct_S_12}\n\n")
         f.write(f"{funct_preconditioner}\n\n")
         f.write(f"{funct}\n\n")
-        f.write(f"{funct_s}\n\n")
         f.write(f"{funct_p}\n\n")
         f.write(f"{funct_apply_S12}\n\n")
         f.write(f"build_first_row = NotImplemented\n")
         f.write(f"build_transition_dipole = NotImplemented\n")
-
-
-if __name__ == "__main__":
-    generator(abs_path=os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

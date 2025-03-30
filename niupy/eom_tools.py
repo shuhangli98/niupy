@@ -899,7 +899,6 @@ def generate_preconditioner(
         code.append("")  # Blank line for separation
 
     code.append("    full_diag = np.concatenate(diagonal)")
-    code.append("    print(full_diag, flush = True)")
     code.append("    return full_diag")
 
     return "\n".join(code)
@@ -1426,12 +1425,19 @@ def make_driver(Hmbeq, Smbeq):
     for key in Hmbeq.keys():
         bcre, bann, kcre, kann = _parse_key(key)
         nf = 0
-        if (bcre + bann).count("A") + (bcre + bann).count("a") > 0:
+        if len(bcre + bann) % 2 == 1 and len(bcre) < len(bann):  # IP and CVS-IP
+            test_b = bann
+            test_k = kann
+        elif len(bcre + bann) % 2 == 0:  # CVS-EE
+            test_b = bcre + bann
+            test_k = kcre + kann
+
+        if (test_b).count("A") + (test_b).count("a") > 0:
             if _isab(bcre):
                 nf += 1
             if _isab(bann):
                 nf += 1
-        if (kcre + kann).count("A") + (kcre + kann).count("a") > 0:
+        if (test_k).count("A") + (test_k).count("a") > 0:
             if _isab(kcre):
                 nf += 1
             if _isab(kann):
@@ -1456,12 +1462,19 @@ def make_driver(Hmbeq, Smbeq):
     for key in Smbeq.keys():
         bcre, bann, kcre, kann = _parse_key(key)
         nf = 0
-        if (bcre + bann).count("A") + (bcre + bann).count("a") > 0:
+        if len(bcre + bann) % 2 == 1 and len(bcre) < len(bann):  # IP and CVS-IP
+            test_b = bann
+            test_k = kann
+        elif len(bcre + bann) % 2 == 0:  # CVS-EE
+            test_b = bcre + bann
+            test_k = kcre + kann
+
+        if (test_b).count("A") + (test_b).count("a") > 0:
             if _isab(bcre):
                 nf += 1
             if _isab(bann):
                 nf += 1
-        if (kcre + kann).count("A") + (kcre + kann).count("a") > 0:
+        if (test_k).count("A") + (test_k).count("a") > 0:
             if _isab(kcre):
                 nf += 1
             if _isab(kann):
@@ -1509,12 +1522,19 @@ def make_block_single(key, tensor_label):
 
     bcre, bann, kcre, kann = _parse_key(key)
     nf = 0
-    if (bcre + bann).count("A") + (bcre + bann).count("a") > 0:
+    if len(bcre + bann) % 2 == 1 and len(bcre) < len(bann):  # IP and CVS-IP
+        test_b = bann
+        test_k = kann
+    elif len(bcre + bann) % 2 == 0:  # CVS-EE
+        test_b = bcre + bann
+        test_k = kcre + kann
+
+    if (test_b).count("A") + (test_b).count("a") > 0:
         if _isab(bcre):
             nf += 1
         if _isab(bann):
             nf += 1
-    if (kcre + kann).count("A") + (kcre + kann).count("a") > 0:
+    if (test_k).count("A") + (test_k).count("a") > 0:
         if _isab(kcre):
             nf += 1
         if _isab(kann):
@@ -1561,12 +1581,18 @@ def make_driver_composite(mbeq_comp, space_list, tensor_label):
     for key in mbeq_comp.keys():
         bcre, bann, kcre, kann = _parse_key(key)
         nf = 0
-        if (bcre + bann).count("A") + (bcre + bann).count("a") > 0:
+        if len(bcre + bann) % 2 == 1 and len(bcre) < len(bann):  # IP and CVS-IP
+            test_b = bann
+            test_k = kann
+        elif len(bcre + bann) % 2 == 0:  # CVS-EE
+            test_b = bcre + bann
+            test_k = kcre + kann
+        if (test_b).count("A") + (test_b).count("a") > 0:
             if _isab(bcre):
                 nf += 1
             if _isab(bann):
                 nf += 1
-        if (kcre + kann).count("A") + (kcre + kann).count("a") > 0:
+        if (test_k).count("A") + (test_k).count("a") > 0:
             if _isab(kcre):
                 nf += 1
             if _isab(kann):
@@ -1807,6 +1833,7 @@ def eigh_gen_composite(
         print(f"Number of orthogonalized basis functions for {k}: {v.shape[1]}")
     print(f"Number of orthogonalized basis functions: {X_concat.shape[1]}")
     Hp = X_concat.T @ H @ X_concat
+    np.save("Hp.npy", Hp)
     eigval, eigvec = np.linalg.eigh(Hp)
     eigvec = X_concat @ eigvec
     return eigval, eigvec

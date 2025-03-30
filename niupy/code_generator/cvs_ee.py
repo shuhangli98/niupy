@@ -18,7 +18,6 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     w.add_space("A", "fermion", "general", list("OABRSTUVWXYZ"))
     wt = w.WickTheorem()
 
-    # s = [""]  # first row
     s = w.gen_op("bra", 1, "avAV", "ciaCIA", only_terms=True) + w.gen_op(
         "bra", 2, "avAV", "ciaCIA", only_terms=True
     )
@@ -147,7 +146,6 @@ def generator(
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
     print("Commutator trick:", s_comm)
 
-    T_adj = w.op("bra", s, unique=True).adjoint()
     T = w.op("c", s, unique=True)
 
     for i in s_comm:
@@ -165,7 +163,7 @@ def generator(
     )
 
     # ============================================================================
-    # 1. Generate block S functions for single and composite spaces.
+    # Generate block S functions for single and composite spaces.
     single_ops = [tensor_label_to_op(_) for _ in single_space]
     print("Single space operators:", single_ops)
     Smbeq = {}
@@ -330,10 +328,6 @@ def generator(
         single_space, composite_space, first_row=first_row
     )
 
-    # script_dir = os.path.dirname(__file__)
-    # rel_path = "../cvs_ee_eom_dsrg.py"
-    # abs_file_path = os.path.join(script_dir, rel_path)
-    # print(f"Code generator: Writing to {abs_file_path}")
     print(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "cvs_ee_eom_dsrg.py"), "w") as f:
