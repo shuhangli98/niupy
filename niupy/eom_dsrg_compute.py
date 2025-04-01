@@ -42,6 +42,10 @@ davidson = lib.linalg_helper.davidson1
 
 def kernel_full(eom_dsrg, sequential=True):
     eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
+    try:
+        eom_dsrg.e_ref = eom_dsrg.Hbar["Hbar0"]
+    except KeyError:
+        pass
 
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
@@ -385,6 +389,11 @@ def setup_davidson(eom_dsrg):
     print("Time(s) for S12: ", time.time() - start, flush=True)
 
     eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
+    try:
+        eom_dsrg.e_ref = eom_dsrg.Hbar["Hbar0"]
+    except KeyError:
+        pass
+    
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 

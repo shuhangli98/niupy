@@ -47,6 +47,8 @@ class EOM_DSRG:
         self.sequential_ortho = kwargs.get("sequential_ortho", True)
         self.blocked_ortho = kwargs.get("blocked_ortho", True)
 
+        self.e_ref = 0.0  # to be set in kernel functions
+
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(mo_spaces)
 
@@ -281,18 +283,22 @@ class EOM_DSRG:
             spec = "P"
         if self.point_group.lower() not in irrep_table:
             _irrep = lambda x: x
-        print("=" * 85)
-        print(f"{'EOM-DSRG summary':^85}")
-        print("-" * 85)
+        print(f"Reference energy (Eh): {self.e_ref:.10f}")
+        width = 85
+        print("=" * width)
+        print(f"{'EOM-DSRG summary':^{width}}")
+        print("-" * width)
         print(
-            f"{'Root':<5} {'Energy (eV)':<20} {spec:<20} {'Symmetry':<10} {'Spin':<20}"
+            f"{'Root':<5} {'ω (eV)':<15} {'E (Eh)':<15} {spec:<15} {'Symmetry':<10} {'Spin':<15}"
         )
-        print("-" * 85)
+        print("-" * width)
         for i in range(nroot):
+            omega = e[i] * eh_to_ev
+            energy = self.e_ref + e[i]
             print(
-                f"{i+1:<5} {e[i]*eh_to_ev:<20.10f} {spec_info[i]:<20.8f} {_irrep(symmetry[i]):<10} {spin[i]:<20}"
+                f"{i+1:<5} {omega:<15.10f} {energy:<15.10f} {spec_info[i]:<15.8f} {_irrep(symmetry[i]):<10} {spin[i]:<15}"
             )
-        print("=" * 85)
+        print("=" * width)
 
     def kernel(self):
         conv, e, u, nop = self.eom_dsrg_compute.kernel(self)
