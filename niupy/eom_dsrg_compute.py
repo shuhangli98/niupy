@@ -7,6 +7,7 @@ from niupy.eom_tools import (
     vec_to_dict,
     antisymmetrize,
     slice_H_core,
+    full_vec_to_dict_short,
 )
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
@@ -15,6 +16,9 @@ if os.path.exists("cvs_ee_eom_dsrg.py"):
 if os.path.exists("cvs_ee_eom_dsrg_full.py"):
     print("Importing cvs_ee_eom_dsrg_full")
     import cvs_ee_eom_dsrg_full
+if os.path.exists("cvs_ee_eom_dsrg_subspace.py"):
+    print("Importing cvs_ee_eom_dsrg_subspace")
+    import cvs_ee_eom_dsrg_subspace
 if os.path.exists("cvs_ip_eom_dsrg.py"):
     print("Importing cvs_ip_eom_dsrg")
     import cvs_ip_eom_dsrg
@@ -424,7 +428,57 @@ def setup_davidson(eom_dsrg):
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
 
     if eom_dsrg.guess == "singles":
-        raise NotImplementedError
+        print("Computing singles...", flush=True)
+        assert eom_dsrg.method_type == "cvs_ee"
+        driver = cvs_ee_eom_dsrg_subspace.driver
+        heff, ovlp = driver(
+            eom_dsrg.Hbar,
+            eom_dsrg.delta,
+            eom_dsrg.gamma1,
+            eom_dsrg.eta1,
+            eom_dsrg.lambda2,
+            eom_dsrg.lambda3,
+            eom_dsrg.lambda4,
+            eom_dsrg.nops_sub,
+            eom_dsrg.slices_sub,
+            eom_dsrg.nmos,
+        )
+
+        singles = [
+            tensor_label_to_full_tensor_label(_) for _ in eom_dsrg.single_space_sub
+        ]
+        composite = [
+            [tensor_label_to_full_tensor_label(_) for _ in __]
+            for __ in eom_dsrg.composite_space_sub
+        ]
+
+        guess_evals, guess_evecs = eigh_gen_composite(
+            heff,
+            ovlp,
+            singles,
+            composite,
+            eom_dsrg.slices_sub,
+            eom_dsrg.tol_s,
+            eom_dsrg.tol_semi,
+            sequential=eom_dsrg.sequential_ortho,
+        )
+
+        dict_template_short = {}
+        for kt in eom_dsrg.slices_sub.keys():
+            half_kt = len(kt) // 2
+            new_key = kt[half_kt:] + kt[:half_kt]
+            dict_template_short[new_key] = eom_dsrg.full_template_c[new_key].copy()
+        guess_evecs_dict = full_vec_to_dict_short(
+            eom_dsrg.full_template_c,
+            dict_template_short,
+            eom_dsrg.slices_sub,
+            guess_evecs[:, : eom_dsrg.nroots],
+            eom_dsrg.nmos,
+        )
+
+        pickle.dump(guess_evecs_dict, open(f"niupy_save.pkl", "wb"))
+        x0 = read_guess_vectors(eom_dsrg, nop, northo)
+        # raise NotImplementedError
     elif eom_dsrg.guess == "ones":
         x0 = compute_guess_vectors(eom_dsrg, precond)
 
@@ -474,16 +528,21 @@ def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
     guess = pickle.load(open(f"{eom_dsrg.abs_file_path}/niupy_save.pkl", "rb"))
     x0s = []
 
-    unit_vector = np.zeros(northo)
-    unit_vector[0] = 1.0
-    x0s.append(unit_vector)
+    if eom_dsrg.first_row:
+        unit_vector = np.zeros(northo)
+        unit_vector[0] = 1.0
+        x0s.append(unit_vector)
+        nroots = eom_dsrg.nroots - 1
+    else:
+        nroots = eom_dsrg.nroots
 
     print("Projecting guess vectors...", flush=True)
-    for i in range(eom_dsrg.nroots - 1):
+    for i in range(nroots):
         x0 = np.zeros((nops, 1))
         x0 = vec_to_dict(eom_dsrg.full_template_c, x0)
         for k, v in guess.items():
             x0[k] = (v[i, ...])[np.newaxis, ...]
+        x0 = antisymmetrize(x0, ea=ea)
         HX0_dict = eom_dsrg.build_H(
             eom_dsrg.einsum,
             x0,

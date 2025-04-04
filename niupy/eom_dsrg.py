@@ -136,6 +136,18 @@ class EOM_DSRG:
                     blocked_ortho=self.blocked_ortho,
                     first_row=self.first_row,
                 )
+                if self.guess == "singles":
+                    self.ops_sub, self.single_space_sub, self.composite_space_sub = (
+                        cvs_ee.generator_subspace(
+                            self.abs_file_path,
+                            self.ncore,
+                            self.nocc,
+                            self.nact,
+                            self.nvir,
+                            blocked_ortho=self.blocked_ortho,
+                        )
+                    )
+                    self.nops_sub, self.slices_sub = get_slices(self.ops_sub, self.nmos)
             case "ip":
                 self.ops, self.single_space, self.composite_space = ip.generator_full(
                     self.abs_file_path, blocked_ortho=self.blocked_ortho
