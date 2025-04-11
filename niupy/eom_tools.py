@@ -869,7 +869,9 @@ def generate_preconditioner(
                 f"    H_dict['{key}'][0,...] = H.copy()",
                 f"    H_dict = antisymmetrize(H_dict, ea={ea}, diagonal=True)",
                 f"    H = dict_to_vec(H_dict, 1).flatten()",
-                f"    temp = H[eom_dsrg.S12.{key} > 0]",
+                f"    temp = np.zeros(np.max(eom_dsrg.S12.{key}).astype(int))",
+                f"    for i in range(1, np.max(eom_dsrg.S12.{key}).astype(int)+1):",
+                f"        temp[i-1] = H[np.where(eom_dsrg.S12.{key} == i)[0][0]]",
                 f"    diagonal.append(temp)",
             ]
         )
