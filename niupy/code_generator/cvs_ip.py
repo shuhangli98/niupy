@@ -4,7 +4,10 @@ import os
 from niupy.eom_tools import *
 
 
-def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
+def generator_full(log, abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
+
+    log.info("\nCode generator starts\n")
+
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -34,11 +37,10 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
-    print("Single space:", single_space)
-    print("Composite spaces:", composite_space)
-
+    log.debug(f"Single space: {single_space}")
+    log.debug(f"Composite spaces: {composite_space}")
     ops = [tensor_label_to_op(_) for _ in block_list]
-    print("Operators:", ops)
+    log.debug(f"Operators: {ops}")
 
     index_dict = {
         "c": "nocc",
@@ -94,7 +96,7 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
         mbeq_p, "p", first_row=False, einsum_type="'optimal'"
     )
 
-    print(f"Code generator: Writing to {abs_path}")
+    log.info(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "cvs_ip_eom_dsrg_full.py"), "w") as f:
         f.write(f"import numpy as np\n")
@@ -112,6 +114,7 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
 
 
 def generator(
+    log,
     abs_path,
     ncore,
     nocc,
@@ -121,6 +124,8 @@ def generator(
     sequential_ortho=True,
     blocked_ortho=True,
 ):
+    log.info("\nCode generator starts\n")
+
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -150,15 +155,15 @@ def generator(
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
-    print("Single space:", single_space)
-    print("Composite spaces:", composite_space)
+    log.debug(f"Single space: {single_space}")
+    log.debug(f"Composite spaces: {composite_space}")
 
     # used in spectroscopic amplitudes
     singles = w.gen_op("bra", (0, 1), "avAV", "ciaCIA", only_terms=True)
     singles = [_.strip() for _ in singles]
     singles = filter_ops_by_ms(singles, 1)
     singles = [_ for _ in singles if ("I" in _ or "i" in _)]
-    print(f"singles: {singles}")
+
     P_adj = w.op("bra", singles, unique=True).adjoint()
 
     T_adj = w.op("bra", s, unique=True).adjoint()
@@ -172,7 +177,6 @@ def generator(
     # ============================================================================
     # Generate block S functions for single and composite spaces.
     single_ops = [tensor_label_to_op(_) for _ in single_space]
-    print("Single space operators:", single_ops)
     Smbeq = {}
     Hmbeq = {}
     for iop in range(len(single_ops)):
@@ -204,7 +208,6 @@ def generator(
         Smbeq_comp = {}
         Hmbeq_comp = {}
         composite_ops = [tensor_label_to_op(_) for _ in composite_space[icomp]]
-        print(f"Composite space {icomp} operators:", composite_ops)
         for ibra in range(len(composite_ops)):
             bop = composite_ops[ibra]
             bra = w.op("bra", [bop])
@@ -281,7 +284,7 @@ def generator(
     )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=False)
 
-    print(f"Code generator: Writing to {abs_path}")
+    log.info(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "cvs_ip_eom_dsrg.py"), "w") as f:
         f.write(

@@ -1,5 +1,6 @@
 import os
 import pickle
+import niupy.lib.logger as logger
 from niupy.eom_tools import (
     eigh_gen_composite,
     tensor_label_to_full_tensor_label,
@@ -11,28 +12,20 @@ from niupy.eom_tools import (
 )
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
-    print("Importing cvs_ee_eom_dsrg")
     import cvs_ee_eom_dsrg
 if os.path.exists("cvs_ee_eom_dsrg_full.py"):
-    print("Importing cvs_ee_eom_dsrg_full")
     import cvs_ee_eom_dsrg_full
 if os.path.exists("cvs_ee_eom_dsrg_subspace.py"):
-    print("Importing cvs_ee_eom_dsrg_subspace")
     import cvs_ee_eom_dsrg_subspace
 if os.path.exists("cvs_ip_eom_dsrg.py"):
-    print("Importing cvs_ip_eom_dsrg")
     import cvs_ip_eom_dsrg
 if os.path.exists("cvs_ip_eom_dsrg_full.py"):
-    print("Importing cvs_ip_eom_dsrg_full")
     import cvs_ip_eom_dsrg_full
 if os.path.exists("ee_eom_dsrg.py"):
-    print("Importing ee_eom_dsrg")
     import ee_eom_dsrg
 if os.path.exists("ip_eom_dsrg.py"):
-    print("Importing ip_eom_dsrg")
     import ip_eom_dsrg
 if os.path.exists("ip_eom_dsrg_full.py"):
-    print("Importing ip_eom_dsrg_full")
     import ip_eom_dsrg_full
 import numpy as np
 import copy
@@ -100,25 +93,32 @@ def kernel(eom_dsrg):
         spin: Spin multiplicities ('Singlet', 'Triplet', or 'Incorrect spin').
         spec_info: Computed oscillator strengths for cvs_ee method, spectroscopic factors for ip method.
     """
-    start = time.time()
-    print("Setting up Davidson algorithm...", flush=True)
+
+    davidson_verbose = 3
+    if eom_dsrg.verbose > 3:
+        davidson_verbose = 6
+
+    cput0 = (logger.process_clock(), logger.perf_counter())
+    eom_dsrg.log.info("\nStarting Davidson algorithm...")
 
     # Setup Davidson algorithm
     apply_M, precond, x0, nop = setup_davidson(eom_dsrg)
-    print("Time(s) for Davidson Setup: ", time.time() - start, flush=True)
+    eom_dsrg.log.timer0("Davidson setup", *cput0)
 
     # Davidson algorithm
+    cput1 = (logger.process_clock(), logger.perf_counter())
     conv, e, u = davidson(
         lambda xs: [apply_M(x) for x in xs],
         x0,
         precond,
         nroots=eom_dsrg.nroots,
-        verbose=eom_dsrg.verbose,
+        verbose=davidson_verbose,
         max_space=eom_dsrg.max_space,
         max_cycle=eom_dsrg.max_cycle,
         tol=eom_dsrg.tol_e,
         tol_residual=eom_dsrg.tol_davidson,
     )
+    eom_dsrg.log.timer0("Solving eigenvalue problem", *cput1)
 
     return conv, e, u, nop
 
@@ -127,7 +127,7 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
     # Get spin multiplicity and process eigenvectors
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
-        print(f"Root {key}: {values}")
+        eom_dsrg.log.info(f"Top values for {key}: {values}")
 
     spin = []
     symmetry = []
@@ -143,7 +143,7 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
     del eom_dsrg.Hbar
 
     if skip_spec:
-        print("Warning: Spectroscopic info skipped!")
+        eom_dsrg.log.info("Warning: Spectroscopic info skipped!")
         spec_info = np.zeros(eom_dsrg.nroots)
     else:
         if eom_dsrg.build_transition_dipole is not NotImplemented:
@@ -392,10 +392,9 @@ def setup_davidson(eom_dsrg):
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
-    start = time.time()
-    print("Starting S12...", flush=True)
+    cput0 = (logger.process_clock(), logger.perf_counter())
     eom_dsrg.get_S12(eom_dsrg)
-    print("Time(s) for S12: ", time.time() - start, flush=True)
+    eom_dsrg.log.timer0("S^{1/2} computation", *cput0)
 
     if eom_dsrg.build_first_row is NotImplemented:
         eom_dsrg.first_row = None
@@ -413,22 +412,21 @@ def setup_davidson(eom_dsrg):
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
 
     # Compute Preconditioner
-    start = time.time()
-    print("Starting Preconditioner...", flush=True)
+    cput0 = (logger.process_clock(), logger.perf_counter())
     if eom_dsrg.diagonal_type == "compute":
         precond = eom_dsrg.compute_preconditioner(eom_dsrg)
         np.save(f"{eom_dsrg.abs_file_path}/precond", precond)
     elif eom_dsrg.diagonal_type == "load":
-        print("Loading Preconditioner from file")
         precond = np.load(f"{eom_dsrg.abs_file_path}/precond.npy")
-    print("Time(s) for Preconditioner: ", time.time() - start, flush=True)
+    eom_dsrg.log.info(f"length of precond: {len(precond)}")
+    eom_dsrg.log.timer0("Preconditioner computation", *cput0)
 
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
     apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
 
     if eom_dsrg.guess == "singles":
-        print("Computing singles...", flush=True)
+        eom_dsrg.log.info("Computing guess vectors from single excitations...")
         assert eom_dsrg.method_type == "cvs_ee"
         driver = cvs_ee_eom_dsrg_subspace.driver
         heff, ovlp = driver(
@@ -524,7 +522,7 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
 
 def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
     assert eom_dsrg.method_type == "cvs_ee"
-    print("Reading guess vectors...", flush=True)
+    eom_dsrg.log.info("Reading guess vectors from file...")
     guess = pickle.load(open(f"{eom_dsrg.abs_file_path}/niupy_save.pkl", "rb"))
     x0s = []
 
@@ -536,7 +534,7 @@ def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
     else:
         nroots = eom_dsrg.nroots
 
-    print("Projecting guess vectors...", flush=True)
+    eom_dsrg.log.info("Projecting guess vectors...")
     for i in range(nroots):
         x0 = np.zeros((nops, 1))
         x0 = vec_to_dict(eom_dsrg.full_template_c, x0)
@@ -577,7 +575,6 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
         List of initial guess vectors.
     """
     sort_ind = np.argsort(precond) if ascending else np.argsort(precond)[::-1]
-    print(f"length of precond: {len(precond)}")
 
     x0s = np.zeros((precond.shape[0], eom_dsrg.nroots))
     min_shape = min(precond.shape[0], eom_dsrg.nroots)
@@ -614,7 +611,9 @@ def get_templates(eom_dsrg, nlow=1):
     # Fetch the correct template function based on method type
     template_func = template_funcs.get(eom_dsrg.method_type)
     if template_func is None:
-        raise ValueError(f"Invalid method type: {eom_dsrg.method_type}")
+        msg = f"Invalid method type: {eom_dsrg.method_type}"
+        eom_dsrg.log.error(msg)
+        raise Exception(msg)
 
     # Generate the template with the specified parameters
     template = template_func(
@@ -646,7 +645,9 @@ def get_sigma_build(eom_dsrg):
     # Fetch the correct module based on the method type
     sigma_module = sigma_funcs.get(eom_dsrg.method_type)
     if sigma_module is None:
-        raise ValueError(f"Invalid method type: {eom_dsrg.method_type}")
+        msg = f"Invalid method type: {eom_dsrg.method_type}"
+        eom_dsrg.log.error(msg)
+        raise Exception(msg)
 
     # Extract the specific functions from the module
     build_first_row = sigma_module.build_first_row

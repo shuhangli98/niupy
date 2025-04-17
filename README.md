@@ -1,18 +1,25 @@
-NiuPy
-==============================
+# NiuPy
+NiuPy is a Python-based package of multireference electronic structure theories for simulating excited states. NiuPy currently implements equation-of-motion multireference driven similarity renormalization group (EOM-DSRG) methods.
 
-NiuPy is a Python-based package of multireference electronic structure theories for simulating excited states. NiuPy currently implements equation-of-motion multireference driven similarity renormalization group (EOM-MR-DSRG) methods.
+# How to install
+## Requirements
+- python=3.10
+- Forte
+- PySCF
+- Wick&d
+- Optional: [opt_einsum](https://optimized-einsum.readthedocs.io/en/stable/)
 
-To install the package, run:
+## Installation
+To install this package in editable (development) mode, run:
 ```bash
 pip install -e .
 ```
 
-### Copyright
+## Copyright
 
-Copyright (c) 2024, Shuhang Li <shuhangli98@gmail.com>
+Copyright (c) 2025, Shuhang Li <shuhangli98@gmail.com>
 
-#### Acknowledgements
+## Acknowledgements
 
 S.L. acknowledges the National Science Foundation and the 
 [Molecular Sciences Software Institute](https://molssi.org/) for financial support under Grant No. CHE-2136142.

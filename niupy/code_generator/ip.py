@@ -4,7 +4,10 @@ import os
 from niupy.eom_tools import *
 
 
-def generator_full(abs_path, blocked_ortho=True):
+def generator_full(log, abs_path, blocked_ortho=True):
+
+    log.info("\nCode generator starts\n")
+
     # Generates the equations needed for full diagonalization
     w.reset_space()
     w.add_space("c", "fermion", "occupied", list("ijklmn"))
@@ -25,10 +28,10 @@ def generator_full(abs_path, blocked_ortho=True):
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
-    print("Single space:", single_space)
-    print("Composite spaces:", composite_space)
-
+    log.debug(f"Single space: {single_space}")
+    log.debug(f"Composite spaces: {composite_space}")
     ops = [tensor_label_to_op(_) for _ in block_list]
+    log.debug(f"Operators: {ops}")
 
     index_dict = {
         "c": "nocc",
@@ -80,7 +83,7 @@ def generator_full(abs_path, blocked_ortho=True):
         mbeq_p, "p", first_row=False, einsum_type="'optimal'"
     )
 
-    print(f"Code generator: Writing to {abs_path}")
+    log.info(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "ip_eom_dsrg_full.py"), "w") as f:
         f.write(f"import numpy as np\n")
@@ -97,7 +100,10 @@ def generator_full(abs_path, blocked_ortho=True):
     return ops, single_space, composite_space
 
 
-def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
+def generator(log, abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
+
+    log.info("\nCode generator starts\n")
+
     w.reset_space()
     # alpha
     w.add_space("c", "fermion", "occupied", list("klmn"))
@@ -120,11 +126,11 @@ def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
-    print("Single space:", single_space)
-    print("Composite spaces:", composite_space)
+    log.debug(f"Single space: {single_space}")
+    log.debug(f"Composite spaces: {composite_space}")
 
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
-    print("Commutator trick:", s_comm)
+    log.debug(f"Commutator terms: {s_comm}")
 
     # used in spectroscopic amplitudes
     singles = w.gen_op("bra", (0, 1), "avAV", "caCA", only_terms=True)
@@ -150,7 +156,6 @@ def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
     # ============================================================================
     # Generate block S functions for single and composite spaces.
     single_ops = [tensor_label_to_op(_) for _ in single_space]
-    print("Single space operators:", single_ops)
     Smbeq = {}
     Hmbeq = {}
     for iop in range(len(single_ops)):
@@ -182,7 +187,6 @@ def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
         Smbeq_comp = {}
         Hmbeq_comp = {}
         composite_ops = [tensor_label_to_op(_) for _ in composite_space[icomp]]
-        print(f"Composite space {icomp} operators:", composite_ops)
         for ibra in range(len(composite_ops)):
             bop = composite_ops[ibra]
             bra = w.op("bra", [bop])
@@ -263,7 +267,7 @@ def generator(abs_path, einsum_type, sequential_ortho=True, blocked_ortho=True):
         einsum_type=einsum_type,
     )
     funct_apply_S12 = generate_apply_S12(single_space, composite_space, first_row=False)
-    print(f"Code generator: Writing to {abs_path}")
+    log.info(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "ip_eom_dsrg.py"), "w") as f:
         f.write(

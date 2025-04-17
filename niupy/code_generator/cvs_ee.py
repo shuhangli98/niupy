@@ -4,7 +4,10 @@ import os
 from niupy.eom_tools import *
 
 
-def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
+def generator_full(log, abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
+
+    log.info("\nCode generator starts\n")
+
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -34,11 +37,10 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
-    print("Single space:", single_space)
-    print("Composite spaces:", composite_space)
-
+    log.debug(f"Single space: {single_space}")
+    log.debug(f"Composite spaces: {composite_space}")
     ops = [tensor_label_to_op(_) for _ in block_list]
-    print("Operators:", ops)
+    log.debug(f"Operators: {ops}")
 
     index_dict = {
         "c": "nocc",
@@ -82,7 +84,7 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
             if H_mbeq:
                 Hmbeq[f"{braind}|{ketind}"] = H_mbeq
 
-    print(f"Code generator: Writing to {abs_path}")
+    log.info(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "cvs_ee_eom_dsrg_full.py"), "w") as f:
         f.write(f"import numpy as np\n")
@@ -98,7 +100,10 @@ def generator_full(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     return ops, single_space, composite_space
 
 
-def generator_subspace(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
+def generator_subspace(log, abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
+
+    log.info("\nCode generator starts\n")
+
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -129,11 +134,10 @@ def generator_subspace(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
-    print("Single space:", single_space)
-    print("Composite spaces:", composite_space)
-
+    log.debug(f"Single space: {single_space}")
+    log.debug(f"Composite spaces: {composite_space}")
     ops = [tensor_label_to_op(_) for _ in block_list]
-    print("Operators:", ops)
+    log.debug(f"Operators: {ops}")
 
     index_dict = {
         "c": "nocc",
@@ -177,7 +181,7 @@ def generator_subspace(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
             if H_mbeq:
                 Hmbeq[f"{braind}|{ketind}"] = H_mbeq
 
-    print(f"Code generator: Writing to {abs_path}")
+    log.info(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "cvs_ee_eom_dsrg_subspace.py"), "w") as f:
         f.write(f"import numpy as np\n")
@@ -194,6 +198,7 @@ def generator_subspace(abs_path, ncore, nocc, nact, nvir, blocked_ortho=True):
 
 
 def generator(
+    log,
     abs_path,
     ncore,
     nocc,
@@ -204,6 +209,9 @@ def generator(
     blocked_ortho=True,
     first_row=False,
 ):
+
+    log.info("\nCode generator starts\n")
+
     w.reset_space()
     # alpha
     w.add_space("i", "fermion", "occupied", list("cdij"))
@@ -234,12 +242,11 @@ def generator(
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
-    print("Single space:", single_space)
-    print("Composite spaces:", composite_space)
-
+    log.debug(f"Single space: {single_space}")
+    log.debug(f"Composite spaces: {composite_space}")
     # # These blocks are computed with the commutator trick.
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
-    print("Commutator trick:", s_comm)
+    log.debug(f"Commutator trick: {s_comm}")
 
     T = w.op("c", s, unique=True)
 
@@ -260,7 +267,6 @@ def generator(
     # ============================================================================
     # Generate block S functions for single and composite spaces.
     single_ops = [tensor_label_to_op(_) for _ in single_space]
-    print("Single space operators:", single_ops)
     Smbeq = {}
     Hmbeq = {}
     for iop in range(len(single_ops)):
@@ -293,7 +299,6 @@ def generator(
         Smbeq_comp = {}
         Hmbeq_comp = {}
         composite_ops = [tensor_label_to_op(_) for _ in composite_space[icomp]]
-        print(f"Composite space {icomp} operators:", composite_ops)
         for ibra in range(len(composite_ops)):
             bop = composite_ops[ibra]
             bra = w.op("bra", [bop])
@@ -423,7 +428,7 @@ def generator(
         single_space, composite_space, first_row=first_row
     )
 
-    print(f"Code generator: Writing to {abs_path}")
+    log.info(f"Code generator: Writing to {abs_path}")
 
     with open(os.path.join(abs_path, "cvs_ee_eom_dsrg.py"), "w") as f:
         f.write(

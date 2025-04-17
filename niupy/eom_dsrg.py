@@ -1,15 +1,22 @@
 from niupy.eom_tools import *
+import niupy.lib.logger as logger
 import forte
-import forte.utils
 import psi4
 import numpy as np
-import os
-import subprocess
-from niupy.code_generator import cvs_ee, ee, ip, cvs_ip
+import os, sys
+from niupy.code_generator import cvs_ee, ip, cvs_ip
 
 
 class EOM_DSRG:
     def __init__(self, method_type, **kwargs):
+
+        # Logger initialization
+        self.verbose = kwargs.get("verbose", 4)
+        log = logger.Logger(sys.stdout, self.verbose)
+        log.niupy_header()
+        log.info("Initializing NiuPy...")
+        self.log = log
+
         self.method_type = method_type
         # Set defaults
         self.tol_e = kwargs.get("tol_e", 1e-8)
@@ -19,19 +26,18 @@ class EOM_DSRG:
         self.tol_s = kwargs.get("tol_s", 1e-10)
         self.tol_semi = kwargs.get("tol_semi", 1e-6)
         self.nroots = kwargs.get("nroots", 6)
-        self.verbose = kwargs.get("verbose", 5)
         self.diagonal_type = kwargs.get("diagonal_type", "compute")
         self.ref_sym = kwargs.get("ref_sym", 0)
 
         if self.ref_sym != 0:
-            raise NotImplementedError(
-                "Reference symmetry other than 0 is not implemented."
-            )
+            msg = "Reference symmetry other than 0 is not implemented."
+            log.error(msg)
+            raise Exception(msg)
 
         opt_einsum = kwargs.get("opt_einsum", True)
 
         if opt_einsum:
-            print("Using opt_einsum...")
+            log.info("Using opt_einsum...")
             from opt_einsum import contract
 
             self.einsum = contract
@@ -51,19 +57,11 @@ class EOM_DSRG:
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(mo_spaces)
 
-        # Print symmetry information
-        self._print_symmetry_info()
-
         # Set system sizes
         self.ncore = len(self.core_sym)
         self.nocc = len(self.occ_sym)
         self.nact = len(self.act_sym)
         self.nvir = len(self.vir_sym)
-        if self.verbose:
-            print(f"ncore: {self.ncore}")
-            print(f"nocc: {self.nocc}")
-            print(f"nact: {self.nact}")
-            print(f"nvir: {self.nvir}")
 
         self.abs_file_path = os.getcwd()
 
@@ -116,6 +114,7 @@ class EOM_DSRG:
             case "cvs_ee":
                 self.ops, self.single_space, self.composite_space = (
                     cvs_ee.generator_full(
+                        self.log,
                         self.abs_file_path,
                         self.ncore,
                         self.nocc,
@@ -126,6 +125,7 @@ class EOM_DSRG:
                 )
                 self.nops, self.slices = get_slices(self.ops, self.nmos)
                 cvs_ee.generator(
+                    self.log,
                     self.abs_file_path,
                     self.ncore,
                     self.nocc,
@@ -139,6 +139,7 @@ class EOM_DSRG:
                 if self.guess == "singles":
                     self.ops_sub, self.single_space_sub, self.composite_space_sub = (
                         cvs_ee.generator_subspace(
+                            self.log,
                             self.abs_file_path,
                             self.ncore,
                             self.nocc,
@@ -150,10 +151,11 @@ class EOM_DSRG:
                     self.nops_sub, self.slices_sub = get_slices(self.ops_sub, self.nmos)
             case "ip":
                 self.ops, self.single_space, self.composite_space = ip.generator_full(
-                    self.abs_file_path, blocked_ortho=self.blocked_ortho
+                    self.log, self.abs_file_path, blocked_ortho=self.blocked_ortho
                 )
                 self.nops, self.slices = get_slices(self.ops, self.nmos)
                 ip.generator(
+                    self.log,
                     self.abs_file_path,
                     self.einsum_type,
                     sequential_ortho=self.sequential_ortho,
@@ -162,6 +164,7 @@ class EOM_DSRG:
             case "cvs_ip":
                 self.ops, self.single_space, self.composite_space = (
                     cvs_ip.generator_full(
+                        self.log,
                         self.abs_file_path,
                         self.ncore,
                         self.nocc,
@@ -172,6 +175,7 @@ class EOM_DSRG:
                 )
                 self.nops, self.slices = get_slices(self.ops, self.nmos)
                 cvs_ip.generator(
+                    self.log,
                     self.abs_file_path,
                     self.ncore,
                     self.nocc,
@@ -182,7 +186,9 @@ class EOM_DSRG:
                     blocked_ortho=self.blocked_ortho,
                 )
             case _:
-                raise ValueError(f"Method type {self.method_type} is not supported.")
+                msg = "Unknown method %s" % self.method_type
+                self.log.error(msg)
+                raise Exception(msg)
 
     def _get_integrals(self):
         self.gamma1 = np.load(f"{self.abs_file_path}/save_gamma1.npz")
@@ -210,7 +216,6 @@ class EOM_DSRG:
     def _initialize_mo_symmetry(self, mo_spaces=None):
         try:
             mo_space_save = np.load("save_mo_space.npz")
-            print("Loading mo_space from save_mo_space.npz")
         except FileNotFoundError:
             raise FileNotFoundError("No save_mo_space.npz file found.") from None
         nmopi = mo_space_save["nmopi"]
@@ -231,15 +236,6 @@ class EOM_DSRG:
         self.occ_sym = np.array(mo_space_info.symmetry("RESTRICTED_DOCC"))
         self.act_sym = np.array(mo_space_info.symmetry("ACTIVE"))
         self.vir_sym = np.array(mo_space_info.symmetry("VIRTUAL"))
-
-    def _print_symmetry_info(self):
-        print("\n")
-        print("  Symmetry information:")
-        print(f"  core_sym: {self.core_sym}")
-        print(f"  occ_sym: {self.occ_sym}")
-        print(f"  act_sym: {self.act_sym}")
-        print(f"  vir_sym: {self.vir_sym}")
-        print("\n")
 
     def _initialize_sigma_vectors(self):
         (
@@ -283,10 +279,10 @@ class EOM_DSRG:
 
         if not all(conv):
             unconv = [i for i, c in enumerate(conv) if not c]
-            print("Some roots did not converge.")
-            print(f"Unconverged roots: {unconv}")
+            self.log.info("Some roots did not converge.")
+            self.log.info(f"Unconverged roots: {unconv}")
         else:
-            print("All EOM-DSRG roots converged.")
+            self.log.info("All roots converged.")
 
         eigvec, eigvec_dict = self.eom_dsrg_compute.get_original_basis_evecs(
             self, u, nop

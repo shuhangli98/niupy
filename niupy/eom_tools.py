@@ -401,12 +401,13 @@ def generate_S12(
         "    tol = eom_dsrg.tol_s",
         "    tol_semi = eom_dsrg.tol_semi",
         "    num_ortho = 0",
+        "    log = eom_dsrg.log",
     ]
 
     def one_active_two_virtual(key):
         code_block = [
             f"    # {key} block (one active, two virtual)",
-            f'    if eom_dsrg.verbose: print("Starts {key} block")',
+            f"    log.debug('Starts {key} block (one active, two virtual)')",
         ]
         space_order = {}
         for i_space in range(2):
@@ -456,7 +457,7 @@ def generate_S12(
         code_block.extend(
             [
                 f"    num_ortho += np.max(eom_dsrg.S12.position_{key}).astype(int) * eom_dsrg.S12.{key}.shape[1]",
-                f"    print('Number of orthogonalized operators {key}:', np.max(eom_dsrg.S12.position_{key}).astype(int) * eom_dsrg.S12.{key}.shape[1], flush = True)",
+                f"    log.info(f'Number of orthogonalized operators {key}: {{np.max(eom_dsrg.S12.position_{key}).astype(int) * eom_dsrg.S12.{key}.shape[1]}}')",
             ]
         )
 
@@ -477,6 +478,7 @@ def generate_S12(
         # Common lines for all cases
         lines = [
             f"    # {key} block (no active)",
+            f"    log.debug('Starts {key} block (no active)')",
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    shape_size = np.prod(shape_block)",
             f"    eom_dsrg.S12.{key} = np.zeros(shape_size)",
@@ -539,7 +541,7 @@ def generate_S12(
 
         # Common lines appended after case-specific code
         lines += [
-            f"    print('Number of orthogonalized operators {key}:', np.max(eom_dsrg.S12.{key}).astype(int), flush = True)",
+            f"    log.info(f'Number of orthogonalized operators {key}: {{np.max(eom_dsrg.S12.{key}).astype(int)}}')",
         ]
 
         return lines
@@ -551,28 +553,25 @@ def generate_S12(
         subspace_key = f"{braind}|{ketind}"
         return [
             f"    # {key} block",
-            f'    if eom_dsrg.verbose: print("Starts {key} block")',
+            f"    log.debug('Starts {key} block')",
             f"    {make_block_single(subspace_key, 'S')}",
-            f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
             f"    sevals, sevecs = np.linalg.eigh(vec)",
             f"    if np.any(sevals < -tol):",
             f"        raise ValueError('Negative overlap eigenvalues found in {key} block')",
             f"    del vec",
-            f"    if eom_dsrg.verbose: print('Diagonalization done')",
             f"    trunc_indices = np.where(sevals > tol)[0]",
             f"    eom_dsrg.S12.{key} = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
             f"    num_ortho += eom_dsrg.S12.{key}.shape[1]",
-            f"    print('Number of orthogonalized operators {key}:', eom_dsrg.S12.{key}.shape[1], flush = True)",
+            f"    log.info(f'Number of orthogonalized operators {key}: {{eom_dsrg.S12.{key}.shape[1]}}')",
             "    del sevals, sevecs, trunc_indices",
         ]
 
     def add_composite_space_block(space):
         code_block = [
             f"    # {space} composite block",
-            f'    if eom_dsrg.verbose: print("Starts {space} composite block", flush = True)',
+            f'    log.debug("Starts {space} composite block")',
             f"    space = {space}",
             f"    vec = driver_S{space[0]}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, space, sizes)",
-            f"    print(vec.shape)",
         ]
         return code_block
 
@@ -580,18 +579,15 @@ def generate_S12(
         code_block = add_composite_space_block(space)
         code_block.extend(
             [
-                f"    if eom_dsrg.verbose: print('Starts diagonalization', flush = True)",
-                "    print(f'Symmetric: {np.allclose(vec, vec.T)}', flush = True)",
+                "    log.debug(f'Symmetric: {np.allclose(vec, vec.T)}')",
                 f"    sevals, sevecs = np.linalg.eigh(vec)",
                 f"    if np.any(sevals < -tol):",
                 f'        raise ValueError("Negative overlap eigenvalues found in {space} space")',
                 f"    del vec",
-                f"    if eom_dsrg.verbose: print('Diagonalization done', flush = True)",
                 f"    trunc_indices = np.where(sevals > tol)[0]",
-                # "    print(f'Number of orthogonalized operators: {len(trunc_indices)}', flush = True)",
                 f"    eom_dsrg.S12.{space[0]} = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
                 f"    num_ortho += eom_dsrg.S12.{space[0]}.shape[1]",
-                f"    print('Number of orthogonalized operators {space[0]} (composite):', eom_dsrg.S12.{space[0]}.shape[1], flush = True)",
+                f"    log.info(f'Number of orthogonalized operators {space[0]} (composite): {{eom_dsrg.S12.{space[0]}.shape[1]}}')",
                 f"    del sevals, sevecs, trunc_indices",
             ]
         )
@@ -623,17 +619,15 @@ def generate_S12(
                 f"    Y[:singles_size, singles_size:] = Y12",
                 f"    vec_proj = reduce(np.dot, (Y.T, vec, Y))",
                 f"    del vec, S11, S12, S11inv, S_inv_eval",
-                f"    if eom_dsrg.verbose: print('Starts diagonalization (after projection))', flush = True)",
                 f"    sevals, sevecs = np.linalg.eigh(vec_proj)",
                 f"    if np.any(sevals < -tol_semi):",
                 f'        raise ValueError("Negative overlap eigenvalues found in {space} space")',
                 f"    del vec_proj",
-                f"    if eom_dsrg.verbose: print('Diagonalization done')",
                 f"    trunc_indices = np.where(sevals > tol_semi)[0]",
                 f"    X = sevecs[:, trunc_indices] / np.sqrt(sevals[trunc_indices])",
                 f"    eom_dsrg.S12.{space[0]} = np.matmul(Y, X)",
                 f"    num_ortho += eom_dsrg.S12.{space[0]}.shape[1]",
-                f"    print('Number of orthogonalized operators {space[0]} (composite):', eom_dsrg.S12.{space[0]}.shape[1], flush = True)",
+                f"    log.info(f'Number of orthogonalized operators {space[0]} (composite): {{eom_dsrg.S12.{space[0]}.shape[1]}}')",
                 f"    del sevals, sevecs, trunc_indices, X, Y, Y12",
             ]
         )
@@ -663,14 +657,13 @@ def generate_S12(
     # Add composite space code blocks
     for space in composite_space:
         if any((len(key) == 1 or len(key) == 2) for key in space) and sequential:
-            print(f"Sequential orthogonalization for {space}")
             code.extend(sequential_orthogonalization(space))
         else:
             code.extend(add_composite_space_code(space))
         code.append("")  # Blank line for separation
 
     code.append(
-        "    if eom_dsrg.verbose: print(f'Number of orthogonalized operators: {num_ortho}')"
+        "    log.info(f'Number of orthogonalized operators: {num_ortho}')",
     )
 
     return "\n".join(code)
@@ -693,6 +686,7 @@ def generate_preconditioner(
     """
     code = [
         f"def compute_preconditioner(eom_dsrg):",
+        "    log = eom_dsrg.log",
         "    einsum = eom_dsrg.einsum",
         "    einsum_type = eom_dsrg.einsum_type",
         "    template_c = eom_dsrg.template_c",
@@ -712,7 +706,7 @@ def generate_preconditioner(
     def add_single_space_code(key):
         return [
             f"    # {key} block",
-            f'    if eom_dsrg.verbose: print("Starts {key} block precond")',
+            f"    log.debug('Starts {key} block precond')",
             f"    shape_block = template_c['{key}'].shape[1:]",
             f"    northo = eom_dsrg.S12.{key}.shape[1]",
             f"    if northo != 0:",
@@ -756,7 +750,7 @@ def generate_preconditioner(
     def add_composite_space_code(space):
         code_block = [
             f"    # {space} composite block",
-            f'    if eom_dsrg.verbose: print("Starts {space} composite block precond")',
+            f'    log.debug("Starts {space} composite block precond")',
             f"    northo = eom_dsrg.S12.{space[0]}.shape[1]",
             f"    if northo != 0:",
             f"        vmv = np.zeros((northo, northo))",
@@ -807,7 +801,7 @@ def generate_preconditioner(
     def one_active_two_virtual(key):
         code_block = [
             f"    # {key} block (one active, two virtual)",
-            f'    if eom_dsrg.verbose: print("Starts {key} block precond")',
+            f"    log.debug('Starts {key} block precond (one active, two virtual)')",
         ]
 
         space_order = {}
@@ -851,7 +845,7 @@ def generate_preconditioner(
     def no_active(key):
         code_block = [
             f"    # {key} block (no active)",
-            f'    if eom_dsrg.verbose: print("Starts {key} block precond")',
+            f"    log.debug('Starts {key} block (no active)')",
         ]
         code_block.extend(
             [
