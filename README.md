@@ -15,11 +15,11 @@ To install this package in editable (development) mode, run:
 pip install -e .
 ```
 
-## Copyright
+# Copyright
 
 Copyright (c) 2025, Shuhang Li <shuhangli98@gmail.com>
 
-## Acknowledgements
+# Acknowledgements
 
 S.L. acknowledges the National Science Foundation and the 
 [Molecular Sciences Software Institute](https://molssi.org/) for financial support under Grant No. CHE-2136142.
