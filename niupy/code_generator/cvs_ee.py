@@ -232,7 +232,16 @@ def generator(
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 0)
     s = [_ for _ in s if ("I" in _ or "i" in _)]
+
+    s_small = [_ for _ in s if ("v" not in _ and "V" not in _) or len(_) == 4]
+    s_large = [_ for _ in s if ("v" in _ or "V" in _) and len(_) == 9]
+
     s = filter_list(s, ncore, nocc, nact, nvir)
+    s_small = filter_list(s_small, ncore, nocc, nact, nvir)
+    s_large = filter_list(s_large, ncore, nocc, nact, nvir)
+    log.debug(f"small blocks: {s_small}")
+    log.debug(f"large blocks: {s_large}")
+    log.debug(f"all: {s}")
 
     single_space, composite_space, block_list = get_subspaces(wt, s)
     single_space = filter_list(single_space, ncore, nocc, nact, nvir)
@@ -244,20 +253,29 @@ def generator(
         composite_space = [block_list]
     log.debug(f"Single space: {single_space}")
     log.debug(f"Composite spaces: {composite_space}")
+
     # # These blocks are computed with the commutator trick.
-    s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
-    log.debug(f"Commutator trick: {s_comm}")
+    # s_comm = [_ for _ in s_no_vir if _.count("a") + _.count("A") >= 3]
+    # log.debug(f"Commutator trick: {s_comm}")
 
-    T = w.op("c", s, unique=True)
+    # ============================================================================
+    # Initialize operators
+    T = w.op("c", s, unique=True)  # Used in first_row function
 
-    for i in s_comm:
-        s.remove(i)
+    T_small_adj = w.op("bra", s_small, unique=True).adjoint()
+    T_small = w.op("c", s_small, unique=True)
 
-    T_comm_adj = w.op("bra", s_comm, unique=True).adjoint()
-    T_comm = w.op("c", s_comm, unique=True)
+    T_large_adj = w.op("bra", s_large, unique=True).adjoint()
+    T_large = w.op("c", s_large, unique=True)
 
-    T_original_adj = w.op("bra", s, unique=True).adjoint()
-    T_original = w.op("c", s, unique=True)
+    # for i in s_comm:
+    #     s.remove(i)
+
+    # T_comm_adj = w.op("bra", s_comm, unique=True).adjoint()
+    # T_comm = w.op("c", s_comm, unique=True)
+
+    # T_original_adj = w.op("bra", s, unique=True).adjoint()
+    # T_original = w.op("c", s, unique=True)
 
     # Define Hbar
     Hbar_op = w.gen_op_ms0("Hbar", 1, "ciav", "ciav") + w.gen_op_ms0(
@@ -385,14 +403,18 @@ def generator(
     func_template_c = generate_template_c(block_list, index_dict, function_args)
 
     # Hbar
-    THT_comm = w.rational(1, 2) * (
-        T_comm_adj @ w.commutator(Hbar_op, T_comm)
-        + w.commutator(T_comm_adj, Hbar_op) @ T_comm
-    )
-    THT_original = T_original_adj @ Hbar_op @ T_original
-    THT_coupling = T_original_adj @ Hbar_op @ T_comm
-    THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
-    THT = THT_comm + THT_original + THT_coupling + THT_coupling_2
+    THT_large = T_large_adj @ Hbar_op @ T_large
+    THT_coupling = T_large_adj @ Hbar_op @ T_small
+    THT_coupling_2 = T_small_adj @ Hbar_op @ T_large
+    THT = THT_large + THT_coupling + THT_coupling_2
+    # THT_comm = w.rational(1, 2) * (
+    #     T_comm_adj @ w.commutator(Hbar_op, T_comm)
+    #     + w.commutator(T_comm_adj, Hbar_op) @ T_comm
+    # )
+    # THT_original = T_original_adj @ Hbar_op @ T_original
+    # THT_coupling = T_original_adj @ Hbar_op @ T_comm
+    # THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
+    # THT = THT_comm + THT_original + THT_coupling + THT_coupling_2
     expr = wt.contract(THT, 0, 0, inter_general=True)
     mbeq = expr.to_manybody_equation("sigma")
 

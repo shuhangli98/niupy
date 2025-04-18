@@ -88,6 +88,7 @@ class EOM_DSRG:
         self._generate_code()
 
         self.S12 = lambda: None
+        self.Hmat = lambda: None
 
         # Initialize templates and sigma vectors
         import niupy.eom_dsrg_compute as eom_dsrg_compute

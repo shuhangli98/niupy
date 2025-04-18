@@ -731,21 +731,20 @@ def generate_preconditioner(
             f"        del vec, vmv",
         ]
 
-    # Debug purposes
-    # def add_single_space_code(key):
-    #     op = tensor_label_to_op(key)
-    #     braind = op_to_index(op)
-    #     ketind = op_to_index(op)
-    #     subspace_key = f"{braind}|{ketind}"
-    #     return [
-    #         f"    # {key} block",
-    #         f'    if eom_dsrg.verbose: print("Starts {key} block precond")',
-    #         f"    {make_block_single(subspace_key, 'H')}",
-    #         f"    vmv = einsum('pq,py,qx->yx', vec, eom_dsrg.S12.{key}, eom_dsrg.S12.{key}, optimize = {einsum_type}) ",
-    #         f"    diagonal.append(vmv.diagonal())",
-    #         f"    print(vmv.diagonal())",
-    #         f"    del vec, vmv",
-    #     ]
+    def add_single_space_code_no_vir(key):
+        op = tensor_label_to_op(key)
+        braind = op_to_index(op)
+        ketind = op_to_index(op)
+        subspace_key = f"{braind}|{ketind}"
+        return [
+            f"    # {key} block",
+            f"    log.debug('Starts {key} block precond (small)')",
+            f"    {make_block_single(subspace_key, 'H')}",
+            f"    eom_dsrg.Hmat.{key} = vec",
+            f"    vmv = einsum('pq,py,qx->yx', vec, eom_dsrg.S12.{key}, eom_dsrg.S12.{key}, optimize = {einsum_type}) ",
+            f"    diagonal.append(vmv.diagonal())",
+            f"    del vmv",
+        ]
 
     def add_composite_space_code(space):
         code_block = [
@@ -784,19 +783,19 @@ def generate_preconditioner(
 
         return code_block
 
-    # Debug purposes
-    # def add_composite_space_code(space):
-    #     code_block = [
-    #         f"    # {space} composite block",
-    #         f'    if eom_dsrg.verbose: print("Starts {space} composite block precond")',
-    #         f"    space = {space}",
-    #         f"    vec = driver_H{space[0]}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, space, sizes)",
-    #         f"    vmv = einsum('pq,py,qx->yx', vec, eom_dsrg.S12.{space[0]}, eom_dsrg.S12.{space[0]}, optimize = {einsum_type}) ",
-    #         f"    diagonal.append(vmv.diagonal())",
-    #         f"    del vec, vmv",
-    #     ]
+    def add_composite_space_code_no_vir(space):
+        code_block = [
+            f"    # {space} composite block",
+            f'    log.debug("Starts {space} composite block precond (small)")',
+            f"    space = {space}",
+            f"    vec = driver_H{space[0]}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, space, sizes)",
+            f"    eom_dsrg.Hmat.{space[0]} = vec",
+            f"    vmv = einsum('pq,py,qx->yx', vec, eom_dsrg.S12.{space[0]}, eom_dsrg.S12.{space[0]}, optimize = {einsum_type}) ",
+            f"    diagonal.append(vmv.diagonal())",
+            f"    del vmv",
+        ]
 
-    #     return code_block
+        return code_block
 
     def one_active_two_virtual(key):
         code_block = [
@@ -885,13 +884,18 @@ def generate_preconditioner(
             code.extend(one_active_two_virtual(key))
         elif "a" not in key and "A" not in key and len(key) == 4:
             code.extend(no_active(key))
+        elif ("v" not in key and "V" not in key) or len(key) == 2:
+            code.extend(add_single_space_code_no_vir(key))
         else:
             code.extend(add_single_space_code(key))
         code.append("")  # Blank line for separation
 
     # Add composite space code blocks
     for space in composite_space:
-        code.extend(add_composite_space_code(space))
+        if "v" not in space[0] and "V" not in space[0]:
+            code.extend(add_composite_space_code_no_vir(space))
+        else:
+            code.extend(add_composite_space_code(space))
         code.append("")  # Blank line for separation
 
     code.append("    full_diag = np.concatenate(diagonal)")
