@@ -497,10 +497,12 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
     """
 
     # nop and northo include the first row/column
+    cput0 = (logger.process_clock(), logger.perf_counter())
     Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
+    eom_dsrg.log.timer_debug("Time for apply S^{1/2}", *cput0)
     Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
     Xt_dict = antisymmetrize(Xt_dict, ea=ea)
-
+    cpu1 = (logger.process_clock(), logger.perf_counter())
     HXt_dict = eom_dsrg.build_H(
         eom_dsrg.einsum,
         Xt_dict,
@@ -512,11 +514,12 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
         eom_dsrg.lambda4,
         eom_dsrg.first_row,
     )
-
+    eom_dsrg.log.timer_debug("Time for sigma vector build", *cpu1)
     HXt_dict = antisymmetrize(HXt_dict, ea=ea)
     HXt = dict_to_vec(HXt_dict, 1).flatten()
     XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
     XHXt = XHXt.flatten()
+    eom_dsrg.log.timer_debug("Total time for S^{1/2}HS^{1/2}C", *cput0)
     return XHXt
 
 
