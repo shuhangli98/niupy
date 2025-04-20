@@ -18,7 +18,6 @@ eom_dsrg = niupy.EOM_DSRG(
     method_type="cvs_ee",
     diagonal_type="compute",
     first_row=False,
-    verbose=6,
 )
 
 eom_dsrg.kernel()
