@@ -9,6 +9,7 @@ from niupy.eom_tools import (
     antisymmetrize,
     slice_H_core,
     full_vec_to_dict_short,
+    get_available_memory,
 )
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
@@ -106,10 +107,16 @@ def kernel(eom_dsrg):
 
     # Davidson algorithm
     cput1 = (logger.process_clock(), logger.perf_counter())
+
+    available_memory = get_available_memory() * 1e-6  # MB
+
+    eom_dsrg.log.info("Available memory: %.2f GB", available_memory * 1e-3)
+
     conv, e, u = davidson(
         lambda xs: [apply_M(x) for x in xs],
         x0,
         precond,
+        max_memory=available_memory,  # MB
         nroots=eom_dsrg.nroots,
         verbose=davidson_verbose,
         max_space=eom_dsrg.max_space,

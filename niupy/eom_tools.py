@@ -4,6 +4,7 @@ import itertools
 import functools
 import re
 import scipy.constants
+import psutil
 
 eh_to_ev = scipy.constants.value("Hartree energy in eV")
 irrep_table = {
@@ -1872,3 +1873,7 @@ def get_subspaces(wt, ops):
     all_spaces = [op_to_tensor_label(op) for op in all_spaces]
 
     return singles_space, composite_spaces, all_spaces
+
+
+def get_available_memory():
+    return psutil.virtual_memory().available
