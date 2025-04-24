@@ -124,7 +124,7 @@ class EOM_DSRG:
                     )
                 )
                 self.nops, self.slices = get_slices(self.ops, self.nmos)
-                cvs_ee.generator(
+                self.small_ops, self.small_space = cvs_ee.generator(
                     self.log,
                     self.abs_file_path,
                     self.ncore,
@@ -136,6 +136,15 @@ class EOM_DSRG:
                     blocked_ortho=self.blocked_ortho,
                     first_row=self.first_row,
                 )
+                self.small_nops, self.small_slices = get_slices(
+                    self.small_ops, self.nmos
+                )
+
+                # Memory estimation
+                mem = self.small_nops * self.small_nops * np.dtype(np.float64).itemsize
+                mem /= 1e9  # Convert to GB
+                self.log.info(f"\nEstimated memory usage for Hsmall: {mem:.2f} GB")
+
                 if self.guess == "singles":
                     self.ops_sub, self.single_space_sub, self.composite_space_sub = (
                         cvs_ee.generator_subspace(

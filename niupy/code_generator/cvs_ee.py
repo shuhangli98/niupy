@@ -232,23 +232,38 @@ def generator(
     s = [_.strip() for _ in s]
     s = filter_ops_by_ms(s, 0)
     s = [_ for _ in s if ("I" in _ or "i" in _)]
+
+    s_small = [_ for _ in s if ("v" not in _ and "V" not in _) or len(_) == 4]
+    s_large = [_ for _ in s if ("v" in _ or "V" in _) and len(_) == 9]
+
     s = filter_list(s, ncore, nocc, nact, nvir)
+    s_small = filter_list(s_small, ncore, nocc, nact, nvir)
+    s_large = filter_list(s_large, ncore, nocc, nact, nvir)
+    log.debug(f"small blocks: {s_small}")
+    log.debug(f"large blocks: {s_large}")
+    log.debug(f"all: {s}")
 
     single_space, composite_space, block_list = get_subspaces(wt, s)
     single_space = filter_list(single_space, ncore, nocc, nact, nvir)
     composite_space = [filter_list(_, ncore, nocc, nact, nvir) for _ in composite_space]
     block_list = single_space + list(itertools.chain(*composite_space))
 
+    small_space = [op_to_tensor_label(op) for op in s_small]
+
     if not blocked_ortho:
         single_space = []
         composite_space = [block_list]
     log.debug(f"Single space: {single_space}")
     log.debug(f"Composite spaces: {composite_space}")
+    log.debug(f"Small space: {small_space}")
+
     # # These blocks are computed with the commutator trick.
     s_comm = [_ for _ in s if _.count("a") + _.count("A") >= 3]
     log.debug(f"Commutator trick: {s_comm}")
 
-    T = w.op("c", s, unique=True)
+    # ============================================================================
+    # Initialize operators
+    T = w.op("c", s, unique=True)  # Used in first_row function
 
     for i in s_comm:
         s.remove(i)
@@ -259,6 +274,12 @@ def generator(
     T_original_adj = w.op("bra", s, unique=True).adjoint()
     T_original = w.op("c", s, unique=True)
 
+    T_small_adj = w.op("bra", s_small, unique=True).adjoint()
+    T_small = w.op("c", s_small, unique=True)
+
+    T_large_adj = w.op("bra", s_large, unique=True).adjoint()
+    T_large = w.op("c", s_large, unique=True)
+
     # Define Hbar
     Hbar_op = w.gen_op_ms0("Hbar", 1, "ciav", "ciav") + w.gen_op_ms0(
         "Hbar", 2, "ciav", "ciav"
@@ -268,7 +289,6 @@ def generator(
     # Generate block S functions for single and composite spaces.
     single_ops = [tensor_label_to_op(_) for _ in single_space]
     Smbeq = {}
-    Hmbeq = {}
     for iop in range(len(single_ops)):
         sop = single_ops[iop]
         bra = w.op("bra", [sop])
@@ -282,22 +302,13 @@ def generator(
             ket,
             inter_general=True,
             double_comm=False,
-            # to_eq=False,
         )
         if S_mbeq:
             Smbeq[f"{braind}|{ketind}"] = S_mbeq
-        double_comm = sop.count("a") + sop.count("A") == 3
-        H_mbeq = get_matrix_elements(
-            wt, bra, Hbar_op, ket, inter_general=True, double_comm=double_comm
-        )
-        if H_mbeq:
-            Hmbeq[f"{braind}|{ketind}"] = H_mbeq
 
     drivers = []
-    drivers_H = []
     for icomp in range(len(composite_space)):
         Smbeq_comp = {}
-        Hmbeq_comp = {}
         composite_ops = [tensor_label_to_op(_) for _ in composite_space[icomp]]
         for ibra in range(len(composite_ops)):
             bop = composite_ops[ibra]
@@ -314,23 +325,34 @@ def generator(
                     ket,
                     inter_general=True,
                     double_comm=False,
-                    # to_eq=False,
                 )
                 if S_mbeq:
                     Smbeq[f"{braind}|{ketind}"] = S_mbeq
                     Smbeq_comp[f"{braind}|{ketind}"] = S_mbeq
-                double_comm = (kop.count("a") + kop.count("A") == 3) and (
-                    bop.count("a") + bop.count("A") == 3
-                )
-                H_mbeq = get_matrix_elements(
-                    wt, bra, Hbar_op, ket, inter_general=True, double_comm=double_comm
-                )
-                if H_mbeq:
-                    Hmbeq[f"{braind}|{ketind}"] = H_mbeq
-                    Hmbeq_comp[f"{braind}|{ketind}"] = H_mbeq
-
-        drivers_H.append(make_driver_composite(Hmbeq_comp, composite_space[icomp], "H"))
         drivers.append(make_driver_composite(Smbeq_comp, composite_space[icomp], "S"))
+
+    Hmbeq = {}
+    for ibra in range(len(s_small)):
+        bop = s_small[ibra]
+        bra = w.op("bra", [bop])
+        braind = op_to_index(bop)
+        for iket in range(ibra + 1):
+            kop = s_small[iket]
+            ket = w.op("ket", [kop])
+            ketind = op_to_index(kop)
+            double_comm = (kop.count("a") + kop.count("A") == 3) and (
+                bop.count("a") + bop.count("A") == 3
+            )
+            H_mbeq = get_matrix_elements(
+                wt,
+                bra,
+                Hbar_op,
+                ket,
+                inter_general=True,
+                double_comm=double_comm,
+            )
+            if H_mbeq:
+                Hmbeq[f"{braind}|{ketind}"] = H_mbeq
 
     one_active_two_virtual = []
     no_active = []
@@ -385,14 +407,10 @@ def generator(
     func_template_c = generate_template_c(block_list, index_dict, function_args)
 
     # Hbar
-    THT_comm = w.rational(1, 2) * (
-        T_comm_adj @ w.commutator(Hbar_op, T_comm)
-        + w.commutator(T_comm_adj, Hbar_op) @ T_comm
-    )
-    THT_original = T_original_adj @ Hbar_op @ T_original
-    THT_coupling = T_original_adj @ Hbar_op @ T_comm
-    THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
-    THT = THT_comm + THT_original + THT_coupling + THT_coupling_2
+    THT_large = T_large_adj @ Hbar_op @ T_large
+    THT_coupling = T_large_adj @ Hbar_op @ T_small
+    THT_coupling_2 = T_small_adj @ Hbar_op @ T_large
+    THT = THT_large + THT_coupling + THT_coupling_2
     expr = wt.contract(THT, 0, 0, inter_general=True)
     mbeq = expr.to_manybody_equation("sigma")
 
@@ -415,6 +433,19 @@ def generator(
         composite_space,
         sequential=sequential_ortho,
     )
+
+    # The preconditioner function needs full mbeq. TODO: read from small H.
+    THT_comm = w.rational(1, 2) * (
+        T_comm_adj @ w.commutator(Hbar_op, T_comm)
+        + w.commutator(T_comm_adj, Hbar_op) @ T_comm
+    )
+    THT_original = T_original_adj @ Hbar_op @ T_original
+    THT_coupling = T_original_adj @ Hbar_op @ T_comm
+    THT_coupling_2 = T_comm_adj @ Hbar_op @ T_original
+    THT = THT_comm + THT_original + THT_coupling + THT_coupling_2
+    expr = wt.contract(THT, 0, 0, inter_general=True)
+    mbeq = expr.to_manybody_equation("sigma")
+
     funct_preconditioner = generate_preconditioner(
         mbeq,
         mbeqs_one_active_two_virtual,
@@ -473,8 +504,7 @@ def generator(
                 )
         for i in range(len(drivers)):
             f.write(drivers[i] + "\n")
-        for i in range(len(drivers_H)):
-            f.write(drivers_H[i] + "\n")
+        f.write(f'{make_driver_composite(Hmbeq, small_space, "H", "small")}\n\n')
         f.write(f"{funct_S12}\n\n")
         f.write(f"{funct_preconditioner}\n\n")
         f.write(f"{funct_apply_S12}\n\n")
@@ -484,3 +514,5 @@ def generator(
         else:
             f.write(f"build_first_row = NotImplemented\n")
         f.write(f"{funct_dipole}\n\n")
+
+        return s_small, small_space

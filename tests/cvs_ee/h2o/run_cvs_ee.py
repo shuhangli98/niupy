@@ -20,7 +20,7 @@ eom_dsrg = niupy.EOM_DSRG(
     first_row=False,
 )
 
-eom_dsrg.kernel_full()
+eom_dsrg.kernel()
 
 # First_row False
 # kernel_full

@@ -9,6 +9,7 @@ from niupy.eom_tools import (
     antisymmetrize,
     slice_H_core,
     full_vec_to_dict_short,
+    get_available_memory,
 )
 
 if os.path.exists("cvs_ee_eom_dsrg.py"):
@@ -30,7 +31,6 @@ if os.path.exists("ip_eom_dsrg_full.py"):
 import numpy as np
 import copy
 from pyscf import lib
-import time
 
 davidson = lib.linalg_helper.davidson1
 
@@ -107,10 +107,16 @@ def kernel(eom_dsrg):
 
     # Davidson algorithm
     cput1 = (logger.process_clock(), logger.perf_counter())
+
+    available_memory = get_available_memory() * 1e-6  # MB
+
+    eom_dsrg.log.info("Available memory: %.2f GB", available_memory * 1e-3)
+
     conv, e, u = davidson(
         lambda xs: [apply_M(x) for x in xs],
         x0,
         precond,
+        max_memory=available_memory,  # MB
         nroots=eom_dsrg.nroots,
         verbose=davidson_verbose,
         max_space=eom_dsrg.max_space,
@@ -411,15 +417,38 @@ def setup_davidson(eom_dsrg):
         )
     eom_dsrg.build_H = eom_dsrg.build_sigma_vector_Hbar
 
+    # Compute Hsmall
+    if eom_dsrg.method_type == "cvs_ee":
+        cput1 = (logger.process_clock(), logger.perf_counter())
+        driver_small = cvs_ee_eom_dsrg.driver_Hsmall
+        eom_dsrg.Hsmall = driver_small(
+            eom_dsrg.Hbar,
+            eom_dsrg.delta,
+            eom_dsrg.gamma1,
+            eom_dsrg.eta1,
+            eom_dsrg.lambda2,
+            eom_dsrg.lambda3,
+            eom_dsrg.lambda4,
+            eom_dsrg.small_space,
+            eom_dsrg.nmos,
+        )
+
+        eom_dsrg.log.info(
+            "Max asymmetry in Hsmall: %20.12f",
+            np.max(abs(eom_dsrg.Hsmall - eom_dsrg.Hsmall.T)),
+        )
+        eom_dsrg.log.info("Shape of Hsmall: %s", eom_dsrg.Hsmall.shape)
+        eom_dsrg.small_dict = {
+            i: np.zeros_like(eom_dsrg.template_c[i]) for i in eom_dsrg.small_space
+        }
+        eom_dsrg.log.timer0("Hsmall computation", *cput1)
+
     # Compute Preconditioner
-    cput0 = (logger.process_clock(), logger.perf_counter())
-    if eom_dsrg.diagonal_type == "compute":
-        precond = eom_dsrg.compute_preconditioner(eom_dsrg)
-        np.save(f"{eom_dsrg.abs_file_path}/precond", precond)
-    elif eom_dsrg.diagonal_type == "load":
-        precond = np.load(f"{eom_dsrg.abs_file_path}/precond.npy")
+    cput2 = (logger.process_clock(), logger.perf_counter())
+    precond = eom_dsrg.compute_preconditioner(eom_dsrg)
+    np.save(f"{eom_dsrg.abs_file_path}/precond", precond)
     eom_dsrg.log.info(f"length of precond: {len(precond)}")
-    eom_dsrg.log.timer0("Preconditioner computation", *cput0)
+    eom_dsrg.log.timer0("Preconditioner computation", *cput2)
 
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
@@ -497,10 +526,26 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
     """
 
     # nop and northo include the first row/column
+    cput0 = (logger.process_clock(), logger.perf_counter())
     Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
+    eom_dsrg.log.timer_debug("Time for apply S^{1/2}", *cput0)
+
+    if eom_dsrg.method_type == "cvs_ee":
+        cpu1 = (logger.process_clock(), logger.perf_counter())
+        Xt_small = np.zeros((eom_dsrg.Hsmall.shape[0], 1))
+        i_start = 0
+        for i in eom_dsrg.small_space:
+            new_key = i[len(i) // 2 :] + i[: len(i) // 2]
+            temp = Xt[eom_dsrg.slices[new_key], :]
+            Xt_small[i_start : i_start + temp.shape[0], :] = temp
+            i_start += temp.shape[0]
+        HXt_small = eom_dsrg.Hsmall @ Xt_small
+        HXt_small_dict = vec_to_dict(eom_dsrg.small_dict, HXt_small.reshape(-1, 1))
+        eom_dsrg.log.timer_debug("Time for Hsmall * C", *cpu1)
+
     Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
     Xt_dict = antisymmetrize(Xt_dict, ea=ea)
-
+    cpu2 = (logger.process_clock(), logger.perf_counter())
     HXt_dict = eom_dsrg.build_H(
         eom_dsrg.einsum,
         Xt_dict,
@@ -512,11 +557,17 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
         eom_dsrg.lambda4,
         eom_dsrg.first_row,
     )
-
+    eom_dsrg.log.timer_debug("Time for sigma vector build", *cpu2)
     HXt_dict = antisymmetrize(HXt_dict, ea=ea)
+
+    if eom_dsrg.method_type == "cvs_ee":
+        for key in HXt_small_dict.keys():
+            HXt_dict[key] += HXt_small_dict[key]
+
     HXt = dict_to_vec(HXt_dict, 1).flatten()
     XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
     XHXt = XHXt.flatten()
+    eom_dsrg.log.timer_debug("Total time for S^{1/2}HS^{1/2}C", *cput0)
     return XHXt
 
 

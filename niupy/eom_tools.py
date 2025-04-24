@@ -1,11 +1,10 @@
 import wicked as w
 import numpy as np
-import copy
 import itertools
 import functools
 import re
 import scipy.constants
-import pickle
+import psutil
 
 eh_to_ev = scipy.constants.value("Hartree energy in eV")
 irrep_table = {
@@ -669,7 +668,7 @@ def generate_S12(
     return "\n".join(code)
 
 
-# TODO: Optimize single and composite subspaces. Remove all sigma vectors.
+# TODO: Read from small H.
 def generate_preconditioner(
     mbeq,
     mbeqs_one_active,
@@ -731,22 +730,6 @@ def generate_preconditioner(
             f"        del vec, vmv",
         ]
 
-    # Debug purposes
-    # def add_single_space_code(key):
-    #     op = tensor_label_to_op(key)
-    #     braind = op_to_index(op)
-    #     ketind = op_to_index(op)
-    #     subspace_key = f"{braind}|{ketind}"
-    #     return [
-    #         f"    # {key} block",
-    #         f'    if eom_dsrg.verbose: print("Starts {key} block precond")',
-    #         f"    {make_block_single(subspace_key, 'H')}",
-    #         f"    vmv = einsum('pq,py,qx->yx', vec, eom_dsrg.S12.{key}, eom_dsrg.S12.{key}, optimize = {einsum_type}) ",
-    #         f"    diagonal.append(vmv.diagonal())",
-    #         f"    print(vmv.diagonal())",
-    #         f"    del vec, vmv",
-    #     ]
-
     def add_composite_space_code(space):
         code_block = [
             f"    # {space} composite block",
@@ -783,20 +766,6 @@ def generate_preconditioner(
         )
 
         return code_block
-
-    # Debug purposes
-    # def add_composite_space_code(space):
-    #     code_block = [
-    #         f"    # {space} composite block",
-    #         f'    if eom_dsrg.verbose: print("Starts {space} composite block precond")',
-    #         f"    space = {space}",
-    #         f"    vec = driver_H{space[0]}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, space, sizes)",
-    #         f"    vmv = einsum('pq,py,qx->yx', vec, eom_dsrg.S12.{space[0]}, eom_dsrg.S12.{space[0]}, optimize = {einsum_type}) ",
-    #         f"    diagonal.append(vmv.diagonal())",
-    #         f"    del vec, vmv",
-    #     ]
-
-    #     return code_block
 
     def one_active_two_virtual(key):
         code_block = [
@@ -1550,7 +1519,11 @@ def make_block_single(key, tensor_label):
     return func
 
 
-def make_driver_composite(mbeq_comp, space_list, tensor_label):
+def make_driver_composite(mbeq_comp, space_list, tensor_label=None, space_label=None):
+
+    space_label = space_label if space_label else space_list[0]
+    tensor_label = tensor_label if tensor_label else "H"
+
     def _parse_key(key):
         bra = key.split("|")[0]
         ket = key.split("|")[1]
@@ -1570,7 +1543,7 @@ def make_driver_composite(mbeq_comp, space_list, tensor_label):
                 return key[0].upper() == key[1]
         return False
 
-    func = f"def driver_{tensor_label}{space_list[0]}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, space_list, sizes):\n"
+    func = f"def driver_{tensor_label}{space_label}(Hbar, delta, gamma1, eta1, lambda2, lambda3, lambda4, space_list, sizes):\n"
     func += "\tops = [tensor_label_to_op(_) for _ in space_list]\n"
     func += "\tnops, slices = get_slices(ops, sizes)\n"
     func += "\tovlp = np.zeros((nops,nops))\n"
@@ -1900,3 +1873,7 @@ def get_subspaces(wt, ops):
     all_spaces = [op_to_tensor_label(op) for op in all_spaces]
 
     return singles_space, composite_spaces, all_spaces
+
+
+def get_available_memory():
+    return psutil.virtual_memory().available
