@@ -27,3 +27,5 @@ dependencies:
     - conda-forge::optking
     - conda-forge::pyscf
     - conda-forge::libecpint
+    - conda-forge::psutil
+    - conda-forge::opt_einsum
