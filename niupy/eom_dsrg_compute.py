@@ -146,6 +146,14 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
         spin.append(assign_spin_multiplicity(eom_dsrg, current_vec_dict))
         symmetry.append(assign_spatial_symmetry(eom_dsrg, current_vec))
 
+        if eom_dsrg.method_type == "cvs_ip":
+            # Norm of 'I' component
+            single_norm = np.linalg.norm(current_vec_dict["I"])
+            double_norm = 1 - single_norm
+            eom_dsrg.log.info(
+                f"Single norm: {single_norm:.2f}, Double norm: {double_norm:.2f}"
+            )
+
     del eom_dsrg.Hbar
 
     if skip_spec:
@@ -162,7 +170,6 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
             spec_info = compute_oscillator_strength(eom_dsrg, e, eigvec)
         elif "ip" in eom_dsrg.method_type:
             spec_info = compute_spectroscopic_factors(eom_dsrg, eigvec)
-
     return spin, symmetry, spec_info
 
 
