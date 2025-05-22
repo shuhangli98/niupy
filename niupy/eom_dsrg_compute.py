@@ -1,4 +1,5 @@
 import os
+import sys
 import pickle
 import niupy.lib.logger as logger
 from niupy.eom_tools import (
@@ -12,22 +13,25 @@ from niupy.eom_tools import (
     get_available_memory,
 )
 
-if os.path.exists("cvs_ee_eom_dsrg.py"):
-    import cvs_ee_eom_dsrg
-if os.path.exists("cvs_ee_eom_dsrg_full.py"):
-    import cvs_ee_eom_dsrg_full
-if os.path.exists("cvs_ee_eom_dsrg_subspace.py"):
-    import cvs_ee_eom_dsrg_subspace
-if os.path.exists("cvs_ip_eom_dsrg.py"):
-    import cvs_ip_eom_dsrg
-if os.path.exists("cvs_ip_eom_dsrg_full.py"):
-    import cvs_ip_eom_dsrg_full
-if os.path.exists("ee_eom_dsrg.py"):
-    import ee_eom_dsrg
-if os.path.exists("ip_eom_dsrg.py"):
-    import ip_eom_dsrg
-if os.path.exists("ip_eom_dsrg_full.py"):
-    import ip_eom_dsrg_full
+import importlib
+
+optional_modules = [
+    "cvs_ee_eom_dsrg",
+    "cvs_ee_eom_dsrg_full",
+    "cvs_ee_eom_dsrg_subspace",
+    "cvs_ip_eom_dsrg",
+    "cvs_ip_eom_dsrg_full",
+    "ee_eom_dsrg",
+    "ip_eom_dsrg",
+    "ip_eom_dsrg_full",
+]
+
+for module_name in optional_modules:
+    try:
+        globals()[module_name] = importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        globals()[module_name] = None
+
 import numpy as np
 import copy
 from pyscf import lib
@@ -36,7 +40,7 @@ davidson = lib.linalg_helper.davidson1
 
 
 def kernel_full(eom_dsrg, sequential=True):
-    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
+    eom_dsrg.Hbar = np.load(f"{eom_dsrg.file_dir}/save_Hbar.npz")
 
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
@@ -130,6 +134,23 @@ def kernel(eom_dsrg):
 
 
 def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
+
+    # self.Hbar is loaded in setup_davidson
+    if eom_dsrg.build_transition_dipole is not NotImplemented:
+        eom_dsrg.Mbar0 = np.load(f"{eom_dsrg.file_dir}/Mbar0.npy")
+        Mbar1_x = np.load(f"{eom_dsrg.file_dir}/Mbar1_0.npz")
+        Mbar1_y = np.load(f"{eom_dsrg.file_dir}/Mbar1_1.npz")
+        Mbar1_z = np.load(f"{eom_dsrg.file_dir}/Mbar1_2.npz")
+        Mbar2_x = np.load(f"{eom_dsrg.file_dir}/Mbar2_0.npz")
+        Mbar2_y = np.load(f"{eom_dsrg.file_dir}/Mbar2_1.npz")
+        Mbar2_z = np.load(f"{eom_dsrg.file_dir}/Mbar2_2.npz")
+        Mbar_x = {**Mbar1_x, **Mbar2_x}
+        Mbar_y = {**Mbar1_y, **Mbar2_y}
+        Mbar_z = {**Mbar1_z, **Mbar2_z}
+        eom_dsrg.Mbar = [Mbar_x, Mbar_y, Mbar_z]
+    else:
+        eom_dsrg.Mbar = [None, None, None]
+
     # Get spin multiplicity and process eigenvectors
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
@@ -394,7 +415,7 @@ def setup_davidson(eom_dsrg):
         guess: Initial guess vectors.
         nop: Dimension size.
     """
-    eom_dsrg.Hbar = np.load(f"{eom_dsrg.abs_file_path}/save_Hbar.npz")
+    eom_dsrg.Hbar = np.load(f"{eom_dsrg.file_dir}/save_Hbar.npz")
     if "cvs" in eom_dsrg.method_type:
         eom_dsrg.Hbar = slice_H_core(eom_dsrg.Hbar, eom_dsrg.core_sym, eom_dsrg.occ_sym)
 
@@ -446,7 +467,7 @@ def setup_davidson(eom_dsrg):
     # Compute Preconditioner
     cput2 = (logger.process_clock(), logger.perf_counter())
     precond = eom_dsrg.compute_preconditioner(eom_dsrg)
-    np.save(f"{eom_dsrg.abs_file_path}/precond", precond)
+    np.save(f"{eom_dsrg.file_dir}/precond", precond)
     eom_dsrg.log.info(f"length of precond: {len(precond)}")
     eom_dsrg.log.timer0("Preconditioner computation", *cput2)
 
@@ -574,7 +595,7 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
 def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
     assert eom_dsrg.method_type == "cvs_ee"
     eom_dsrg.log.info("Reading guess vectors from file...")
-    guess = pickle.load(open(f"{eom_dsrg.abs_file_path}/niupy_save.pkl", "rb"))
+    guess = pickle.load(open(f"{eom_dsrg.file_dir}/niupy_save.pkl", "rb"))
     x0s = []
 
     if eom_dsrg.first_row:
@@ -644,18 +665,14 @@ def get_templates(eom_dsrg, nlow=1):
     """Generate the initial and full templates based on the method type."""
     # Dictionary mapping method types to the appropriate template functions
     template_funcs = {
-        "ee": ee_eom_dsrg.get_template_c if os.path.exists("ee_eom_dsrg.py") else None,
+        "ee": ee_eom_dsrg.get_template_c if "ee_eom_dsrg" in sys.modules else None,
         "cvs_ee": (
-            cvs_ee_eom_dsrg.get_template_c
-            if os.path.exists("cvs_ee_eom_dsrg.py")
-            else None
+            cvs_ee_eom_dsrg.get_template_c if "cvs_ee_eom_dsrg" in sys.modules else None
         ),
         "cvs_ip": (
-            cvs_ip_eom_dsrg.get_template_c
-            if os.path.exists("cvs_ip_eom_dsrg.py")
-            else None
+            cvs_ip_eom_dsrg.get_template_c if "cvs_ip_eom_dsrg" in sys.modules else None
         ),
-        "ip": ip_eom_dsrg.get_template_c if os.path.exists("ip_eom_dsrg.py") else None,
+        "ip": ip_eom_dsrg.get_template_c if "ip_eom_dsrg" in sys.modules else None,
         # Additional mappings for other methods can be added here
     }
 
@@ -686,10 +703,10 @@ def get_sigma_build(eom_dsrg):
         return (NotImplemented,) * 7
     # Dictionary mapping method types to the appropriate sigma build functions
     sigma_funcs = {
-        "ee": ee_eom_dsrg if os.path.exists("ee_eom_dsrg.py") else None,
-        "cvs_ee": cvs_ee_eom_dsrg if os.path.exists("cvs_ee_eom_dsrg.py") else None,
-        "cvs_ip": cvs_ip_eom_dsrg if os.path.exists("cvs_ip_eom_dsrg.py") else None,
-        "ip": ip_eom_dsrg if os.path.exists("ip_eom_dsrg.py") else None,
+        "ee": ee_eom_dsrg if "ee_eom_dsrg" in sys.modules else None,
+        "cvs_ee": cvs_ee_eom_dsrg if "cvs_ee_eom_dsrg" in sys.modules else None,
+        "cvs_ip": cvs_ip_eom_dsrg if "cvs_ip_eom_dsrg" in sys.modules else None,
+        "ip": ip_eom_dsrg if "ip_eom_dsrg" in sys.modules else None,
         # Additional mappings for other methods can be added here
     }
 

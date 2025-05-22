@@ -5,11 +5,11 @@ import psi4
 import numpy as np
 import os, sys
 from niupy.code_generator import cvs_ee, ip, cvs_ip
+import inspect
 
 
 class EOM_DSRG:
     def __init__(self, method_type, **kwargs):
-
         # Logger initialization
         self.verbose = kwargs.get("verbose", 4)
         log = logger.Logger(sys.stdout, self.verbose)
@@ -18,6 +18,12 @@ class EOM_DSRG:
         self.log = log
 
         self.method_type = method_type
+
+        caller_frame = inspect.stack()[1]
+        caller_file = caller_frame.filename
+        self.file_dir = os.path.dirname(os.path.abspath(caller_file))
+        log.info(f"Running file dir: {self.file_dir}")
+
         # Set defaults
         self.tol_e = kwargs.get("tol_e", 1e-8)
         self.max_space = kwargs.get("max_space", 100)
@@ -62,8 +68,6 @@ class EOM_DSRG:
         self.nocc = len(self.occ_sym)
         self.nact = len(self.act_sym)
         self.nvir = len(self.vir_sym)
-
-        self.abs_file_path = os.getcwd()
 
         self.nmos = {
             "i": self.ncore,
@@ -115,7 +119,7 @@ class EOM_DSRG:
                 self.ops, self.single_space, self.composite_space = (
                     cvs_ee.generator_full(
                         self.log,
-                        self.abs_file_path,
+                        self.file_dir,
                         self.ncore,
                         self.nocc,
                         self.nact,
@@ -126,7 +130,7 @@ class EOM_DSRG:
                 self.nops, self.slices = get_slices(self.ops, self.nmos)
                 self.small_ops, self.small_space = cvs_ee.generator(
                     self.log,
-                    self.abs_file_path,
+                    self.file_dir,
                     self.ncore,
                     self.nocc,
                     self.nact,
@@ -149,7 +153,7 @@ class EOM_DSRG:
                     self.ops_sub, self.single_space_sub, self.composite_space_sub = (
                         cvs_ee.generator_subspace(
                             self.log,
-                            self.abs_file_path,
+                            self.file_dir,
                             self.ncore,
                             self.nocc,
                             self.nact,
@@ -160,12 +164,12 @@ class EOM_DSRG:
                     self.nops_sub, self.slices_sub = get_slices(self.ops_sub, self.nmos)
             case "ip":
                 self.ops, self.single_space, self.composite_space = ip.generator_full(
-                    self.log, self.abs_file_path, blocked_ortho=self.blocked_ortho
+                    self.log, self.file_dir, blocked_ortho=self.blocked_ortho
                 )
                 self.nops, self.slices = get_slices(self.ops, self.nmos)
                 ip.generator(
                     self.log,
-                    self.abs_file_path,
+                    self.file_dir,
                     self.einsum_type,
                     sequential_ortho=self.sequential_ortho,
                     blocked_ortho=self.blocked_ortho,
@@ -174,7 +178,7 @@ class EOM_DSRG:
                 self.ops, self.single_space, self.composite_space = (
                     cvs_ip.generator_full(
                         self.log,
-                        self.abs_file_path,
+                        self.file_dir,
                         self.ncore,
                         self.nocc,
                         self.nact,
@@ -185,7 +189,7 @@ class EOM_DSRG:
                 self.nops, self.slices = get_slices(self.ops, self.nmos)
                 cvs_ip.generator(
                     self.log,
-                    self.abs_file_path,
+                    self.file_dir,
                     self.ncore,
                     self.nocc,
                     self.nact,
@@ -200,31 +204,15 @@ class EOM_DSRG:
                 raise Exception(msg)
 
     def _get_integrals(self):
-        self.gamma1 = np.load(f"{self.abs_file_path}/save_gamma1.npz")
-        self.eta1 = np.load(f"{self.abs_file_path}/save_eta1.npz")
-        self.lambda2 = np.load(f"{self.abs_file_path}/save_lambda2.npz")
-        self.lambda3 = np.load(f"{self.abs_file_path}/save_lambda3.npz")
-        self.lambda4 = np.load(f"{self.abs_file_path}/save_lambda4.npz")
-
-        # self.Hbar is loaded in setup_davidson
-        if self.build_transition_dipole is not NotImplemented:
-            self.Mbar0 = np.load(f"{self.abs_file_path}/Mbar0.npy")
-            Mbar1_x = np.load(f"{self.abs_file_path}/Mbar1_0.npz")
-            Mbar1_y = np.load(f"{self.abs_file_path}/Mbar1_1.npz")
-            Mbar1_z = np.load(f"{self.abs_file_path}/Mbar1_2.npz")
-            Mbar2_x = np.load(f"{self.abs_file_path}/Mbar2_0.npz")
-            Mbar2_y = np.load(f"{self.abs_file_path}/Mbar2_1.npz")
-            Mbar2_z = np.load(f"{self.abs_file_path}/Mbar2_2.npz")
-            Mbar_x = {**Mbar1_x, **Mbar2_x}
-            Mbar_y = {**Mbar1_y, **Mbar2_y}
-            Mbar_z = {**Mbar1_z, **Mbar2_z}
-            self.Mbar = [Mbar_x, Mbar_y, Mbar_z]
-        else:
-            self.Mbar = [None, None, None]
+        self.gamma1 = np.load(f"{self.file_dir}/save_gamma1.npz")
+        self.eta1 = np.load(f"{self.file_dir}/save_eta1.npz")
+        self.lambda2 = np.load(f"{self.file_dir}/save_lambda2.npz")
+        self.lambda3 = np.load(f"{self.file_dir}/save_lambda3.npz")
+        self.lambda4 = np.load(f"{self.file_dir}/save_lambda4.npz")
 
     def _initialize_mo_symmetry(self, mo_spaces=None):
         try:
-            mo_space_save = np.load("save_mo_space.npz")
+            mo_space_save = np.load(os.path.join(self.file_dir, "save_mo_space.npz"))
         except FileNotFoundError:
             raise FileNotFoundError("No save_mo_space.npz file found.") from None
         nmopi = mo_space_save["nmopi"]
@@ -301,10 +289,16 @@ class EOM_DSRG:
         )
         self._pretty_print_info(e, spin, symmetry, spec_info)
 
+        self.evals = e * eh_to_ev
+        self.evecs = eigvec
+        self.spin = spin
+        self.symmetry = symmetry
+        self.spec_info = spec_info
+
         # if os.path.exists(f"{self.method_type}_eom_dsrg.py"):
         #     os.remove(f"{self.method_type}_eom_dsrg.py")
 
-        return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
+        # return conv, e, u, eigvec, eigvec_dict, spin, symmetry, spec_info
 
     def kernel_full(self, dump_vectors=False, skip_spec=False):
         _available_methods = ["ip", "cvs_ip", "cvs_ee"]
@@ -321,13 +315,18 @@ class EOM_DSRG:
             pickle.dump(eigvec_dict, open(f"niupy_save.pkl", "wb"))
         eigvec = dict_to_vec(eigvec_dict, self.nroots)
         e = evals[: self.nroots]
-        print(e)
         spin, symmetry, spec_info = self.eom_dsrg_compute.post_process(
             self, e, eigvec, eigvec_dict, skip_spec=skip_spec
         )
         self._pretty_print_info(e, spin, symmetry, spec_info)
 
+        self.evals = e * eh_to_ev
+        self.evecs = eigvec
+        self.spin = spin
+        self.symmetry = symmetry
+        self.spec_info = spec_info
+
         # if os.path.exists(f"{self.method_type}_eom_dsrg_full.py"):
         #     os.remove(f"{self.method_type}_eom_dsrg_full.py")
 
-        return e, eigvec, eigvec_dict, spin, symmetry, spec_info
+        # return e, eigvec, eigvec_dict, spin, symmetry, spec_info

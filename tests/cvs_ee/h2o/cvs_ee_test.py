@@ -1,5 +1,5 @@
 import niupy
-import numpy as np
+import unittest
 
 mo_spaces = {
     "FROZEN_DOCC": [1, 0, 0, 0],
@@ -10,7 +10,7 @@ mo_spaces = {
 eom_dsrg = niupy.EOM_DSRG(
     opt_einsum=True,
     mo_spaces=mo_spaces,
-    nroots=10,
+    nroots=4,
     max_cycle=200,
     max_space=200,
     tol_s=1e-10,
@@ -20,7 +20,48 @@ eom_dsrg = niupy.EOM_DSRG(
     first_row=False,
 )
 
-eom_dsrg.kernel()
+
+class KnownValues(unittest.TestCase):
+
+    def test_niupy_full(self):
+
+        eom_dsrg.kernel_full()
+
+        e = eom_dsrg.evals
+        p = eom_dsrg.spec_info
+
+        self.assertAlmostEqual(e[0], 540.2887714820, 4)
+        self.assertAlmostEqual(e[1], 540.9660608351, 4)
+        self.assertAlmostEqual(e[2], 542.4188308903, 4)
+        self.assertAlmostEqual(e[3], 543.3395502334, 4)
+
+        self.assertAlmostEqual(p[0], 0.00000000, 4)
+        self.assertAlmostEqual(p[1], 0.01996767, 4)
+        self.assertAlmostEqual(p[2], 0.00000000, 4)
+        self.assertAlmostEqual(p[3], 0.04296089, 4)
+
+    def test_niupy(self):
+
+        eom_dsrg.kernel()
+
+        e = eom_dsrg.evals
+        p = eom_dsrg.spec_info
+
+        self.assertAlmostEqual(e[0], 540.2887714806, 4)
+        self.assertAlmostEqual(e[1], 540.9660608333, 4)
+        self.assertAlmostEqual(e[2], 542.4188308968, 4)
+        self.assertAlmostEqual(e[3], 543.3395502402, 4)
+
+        self.assertAlmostEqual(p[0], 0.00000000, 4)
+        self.assertAlmostEqual(p[1], 0.01991209, 4)
+        self.assertAlmostEqual(p[2], 0.00000000, 4)
+        self.assertAlmostEqual(p[3], 0.04335802, 4)
+
+
+if __name__ == "__main__":
+    print("CVS-EE calculations")
+    unittest.main()
+
 
 # First_row False
 # kernel_full

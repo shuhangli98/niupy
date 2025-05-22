@@ -1802,7 +1802,7 @@ def eigh_gen_composite(
         print(f"Number of orthogonalized basis functions for {k}: {v.shape[1]}")
     print(f"Number of orthogonalized basis functions: {X_concat.shape[1]}")
     Hp = X_concat.T @ H @ X_concat
-    np.save("Hp.npy", Hp)
+    # np.save("Hp.npy", Hp)
     eigval, eigvec = np.linalg.eigh(Hp)
     eigvec = X_concat @ eigvec
     return eigval, eigvec
