@@ -355,15 +355,15 @@ def assign_spatial_symmetry(eom_dsrg, current_vec):
     large_indices = np.where(abs(current_vec) > 1e-2)[0]
     first_value = eom_dsrg.sym_vec[large_indices[0]]
     if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
-        return first_value
+        return first_value ^ eom_dsrg.ref_sym
     else:
-        irreps = list(set(eom_dsrg.sym_vec[index] for index in large_indices))
+        irreps = np.array(set(eom_dsrg.sym_vec[index] for index in large_indices))
         if len(irreps) > 2:
             return "Incorrect symmetry"
         else:
             if irreps[0] ^ irreps[1] == 1:
                 # this means that it is a mixture of En(g/u)x and En(g/u)y irreps in Dinfh or Cinfv
-                return irreps
+                return irreps ^ eom_dsrg.ref_sym
             else:
                 return "Incorrect symmetry"
 

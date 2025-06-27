@@ -34,12 +34,6 @@ class EOM_DSRG:
         self.nroots = kwargs.get("nroots", 6)
         self.diagonal_type = kwargs.get("diagonal_type", "compute")
         self.ref_sym = kwargs.get("ref_sym", 0)
-
-        if self.ref_sym != 0:
-            msg = "Reference symmetry other than 0 is not implemented."
-            log.error(msg)
-            raise Exception(msg)
-
         opt_einsum = kwargs.get("opt_einsum", True)
 
         if opt_einsum:
@@ -53,16 +47,13 @@ class EOM_DSRG:
             self.einsum_type = "True"
 
         mo_spaces = kwargs.get("mo_spaces", None)
-
         self.guess = kwargs.get("guess", "ones")
-
         self.sequential_ortho = kwargs.get("sequential_ortho", True)
         self.blocked_ortho = kwargs.get("blocked_ortho", True)
         self.first_row = kwargs.get("first_row", False)
 
         # Initialize MO symmetry information
         self._initialize_mo_symmetry(mo_spaces)
-
         # Set system sizes
         self.ncore = len(self.core_sym)
         self.nocc = len(self.occ_sym)
