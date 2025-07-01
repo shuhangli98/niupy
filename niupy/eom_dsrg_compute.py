@@ -34,9 +34,7 @@ for module_name in optional_modules:
 
 import numpy as np
 import copy
-from pyscf import lib
-
-davidson = lib.linalg_helper.davidson1
+from .lib.davidson import DavidsonLiuSolver
 
 
 def kernel_full(eom_dsrg, sequential=True):
@@ -98,36 +96,38 @@ def kernel(eom_dsrg):
         spec_info: Computed oscillator strengths for cvs_ee method, spectroscopic factors for ip method.
     """
 
-    davidson_verbose = 3
-    if eom_dsrg.verbose > 3:
-        davidson_verbose = 6
-
     cput0 = (logger.process_clock(), logger.perf_counter())
     eom_dsrg.log.info("\nStarting Davidson algorithm...")
 
     # Setup Davidson algorithm
-    apply_M, precond, x0, nop = setup_davidson(eom_dsrg)
+    precond, x0, nop, northo = setup_davidson(eom_dsrg)
     eom_dsrg.log.timer0("Davidson setup", *cput0)
 
-    # Davidson algorithm
     cput1 = (logger.process_clock(), logger.perf_counter())
-
     available_memory = get_available_memory() * 1e-6  # MB
-
     eom_dsrg.log.info("Available memory: %.2f GB", available_memory * 1e-3)
 
-    conv, e, u = davidson(
-        lambda xs: [apply_M(x) for x in xs],
-        x0,
-        precond,
-        max_memory=available_memory,  # MB
-        nroots=eom_dsrg.nroots,
-        verbose=davidson_verbose,
-        max_space=eom_dsrg.max_space,
-        max_cycle=eom_dsrg.max_cycle,
-        tol=eom_dsrg.tol_e,
-        tol_residual=eom_dsrg.tol_davidson,
+    # Define sigma builder function
+    def sigma_builder(basis_block: np.ndarray, sigma_block: np.ndarray) -> None:
+        sigma_block[:] = define_effective_hamiltonian(
+            basis_block, eom_dsrg, nop, northo
+        )
+
+    # Davidson algorithm
+    Davidson = DavidsonLiuSolver(
+        size=northo,
+        nroot=eom_dsrg.nroots,
+        basis_per_root=eom_dsrg.basis_per_root,
+        collapse_per_root=eom_dsrg.collapse_per_root,
+        maxiter=eom_dsrg.max_cycle,
+        e_tol=eom_dsrg.e_tol,
+        r_tol=eom_dsrg.r_tol,
+        log_level=eom_dsrg.verbose,
+        sigma_builder=sigma_builder,
+        h_diag=precond,
+        guesses=x0,
     )
+    conv, e, u = Davidson.solve()
     eom_dsrg.log.timer0("Solving eigenvalue problem", *cput1)
 
     return conv, e, u, nop
@@ -296,11 +296,9 @@ def calculate_norms(current_vec_dict):
 
 
 def get_original_basis_evecs(eom_dsrg, u, nop, ea=False):
-    eigvec = np.array(
-        [eom_dsrg.apply_S12(eom_dsrg, nop, vec, transpose=False).flatten() for vec in u]
-    ).T
+    eigvec = eom_dsrg.apply_S12(eom_dsrg, nop, u, transpose=False)
     eigvec_dict = antisymmetrize(vec_to_dict(eom_dsrg.full_template_c, eigvec), ea=ea)
-    eigvec = dict_to_vec(eigvec_dict, len(u))
+    eigvec = dict_to_vec(eigvec_dict, u.shape[1])
 
     return eigvec, eigvec_dict
 
@@ -410,10 +408,10 @@ def setup_davidson(eom_dsrg):
         eom_dsrg: Object with method and algorithm-specific parameters.
 
     Returns:
-        apply_M: Function that applies the effective Hamiltonian.
         precond: Preconditioner vector.
         guess: Initial guess vectors.
         nop: Dimension size.
+        northo: Dimension of orthogonal space.
     """
     eom_dsrg.Hbar = np.load(f"{eom_dsrg.file_dir}/save_Hbar.npz")
     if "cvs" in eom_dsrg.method_type:
@@ -473,64 +471,13 @@ def setup_davidson(eom_dsrg):
 
     northo = len(precond)
     nop = dict_to_vec(eom_dsrg.full_template_c, 1).shape[0]
-    apply_M = lambda x: define_effective_hamiltonian(x, eom_dsrg, nop, northo)
 
-    if eom_dsrg.guess == "singles":
-        eom_dsrg.log.info("Computing guess vectors from single excitations...")
-        assert eom_dsrg.method_type == "cvs_ee"
-        driver = cvs_ee_eom_dsrg_subspace.driver
-        heff, ovlp = driver(
-            eom_dsrg.Hbar,
-            eom_dsrg.delta,
-            eom_dsrg.gamma1,
-            eom_dsrg.eta1,
-            eom_dsrg.lambda2,
-            eom_dsrg.lambda3,
-            eom_dsrg.lambda4,
-            eom_dsrg.nops_sub,
-            eom_dsrg.slices_sub,
-            eom_dsrg.nmos,
-        )
-
-        singles = [
-            tensor_label_to_full_tensor_label(_) for _ in eom_dsrg.single_space_sub
-        ]
-        composite = [
-            [tensor_label_to_full_tensor_label(_) for _ in __]
-            for __ in eom_dsrg.composite_space_sub
-        ]
-
-        guess_evals, guess_evecs = eigh_gen_composite(
-            heff,
-            ovlp,
-            singles,
-            composite,
-            eom_dsrg.slices_sub,
-            eom_dsrg.tol_s,
-            eom_dsrg.tol_semi,
-            sequential=eom_dsrg.sequential_ortho,
-        )
-
-        dict_template_short = {}
-        for kt in eom_dsrg.slices_sub.keys():
-            half_kt = len(kt) // 2
-            new_key = kt[half_kt:] + kt[:half_kt]
-            dict_template_short[new_key] = eom_dsrg.full_template_c[new_key].copy()
-        guess_evecs_dict = full_vec_to_dict_short(
-            eom_dsrg.full_template_c,
-            dict_template_short,
-            eom_dsrg.slices_sub,
-            guess_evecs[:, : eom_dsrg.nroots],
-            eom_dsrg.nmos,
-        )
-
-        pickle.dump(guess_evecs_dict, open(f"niupy_save.pkl", "wb"))
+    if eom_dsrg.guess == "read":
         x0 = read_guess_vectors(eom_dsrg, nop, northo)
-        # raise NotImplementedError
     elif eom_dsrg.guess == "ones":
         x0 = compute_guess_vectors(eom_dsrg, precond)
 
-    return apply_M, precond, x0, nop
+    return precond, x0, nop, northo
 
 
 def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
@@ -546,14 +493,14 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
         Function that applies the effective Hamiltonian to a vector.
     """
 
-    # nop and northo include the first row/column
     cput0 = (logger.process_clock(), logger.perf_counter())
+    ncol = x.shape[1]
     Xt = eom_dsrg.apply_S12(eom_dsrg, nop, x, transpose=False)
     eom_dsrg.log.timer_debug("Time for apply S^{1/2}", *cput0)
 
     if eom_dsrg.method_type == "cvs_ee":
         cpu1 = (logger.process_clock(), logger.perf_counter())
-        Xt_small = np.zeros((eom_dsrg.Hsmall.shape[0], 1))
+        Xt_small = np.zeros((eom_dsrg.Hsmall.shape[0], ncol))
         i_start = 0
         for i in eom_dsrg.small_space:
             new_key = i[len(i) // 2 :] + i[: len(i) // 2]
@@ -561,7 +508,7 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
             Xt_small[i_start : i_start + temp.shape[0], :] = temp
             i_start += temp.shape[0]
         HXt_small = eom_dsrg.Hsmall @ Xt_small
-        HXt_small_dict = vec_to_dict(eom_dsrg.small_dict, HXt_small.reshape(-1, 1))
+        HXt_small_dict = vec_to_dict(eom_dsrg.small_dict, HXt_small)
         eom_dsrg.log.timer_debug("Time for Hsmall * C", *cpu1)
 
     Xt_dict = vec_to_dict(eom_dsrg.full_template_c, Xt)
@@ -585,9 +532,8 @@ def define_effective_hamiltonian(x, eom_dsrg, nop, northo, ea=False):
         for key in HXt_small_dict.keys():
             HXt_dict[key] += HXt_small_dict[key]
 
-    HXt = dict_to_vec(HXt_dict, 1).flatten()
+    HXt = dict_to_vec(HXt_dict, ncol)
     XHXt = eom_dsrg.apply_S12(eom_dsrg, northo, HXt, transpose=True)
-    XHXt = XHXt.flatten()
     eom_dsrg.log.timer_debug("Total time for S^{1/2}HS^{1/2}C", *cput0)
     return XHXt
 
@@ -631,6 +577,8 @@ def read_guess_vectors(eom_dsrg, nops, northo, ea=False):
         XHXt = XHXt.flatten()
         x0s.append(XHXt)
 
+        x0s = np.asarray(x0s).T  # Convert to 2D array
+
     return x0s
 
 
@@ -644,7 +592,7 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
         ascending (bool): Whether to sort the preconditioner in ascending order.
 
     Returns:
-        List of initial guess vectors.
+        Initial guess vectors (2d-array).
     """
     sort_ind = np.argsort(precond) if ascending else np.argsort(precond)[::-1]
 
@@ -655,10 +603,7 @@ def compute_guess_vectors(eom_dsrg, precond, ascending=True):
     x0 = np.zeros((precond.shape[0], eom_dsrg.nroots))
     x0[sort_ind] = x0s.copy()
 
-    x0s = []
-    for p in range(x0.shape[1]):
-        x0s.append(x0[:, p])
-    return x0s
+    return x0
 
 
 def get_templates(eom_dsrg, nlow=1):

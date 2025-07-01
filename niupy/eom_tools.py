@@ -872,10 +872,11 @@ def generate_preconditioner(
 def generate_apply_S12(single_space, composite_space, first_row=True):
     code_block = [
         f"def apply_S12(eom_dsrg, ndim, t, transpose=False):",
-        f"    Xt = np.zeros((ndim, 1))",
+        f"    nroots = t.shape[1]",
+        f"    Xt = np.zeros((ndim, nroots))",
         f"    i_start_xt = {'1' if first_row else '0'}",
         f"    i_start_t = {'1' if first_row else '0'}",
-        f"{'    Xt[0, 0] = t[0]' if first_row else ''}",
+        f"{'    Xt[0, :nroots] = t[0, :nroots]' if first_row else ''}",
         f"    template = eom_dsrg.template_c",
     ]
     for key in single_space:
@@ -890,8 +891,9 @@ def generate_apply_S12(single_space, composite_space, first_row=True):
                     f"    num_op, num_ortho = len(eom_dsrg.S12.{key}), np.max(eom_dsrg.S12.{key}).astype(int)",
                     f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
                     f"    s12 = eom_dsrg.S12.{key}.copy()",
+                    f"    t_block = t[i_start_t:i_end_t, :]",
                     f"    if not transpose:",
-                    f"        Xt_part = np.zeros(num_op)",
+                    f"        Xt_part = np.zeros((num_op, nroots))",
                     f"        pos = s12 > 0",
                     f"        neg = s12 < 0",
                 ]
@@ -905,14 +907,14 @@ def generate_apply_S12(single_space, composite_space, first_row=True):
             if anti_up or anti_down:
                 code_block.extend(
                     [
-                        f"        Xt_part[pos] = {factor} * t[i_start_t + s12[pos].astype(int) -1] if pos.any() else 0",
-                        f"        Xt_part[neg] = -{factor} * t[i_start_t - s12[neg].astype(int) - 1] if neg.any() else 0",
+                        f"        Xt_part[pos, :] = {factor} * t[i_start_t + s12[pos].astype(int) -1, :] if pos.any() else 0",
+                        f"        Xt_part[neg, :] = -{factor} * t[i_start_t - s12[neg].astype(int) - 1, :] if neg.any() else 0",
                     ]
                 )
             else:
                 code_block.extend(
                     [
-                        f"        Xt_part = t[i_start_t:i_end_t].copy()",
+                        f"        Xt_part = t_block.copy()",
                     ]
                 )
 
@@ -921,23 +923,25 @@ def generate_apply_S12(single_space, composite_space, first_row=True):
             if anti_up or anti_down:
                 code_block.extend(
                     [
-                        f"        flat_t = t[i_start_t:i_end_t].copy()",
                         f"        mask = s12 != 0",
-                        f"        indices = np.abs(s12[mask]) - 1",
-                        f"        Xt_part = np.bincount(indices.astype(int), {factor}*np.sign(s12[mask])*flat_t[mask], minlength=num_ortho) if mask.any() else np.zeros(num_ortho)",
-                        f"        del flat_t, mask, indices",
+                        f"        sgn = np.sign(s12[mask])",
+                        f"        indices = np.abs(s12[mask]).astype(int) - 1",
+                        f"        Xt_part = np.zeros((num_ortho, nroots))",
+                        f"        for j in range(nroots):",
+                        f"            Xt_part[:,j] = np.bincount(indices, {factor}*sgn*t_block[mask, j], minlength=num_ortho)",
+                        f"        del mask, indices",
                     ]
                 )
             else:
                 code_block.extend(
                     [
-                        f"        Xt_part = t[i_start_t:i_end_t].copy()",
+                        f"        Xt_part = t_block.copy()",
                     ]
                 )
 
             code_block.extend(
                 [
-                    f"    Xt[i_start_xt:i_end_xt, :] = Xt_part.reshape(-1, 1)",
+                    f"    Xt[i_start_xt:i_end_xt, :] = Xt_part",
                     f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
                 ]
             )
@@ -964,59 +968,71 @@ def generate_apply_S12(single_space, composite_space, first_row=True):
                     f"    # --- {key} Block ---",
                     f"    s12 = eom_dsrg.S12.position_{key}.copy()",
                     f"    nocc, nact, nvir = template['{key}'].shape[{space_order['noact']+1}], template['{key}'].shape[{space_order['act']+1}], template['{key}'].shape[3]",
-                    f"    row, col = eom_dsrg.S12.{key}.shape[0], eom_dsrg.S12.{key}.shape[1]",
+                    f"    row, col = eom_dsrg.S12.{key}.shape",
                     f"    num_positions = len(s12)",
                     f"    num_op, num_ortho = row * num_positions, col * np.max(s12).astype(int)",
                     f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
-                    f"    temp_t = t[i_start_t:i_end_t].copy()",
-                    f"    temp_xt = np.zeros((num_positions, row)) if not transpose else np.zeros((np.max(s12).astype(int), col))",
+                    f"    temp_t = t[i_start_t:i_end_t, :].copy()",
                     f"    pos = s12 > 0",
                     f"    neg = s12 < 0",
                     f"    if not transpose:",
-                    f"        temp_t = temp_t.reshape((np.max(s12).astype(int), col))",
+                    f"        temp_t = temp_t.reshape((np.max(s12).astype(int), col, nroots))",
+                    f"        temp_xt = np.zeros((num_positions, row, nroots))",
                 ]
             )
             if anti:
                 code_block.extend(
                     [
-                        f"        temp_xt[pos, :] = 0.5 * np.dot(eom_dsrg.S12.{key}, temp_t[s12[pos].astype(int) -1, :].T).T",
-                        f"        temp_xt[neg, :] = -0.5 * np.dot(eom_dsrg.S12.{key}, temp_t[-s12[neg].astype(int) -1, :].T).T",
+                        f"        if pos.any():",
+                        f"            pos_idx = s12[pos].astype(int) - 1",
+                        f"            temp_xt[pos, :, :] = 0.5 * np.einsum('rc,kcn->krn', eom_dsrg.S12.{key}, temp_t[pos_idx, :, :], optimize = True)",
+                        f"        if neg.any():",
+                        f"            neg_idx = -s12[neg].astype(int) - 1",
+                        f"            temp_xt[neg, :, :] = -0.5 * np.einsum('rc,kcn->krn', eom_dsrg.S12.{key}, temp_t[neg_idx, :, :], optimize = True)",
                     ]
                 )
             else:
                 code_block.extend(
                     [
-                        f"        temp_xt[pos, :] = np.dot(eom_dsrg.S12.{key}, temp_t[s12[pos].astype(int) -1, :].T).T",
+                        f"        if pos.any():",
+                        f"            pos_idx = s12[pos].astype(int) - 1",
+                        f"            temp_xt[pos, :, :] = np.einsum('rc,kcn->krn', eom_dsrg.S12.{key}, temp_t[pos_idx, :, :], optimize = True)",
                     ]
                 )
             code_block.extend(
                 [
-                    f"        temp_xt = temp_xt.flatten()",
-                    f"        temp_xt = temp_xt.reshape(nocc, nvir, nvir, nact, 1)",
-                    f"        temp_xt = np.transpose(temp_xt, axes=(*{reorder_back}, 4))",
-                    f"        temp_xt = temp_xt.reshape(-1, 1)",
+                    f"        temp_xt = temp_xt.reshape(nocc, nvir, nvir, nact, nroots)",
+                    f"        temp_xt = np.transpose(temp_xt, (*{reorder_back}, 4))",
+                    f"        Xt[i_start_xt:i_end_xt, :] = temp_xt.reshape(-1, nroots)",
                     f"    else:",
-                    f"        temp_t = temp_t.reshape(*template['{key}'].shape[1:])",
-                    f"        temp_t = temp_t.transpose(*{reorder_temp})",
-                    f"        temp_t = temp_t.reshape(-1, row)",
+                    f"        temp_t = temp_t.reshape(*template['{key}'].shape[1:], nroots)",
+                    f"        temp_t = temp_t.transpose(*{reorder_temp}, 4)",
+                    f"        temp_t = temp_t.reshape(-1, row, nroots)",
+                    f"        temp_xt = np.zeros((np.max(s12).astype(int), col, nroots))",
                 ]
             )
             if anti:
                 code_block.extend(
                     [
-                        f"        temp_xt[s12[pos].astype(int) -1, :] += 0.5 * np.dot(eom_dsrg.S12.{key}.T, temp_t[pos, :].T).T",
-                        f"        temp_xt[-s12[neg].astype(int) -1, :] += -0.5 * np.dot(eom_dsrg.S12.{key}.T, temp_t[neg, :].T).T",
+                        f"        if pos.any():",
+                        f"            pos_idx = s12[pos].astype(int) - 1",
+                        f"            temp_xt[pos_idx, :, :] += 0.5 * np.einsum('cr,krn->kcn', eom_dsrg.S12.{key}.T, temp_t[pos, :, :], optimize = True)",
+                        f"        if neg.any():",
+                        f"            neg_idx = -s12[neg].astype(int) - 1",
+                        f"            temp_xt[neg_idx, :, :] += -0.5 * np.einsum('cr,krn->kcn', eom_dsrg.S12.{key}.T, temp_t[neg, :, :], optimize = True)",
                     ]
                 )
             else:
                 code_block.extend(
                     [
-                        f"        temp_xt[s12[pos].astype(int) -1, :] += np.dot(eom_dsrg.S12.{key}.T, temp_t[pos, :].T).T",
+                        f"        if pos.any():",
+                        f"            pos_idx = s12[pos].astype(int) - 1",
+                        f"            temp_xt[pos_idx, :, :] += np.einsum('cr,krn->kcn', eom_dsrg.S12.{key}.T, temp_t[pos, :, :], optimize = True)",
                     ]
                 )
             code_block.extend(
                 [
-                    f"    Xt[i_start_xt:i_end_xt, :] = temp_xt.reshape(-1, 1).copy()",
+                    f"        Xt[i_start_xt:i_end_xt, :] = temp_xt.reshape(-1, nroots)",
                     f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
                 ]
             )
@@ -1025,7 +1041,7 @@ def generate_apply_S12(single_space, composite_space, first_row=True):
                 [
                     f"    num_op, num_ortho = eom_dsrg.S12.{key}.shape",
                     f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
-                    f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{key} @ t[i_start_t:i_end_t].reshape(-1, 1) if not transpose else eom_dsrg.S12.{key}.T @ t[i_start_t:i_end_t].reshape(-1, 1))",
+                    f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{key} @ t[i_start_t:i_end_t, :] if not transpose else eom_dsrg.S12.{key}.T @ t[i_start_t:i_end_t, :])",
                     f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
                 ]
             )
@@ -1034,7 +1050,7 @@ def generate_apply_S12(single_space, composite_space, first_row=True):
             [
                 f"    num_op, num_ortho = eom_dsrg.S12.{space[0]}.shape",
                 f"    i_end_xt, i_end_t = i_start_xt + (num_op if not transpose else num_ortho), i_start_t + (num_ortho if not transpose else num_op)",
-                f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{space[0]} @ t[i_start_t:i_end_t].reshape(-1, 1) if not transpose else eom_dsrg.S12.{space[0]}.T @ t[i_start_t:i_end_t].reshape(-1, 1))",
+                f"    Xt[i_start_xt:i_end_xt, :] += (eom_dsrg.S12.{space[0]} @ t[i_start_t:i_end_t, :] if not transpose else eom_dsrg.S12.{space[0]}.T @ t[i_start_t:i_end_t, :])",
                 f"    i_start_xt, i_start_t = i_end_xt, i_end_t",
             ]
         )

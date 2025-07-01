@@ -25,10 +25,11 @@ class EOM_DSRG:
         log.info(f"Running file dir: {self.file_dir}")
 
         # Set defaults
-        self.tol_e = kwargs.get("tol_e", 1e-8)
-        self.max_space = kwargs.get("max_space", 100)
+        self.e_tol = kwargs.get("e_tol", 1e-10)
+        self.r_tol = kwargs.get("r_tol", 1e-6)
+        self.basis_per_root = kwargs.get("basis_per_root", 4)
+        self.collapse_per_root = kwargs.get("collapse_per_root", 2)
         self.max_cycle = kwargs.get("max_cycle", 100)
-        self.tol_davidson = kwargs.get("tol_davidson", 1e-5)
         self.tol_s = kwargs.get("tol_s", 1e-10)
         self.tol_semi = kwargs.get("tol_semi", 1e-6)
         self.nroots = kwargs.get("nroots", 6)

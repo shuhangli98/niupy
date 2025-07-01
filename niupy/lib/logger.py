@@ -163,6 +163,19 @@ def niupy_header(self):
     self.info("\n\n" + "\n\n".join(lines) + "\n")
 
 
+def davidson_header(self):
+    width = 80
+    center = lambda text: text.center(width)
+
+    lines = [
+        "-" * width,
+        center("Davidson-Liu solver"),
+        "-" * width,
+    ]
+
+    self.info("\n\n" + "\n\n".join(lines) + "\n")
+
+
 class Logger:
     """
     Attributes:
@@ -189,6 +202,7 @@ class Logger:
     timer = timer
     timer_debug = timer_debug
     niupy_header = niupy_header
+    davidson_header = davidson_header
 
 
 def new_logger(rec=None, verbose=None):
