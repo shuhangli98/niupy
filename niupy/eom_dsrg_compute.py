@@ -355,7 +355,9 @@ def assign_spatial_symmetry(eom_dsrg, current_vec):
     if all(eom_dsrg.sym_vec[index] == first_value for index in large_indices):
         return first_value ^ eom_dsrg.ref_sym
     else:
-        irreps = np.array(set(eom_dsrg.sym_vec[index] for index in large_indices))
+        irreps = np.asarray(
+            list(set(eom_dsrg.sym_vec[index] for index in large_indices))
+        )
         if len(irreps) > 2:
             return "Incorrect symmetry"
         else:
