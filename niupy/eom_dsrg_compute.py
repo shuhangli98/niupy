@@ -466,8 +466,13 @@ def setup_davidson(eom_dsrg):
 
     # Compute Preconditioner
     cput2 = (logger.process_clock(), logger.perf_counter())
-    precond = eom_dsrg.compute_preconditioner(eom_dsrg)
-    np.save(f"{eom_dsrg.file_dir}/precond", precond)
+    if eom_dsrg.diagonal_type == "compute":
+        eom_dsrg.log.info("Computing preconditioner...")
+        precond = eom_dsrg.compute_preconditioner(eom_dsrg)
+        np.save(f"{eom_dsrg.file_dir}/precond", precond)
+    elif eom_dsrg.diagonal_type == "read":
+        eom_dsrg.log.info("Reading preconditioner from file...")
+        precond = np.load(f"{eom_dsrg.file_dir}/precond.npy")
     eom_dsrg.log.info(f"length of precond: {len(precond)}")
     eom_dsrg.log.timer0("Preconditioner computation", *cput2)
 

@@ -25,8 +25,8 @@ class EOM_DSRG:
         log.info(f"Running file dir: {self.file_dir}")
 
         # Set defaults
-        self.e_tol = kwargs.get("e_tol", 1e-10)
-        self.r_tol = kwargs.get("r_tol", 1e-6)
+        self.e_tol = kwargs.get("e_tol", 1e-8)
+        self.r_tol = kwargs.get("r_tol", 1e-5)
         self.basis_per_root = kwargs.get("basis_per_root", 4)
         self.collapse_per_root = kwargs.get("collapse_per_root", 2)
         self.max_cycle = kwargs.get("max_cycle", 100)
