@@ -363,7 +363,7 @@ def assign_spatial_symmetry(eom_dsrg, current_vec):
         else:
             if irreps[0] ^ irreps[1] == 1:
                 # this means that it is a mixture of En(g/u)x and En(g/u)y irreps in Dinfh or Cinfv
-                return irreps ^ eom_dsrg.ref_sym
+                return (irreps ^ eom_dsrg.ref_sym).tolist()
             else:
                 return "Incorrect symmetry"
 
