@@ -20,6 +20,7 @@ eom_dsrg = niupy.EOM_DSRG(
 )
 
 
+@pytest.mark.cvs_ee
 def test_niupy_full():
     eom_dsrg.kernel_full()
 
@@ -37,6 +38,7 @@ def test_niupy_full():
     assert p[3] == pytest.approx(0.04296089, abs=1e-8)
 
 
+@pytest.mark.cvs_ee
 def test_niupy():
     eom_dsrg.kernel()
 
