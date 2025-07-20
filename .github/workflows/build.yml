@@ -139,17 +139,28 @@ jobs:
         export AMBITPATH=$HOME/bin/ambit
         export PATH=$PATH:$HOME/psi4/objdir/stage/bin
         cd $HOME/work/niupy/niupy/tests
+        export OPENBLAS_NUM_THREADS=1
         cd cvs_ip/h2o && psi4 input.dat -o stdout
         cd ../../ip/beh2 && psi4 input.dat -o stdout
 
     - name: Run psi4 in cvs_ee (schedule only)
       if: github.event_name == 'schedule'
       run: |
+        export PYTHONPATH=$PYTHONPATH:$HOME/psi4/objdir/stage/lib:$HOME/bin/ambit/lib:$PYTHONPATH:$HOME/forte
+        export AMBITPATH=$HOME/bin/ambit
+        export PATH=$PATH:$HOME/psi4/objdir/stage/bin
+        cd $HOME/work/niupy/niupy/tests
+        export OPENBLAS_NUM_THREADS=1
         cd $HOME/work/niupy/niupy/tests/cvs_ee/h2o
         psi4 input.dat -o stdout
     
     - name: Run pytest (skip cvs_ee unless scheduled)
       run: |
+        export PYTHONPATH=$PYTHONPATH:$HOME/psi4/objdir/stage/lib:$HOME/bin/ambit/lib:$PYTHONPATH:$HOME/forte
+        export AMBITPATH=$HOME/bin/ambit
+        export PATH=$PATH:$HOME/psi4/objdir/stage/bin
+        cd $HOME/work/niupy/niupy/tests
+        export OPENBLAS_NUM_THREADS=1
         cd $HOME/work/niupy/niupy/tests
         if [ "${{ github.event_name }}" == "schedule" ]; then
           pytest -v
