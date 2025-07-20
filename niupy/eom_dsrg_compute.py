@@ -152,9 +152,15 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
         eom_dsrg.Mbar = [None, None, None]
 
     # Get spin multiplicity and process eigenvectors
+    eom_dsrg.log.info("\nAnalyzing eigenvectors...")
     excitation_analysis = find_top_values(eigvec_dict, 3)
     for key, values in excitation_analysis.items():
-        eom_dsrg.log.info(f"Top values for {key}: {values}")
+        eom_dsrg.log.info(f"\nTop values for root {key+1}:")
+        for idx, (val, indices, array_key) in enumerate(values, 1):
+            indices = tuple(int(i) for i in indices)
+            eom_dsrg.log.info(
+                f"  {idx}. Value: {val:.6f}, Indices: {indices}, Key: {array_key}"
+            )
 
     spin = []
     symmetry = []
@@ -166,6 +172,16 @@ def post_process(eom_dsrg, e, eigvec, eigvec_dict, skip_spec=False):
         )
         spin.append(assign_spin_multiplicity(eom_dsrg, current_vec_dict))
         symmetry.append(assign_spatial_symmetry(eom_dsrg, current_vec))
+
+        if eom_dsrg.method_type == "cvs_ip":
+            if i_idx == 0:
+                eom_dsrg.log.info("\nNorms:")
+            # Norm of 'I' component
+            single_norm = np.linalg.norm(current_vec_dict["I"])
+            double_norm = 1 - single_norm
+            eom_dsrg.log.info(
+                f"Single norm: {single_norm:.2f}, Double norm: {double_norm:.2f}"
+            )
 
     del eom_dsrg.Hbar
 
@@ -369,6 +385,7 @@ def assign_spatial_symmetry(eom_dsrg, current_vec):
 
 
 def find_top_values(data, num):
+    # Data is a dictionary
     random_key = next(iter(data))
     num_slices = data[random_key].shape[0]
     results = {i: [] for i in range(num_slices)}

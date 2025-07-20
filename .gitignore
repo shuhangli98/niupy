@@ -32,13 +32,16 @@ backup*
 out
 out*
 
+# NiuPy
+contraction_analysis/
+Experiment/
 personal_test/
-H2O/
-H2O_Prism/
-BeH2/
-CO/
 for_Brian/
-cvs_ee_eom_dsrg.py
+cvs*.py
+ip*.py
+*.npz
+*.npy
+*.pkl
 .DS_Store
 backup/
 
