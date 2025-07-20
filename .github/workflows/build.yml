@@ -135,15 +135,18 @@ jobs:
 
     - name: Run psi4 in cvs_ip and ip
       run: |
+        export PYTHONPATH=$PYTHONPATH:$HOME/psi4/objdir/stage/lib:$HOME/bin/ambit/lib:$PYTHONPATH:$HOME/work/forte/forte
+        export AMBITPATH=$HOME/bin/ambit
+        export PATH=$PATH:$HOME/psi4/objdir/stage/bin
         cd $HOME/work/niupy/niupy/tests
-        cd cvs_ip && psi4 input.dat
-        cd ../ip && psi4 input.dat
+        cd cvs_ip && psi4 input.dat -o stdout
+        cd ../ip && psi4 input.dat -o stdout
 
     - name: Run psi4 in cvs_ee (schedule only)
       if: github.event_name == 'schedule'
       run: |
         cd $HOME/work/niupy/niupy/tests/cvs_ee
-        psi4 input.dat
+        psi4 input.dat -o stdout
     
     - name: Run pytest (skip cvs_ee unless scheduled)
       run: |

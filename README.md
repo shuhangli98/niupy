@@ -5,7 +5,7 @@ NiuPy is a Python-based package of multireference electronic structure theories 
 
 # How to install
 ## Requirements
-- python=3.10
+- Python=3.10
 - Forte
 - Wick&d
 - Optional: [opt_einsum](https://optimized-einsum.readthedocs.io/en/stable/)
