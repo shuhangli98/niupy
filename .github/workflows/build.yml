@@ -42,7 +42,7 @@ jobs:
       with:
         path: |
           ~/bin/ambit
-        key: ${{ runner.os }}-${{ runner.arch }}-ambit-${{ steps.get-ambit-key.outputs.key }}
+        key: ${{ runner.os }}-${{ runner.arch }}-ambit-${{ steps.get-ambit-key.outputs.key }}-v2
 
     - name: Install ambit
       if: steps.cache-restore-ambit.outputs.cache-hit != 'true'
@@ -76,7 +76,7 @@ jobs:
       with:
         path: |
           ~/psi4
-        key: ${{ runner.os }}-${{ runner.arch }}-psi4-${{ steps.get-psi4-key.outputs.key }}
+        key: ${{ runner.os }}-${{ runner.arch }}-psi4-${{ steps.get-psi4-key.outputs.key }}-v2
       
     - name: Compile Psi4
       if: steps.cache-restore-psi4.outputs.cache-hit != 'true'
