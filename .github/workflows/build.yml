@@ -135,19 +135,19 @@ jobs:
 
     - name: Run psi4 in cvs_ip and ip
       run: |
-        cd $HOME/work/niupy/tests
+        cd $HOME/work/niupy/niupy/tests
         cd cvs_ip && psi4 input.dat
         cd ../ip && psi4 input.dat
 
     - name: Run psi4 in cvs_ee (schedule only)
       if: github.event_name == 'schedule'
       run: |
-        cd $HOME/work/niupy/tests/cvs_ee
+        cd $HOME/work/niupy/niupy/tests/cvs_ee
         psi4 input.dat
     
     - name: Run pytest (skip cvs_ee unless scheduled)
       run: |
-        cd $HOME/work/niupy/tests
+        cd $HOME/work/niupy/niupy/tests
         if [ "${{ github.event_name }}" == "schedule" ]; then
           pytest -v
         else
