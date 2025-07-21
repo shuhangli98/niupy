@@ -6,6 +6,7 @@ import numpy as np
 import os, sys
 from niupy.code_generator import cvs_ee, ip, cvs_ip
 import inspect
+import importlib
 
 
 class EOM_DSRG:
@@ -87,6 +88,8 @@ class EOM_DSRG:
 
         # Initialize templates and sigma vectors
         import niupy.eom_dsrg_compute as eom_dsrg_compute
+
+        importlib.reload(eom_dsrg_compute)
 
         self.eom_dsrg_compute = eom_dsrg_compute
         self.template_c, self.full_template_c = self.eom_dsrg_compute.get_templates(
