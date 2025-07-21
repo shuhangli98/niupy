@@ -42,7 +42,7 @@ jobs:
       with:
         path: |
           ~/bin/ambit
-        key: ${{ runner.os }}-${{ runner.arch }}-ambit-${{ steps.get-ambit-key.outputs.key }}
+        key: ${{ runner.os }}-${{ runner.arch }}-cambit-${{ steps.get-ambit-key.outputs.key }}
 
     - name: Install ambit
       if: steps.cache-restore-ambit.outputs.cache-hit != 'true'
@@ -62,7 +62,7 @@ jobs:
       with:
         path: |
           ~/bin/ambit
-        key: ${{ runner.os }}-${{ runner.arch }}-ambit-${{ steps.get-ambit-key.outputs.key }}
+        key: ${{ runner.os }}-${{ runner.arch }}-cambit-${{ steps.get-ambit-key.outputs.key }}
     
     - name: Get Psi4 cache key
       id: get-psi4-key
@@ -76,7 +76,7 @@ jobs:
       with:
         path: |
           ~/psi4
-        key: ${{ runner.os }}-${{ runner.arch }}-psi4-${{ steps.get-psi4-key.outputs.key }}
+        key: ${{ runner.os }}-${{ runner.arch }}-cpsi4-${{ steps.get-psi4-key.outputs.key }}
       
     - name: Compile Psi4
       if: steps.cache-restore-psi4.outputs.cache-hit != 'true'
@@ -95,7 +95,7 @@ jobs:
       with:
         path: |
           ~/psi4
-        key: ${{ runner.os }}-${{ runner.arch }}-psi4-${{ steps.get-psi4-key.outputs.key }}
+        key: ${{ runner.os }}-${{ runner.arch }}-cpsi4-${{ steps.get-psi4-key.outputs.key }}
 
     - name: Compile Forte
       id: compile-forte
@@ -132,3 +132,38 @@ jobs:
       run: |
         cd $HOME/work/niupy/niupy
         pip install -e .
+
+    - name: Run psi4 in cvs_ip and ip
+      run: |
+        export PYTHONPATH=$PYTHONPATH:$HOME/psi4/objdir/stage/lib:$HOME/bin/ambit/lib:$PYTHONPATH:$HOME/forte
+        export AMBITPATH=$HOME/bin/ambit
+        export PATH=$PATH:$HOME/psi4/objdir/stage/bin
+        cd $HOME/work/niupy/niupy/tests
+        export OPENBLAS_NUM_THREADS=1
+        cd cvs_ip/h2o && psi4 input.dat -o stdout
+        cd ../../ip/beh2 && psi4 input.dat -o stdout
+
+    - name: Run psi4 in cvs_ee (schedule only)
+      if: github.event_name == 'schedule'
+      run: |
+        export PYTHONPATH=$PYTHONPATH:$HOME/psi4/objdir/stage/lib:$HOME/bin/ambit/lib:$PYTHONPATH:$HOME/forte
+        export AMBITPATH=$HOME/bin/ambit
+        export PATH=$PATH:$HOME/psi4/objdir/stage/bin
+        cd $HOME/work/niupy/niupy/tests
+        export OPENBLAS_NUM_THREADS=1
+        cd $HOME/work/niupy/niupy/tests/cvs_ee/h2o
+        psi4 input.dat -o stdout
+    
+    - name: Run pytest (skip cvs_ee unless scheduled)
+      run: |
+        export PYTHONPATH=$PYTHONPATH:$HOME/psi4/objdir/stage/lib:$HOME/bin/ambit/lib:$PYTHONPATH:$HOME/forte
+        export AMBITPATH=$HOME/bin/ambit
+        export PATH=$PATH:$HOME/psi4/objdir/stage/bin
+        cd $HOME/work/niupy/niupy/tests
+        export OPENBLAS_NUM_THREADS=1
+        cd $HOME/work/niupy/niupy/tests
+        if [ "${{ github.event_name }}" == "schedule" ]; then
+          pytest -v
+        else
+          pytest -v -m "not cvs_ee"
+        fi
