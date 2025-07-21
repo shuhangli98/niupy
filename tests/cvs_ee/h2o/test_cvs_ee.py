@@ -1,27 +1,32 @@
 import pytest
 import niupy
 
-mo_spaces = {
-    "FROZEN_DOCC": [1, 0, 0, 0],
-    "RESTRICTED_DOCC": [1, 0, 0, 1],
-    "ACTIVE": [2, 0, 1, 1],
-}
 
-eom_dsrg = niupy.EOM_DSRG(
-    opt_einsum=True,
-    mo_spaces=mo_spaces,
-    nroots=4,
-    basis_per_root=50,
-    collapse_per_root=2,
-    max_cycle=200,
-    tol_s=1e-10,
-    tol_semi=1e-5,
-    method_type="cvs_ee",
-)
+def init_molecule():
+    mo_spaces = {
+        "FROZEN_DOCC": [1, 0, 0, 0],
+        "RESTRICTED_DOCC": [1, 0, 0, 1],
+        "ACTIVE": [2, 0, 1, 1],
+    }
+
+    eom_dsrg = niupy.EOM_DSRG(
+        opt_einsum=True,
+        mo_spaces=mo_spaces,
+        nroots=4,
+        basis_per_root=50,
+        collapse_per_root=2,
+        max_cycle=200,
+        tol_s=1e-10,
+        tol_semi=1e-5,
+        method_type="cvs_ee",
+    )
+
+    return eom_dsrg
 
 
 @pytest.mark.cvs_ee
 def test_niupy_full():
+    eom_dsrg = init_molecule()
     eom_dsrg.kernel_full()
 
     e = eom_dsrg.evals
@@ -40,6 +45,7 @@ def test_niupy_full():
 
 @pytest.mark.cvs_ee
 def test_niupy():
+    eom_dsrg = init_molecule()
     eom_dsrg.kernel()
 
     e = eom_dsrg.evals
